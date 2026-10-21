@@ -9,6 +9,8 @@ export interface FootprintItem {
   /** Extent along X and Y in the part's print orientation, mm. */
   x: number;
   y: number;
+  /** How many copies of the part to place (default 1); each gets a placement of its own. */
+  instances?: number;
 }
 
 interface Shelf {
@@ -20,10 +22,12 @@ interface Shelf {
 
 /**
  * Pack footprints into shelves (rows) left to right, front to back, keeping
- * `gap` mm between parts. Each part is turned so its shorter side runs along Y
- * (lower shelves), and turned back when that is what fits the space left in a
- * shelf. The packed block is centred on the bed. Parts that do not fit go to
- * `overflow` and are centred on the bed on their own.
+ * `gap` mm between parts. A part with `instances` copies is packed once per
+ * copy (`Placement.instance` 0 … n − 1). Each part is turned so its shorter
+ * side runs along Y (lower shelves), and turned back when that is what fits
+ * the space left in a shelf. The packed block is centred on the bed. Copies
+ * that do not fit are centred on the bed on their own, and their part's id
+ * goes to `overflow` (once).
  */
 export function layoutParts(
   footprints: readonly FootprintItem[],
@@ -31,20 +35,37 @@ export function layoutParts(
   gap = 10,
 ): Layout {
   const [bedX, bedY] = bed;
-  const items = footprints.map((f) => {
+  const items = footprints.flatMap((f) => {
     // Landscape orientation unless only portrait fits the bed width.
     const rotated = f.x < f.y && f.y <= bedX;
-    return { id: f.id, w: rotated ? f.y : f.x, d: rotated ? f.x : f.y, rotated };
+    const w = rotated ? f.y : f.x;
+    const d = rotated ? f.x : f.y;
+    const copies = Math.max(1, Math.floor(f.instances ?? 1));
+    return Array.from({ length: copies }, (_, instance) => ({ id: f.id, instance, w, d, rotated }));
   });
   // Deepest first; ties keep their input order (Array.prototype.sort is stable).
   const order = [...items].sort((a, b) => b.d - a.d);
 
   const shelves: Shelf[] = [];
   const placed: Placement[] = [];
-  const overflow: string[] = [];
+  const unplaced: typeof items = [];
 
-  const put = (shelf: Shelf, id: string, w: number, d: number, rotated: boolean) => {
-    placed.push({ id, x: shelf.cursor + w / 2, y: shelf.y + d / 2, width: w, depth: d, rotated });
+  const put = (
+    shelf: Shelf,
+    it: (typeof items)[number],
+    w: number,
+    d: number,
+    rotated: boolean,
+  ) => {
+    placed.push({
+      id: it.id,
+      instance: it.instance,
+      x: shelf.cursor + w / 2,
+      y: shelf.y + d / 2,
+      width: w,
+      depth: d,
+      rotated,
+    });
     shelf.cursor += w + gap;
   };
 
@@ -57,7 +78,7 @@ export function layoutParts(
     for (const shelf of shelves) {
       const fit = options.find(([w, d]) => d <= shelf.depth && shelf.cursor + w <= bedX);
       if (fit) {
-        put(shelf, it.id, ...fit);
+        put(shelf, it, ...fit);
         done = true;
         break;
       }
@@ -69,9 +90,9 @@ export function layoutParts(
     if (fit) {
       const shelf: Shelf = { y, depth: fit[1], cursor: 0 };
       shelves.push(shelf);
-      put(shelf, it.id, ...fit);
+      put(shelf, it, ...fit);
     } else {
-      overflow.push(it.id);
+      unplaced.push(it);
     }
   }
 
@@ -85,13 +106,21 @@ export function layoutParts(
     p.x += dx;
     p.y += dy;
   }
-  for (const id of overflow) {
-    const it = items.find((i) => i.id === id)!;
-    placed.push({ id, x: bedX / 2, y: bedY / 2, width: it.w, depth: it.d, rotated: it.rotated });
+  for (const it of unplaced) {
+    placed.push({
+      id: it.id,
+      instance: it.instance,
+      x: bedX / 2,
+      y: bedY / 2,
+      width: it.w,
+      depth: it.d,
+      rotated: it.rotated,
+    });
   }
-  // Report placements in input order.
+  // Report placements in input order, the copies of a part in order.
   const index = new Map(footprints.map((f, i) => [f.id, i]));
-  placed.sort((a, b) => (index.get(a.id) ?? 0) - (index.get(b.id) ?? 0));
+  placed.sort((a, b) => (index.get(a.id) ?? 0) - (index.get(b.id) ?? 0) || a.instance - b.instance);
+  const overflow = [...new Set(unplaced.map((it) => it.id))];
   return { bed: [bed[0], bed[1], bed[2]], placements: placed, overflow };
 }
 

@@ -399,4 +399,57 @@ describe('layoutParts', () => {
     expect(layout.overflow).toEqual([]);
     expect(layout.placements[0]).toMatchObject({ rotated: true, width: 150, depth: 250 });
   });
+
+  it('places every copy of a part with instances on its own, without overlap', () => {
+    const bed = [256, 256, 256] as const;
+    const layout = layoutParts(
+      [
+        { id: 'a', x: 100, y: 60 },
+        { id: 'seg', x: 30, y: 30, instances: 3 },
+        { id: 'b', x: 50, y: 40 },
+      ],
+      bed,
+    );
+    expect(layout.overflow).toEqual([]);
+    // Input order, the copies in order; single parts keep their id (instance 0).
+    expect(layout.placements.map((p) => [p.id, p.instance])).toEqual([
+      ['a', 0],
+      ['seg', 0],
+      ['seg', 1],
+      ['seg', 2],
+      ['b', 0],
+    ]);
+    const all = layout.placements;
+    for (const [i, p] of all.entries()) {
+      expect(inside(p, bed), `${p.id} #${p.instance}`).toBe(true);
+      for (const q of all.slice(i + 1)) {
+        expect(overlaps(p, q, 10), `${p.id} #${p.instance} / ${q.id} #${q.instance}`).toBe(false);
+      }
+    }
+  });
+
+  it('reports a part once in overflow when some of its copies do not fit', () => {
+    const layout = layoutParts([{ id: 'seg', x: 120, y: 120, instances: 5 }], [256, 256, 256]);
+    // Two by two fit the 256 mm bed, the fifth does not.
+    expect(layout.placements).toHaveLength(5);
+    expect(layout.overflow).toEqual(['seg']);
+    expect(layout.placements.map((p) => p.instance)).toEqual([0, 1, 2, 3, 4]);
+  });
+});
+
+describe('assemble (instances)', () => {
+  it.each([
+    ['fused', () => {}],
+    ['split', split],
+  ])('gives every %s part one instance transform, its assembled transform', (_name, edit) => {
+    const a = assemble(project('bambu-a1', edit));
+    for (const part of a.parts) {
+      expect(part.instances, part.id).toBe(1);
+      expect(part.instanceTransforms, part.id).toEqual([part.assembledTransform]);
+    }
+    // One placement per part, under its id.
+    expect(a.layout.placements.map((p) => [p.id, p.instance])).toEqual(
+      a.parts.map((p) => [p.id, 0]),
+    );
+  });
 });
