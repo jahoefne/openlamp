@@ -1,7 +1,8 @@
 # Job `check` typechecks, lints, checks formatting, runs the unit tests, builds
-# every example STL (a watertightness gate, uploaded as the `samples` artifact)
-# and builds the static site on every push and PR; job `deploy` publishes the
-# build to GitHub Pages from main. A later milestone adds e2e tests to `check`.
+# every example STL (a watertightness gate, uploaded as the `samples` artifact),
+# builds the static site and runs the Playwright e2e tests against that build
+# (`vite preview` under the /openlamp/ base) on every push and PR; job `deploy`
+# publishes the build to GitHub Pages from main.
 name: CI
 
 on:
@@ -47,6 +48,32 @@ jobs:
           retention-days: 14
 
       - run: npm run build
+
+      # The Chromium headless shell, cached per lockfile (i.e. per Playwright
+      # version). Its system libraries are not in the cache: install those on
+      # a hit too.
+      - id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps --only-shell chromium
+
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - run: npx playwright test
+        env:
+          CI: true
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
 
       - uses: actions/upload-pages-artifact@v5
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
