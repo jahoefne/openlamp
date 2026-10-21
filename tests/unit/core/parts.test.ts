@@ -186,7 +186,9 @@ describe('a short hub (thick wall, shallow shoulder)', () => {
     );
     // The ledge grew instead of the pocket.
     expect(d.zTop - d.zFloor).toBeCloseTo(d.pocketDepth, 9);
-    expect(d.zFloor - d.zHoleBottom).toBeGreaterThan(params.insert.ledgeThickness);
+    expect(params.insert.kind).toBe('puck');
+    const ledge = params.insert.kind === 'puck' ? params.insert.ledgeThickness : 0;
+    expect(d.zFloor - d.zHoleBottom).toBeGreaterThan(ledge);
   });
 
   it('keeps its belt loops out of the shade collar', () => {

@@ -8,13 +8,18 @@ import {
   CLASSIC_SHADE_DEFS,
   HUB_JOINT_DEFAULTS,
   HUB_JOINT_DEFS,
+  LIGHT_DEFAULTS,
+  LIGHT_DEFS,
+  LIGHT_PARAM_PATHS,
   MOUNT_DEFAULTS,
   MOUNT_DEFS,
   MOUNT_PARAM_PATHS,
   type ClassicShadeKey,
   type ClassicShadeParams,
+  type FlatLightKind,
   type HubJointKey,
   type HubJointParams,
+  type LightParamsByKind,
   type MountKind,
   type MountParamsByKind,
   type ParamDef,
@@ -69,6 +74,15 @@ export function clampToSchema(
   return { values, warnings };
 }
 
+export interface ClassicShadeOptions {
+  /**
+   * The lamp holds the puck the parameters describe (default). Without it (a
+   * bulb or a strip in the hub) the puck's parameters are unused, so the
+   * cross-parameter rules about the puck and its housing are skipped.
+   */
+  puck?: boolean;
+}
+
 /**
  * Normalise classic-shade parameters: `clampToSchema` plus the cross-parameter
  * constraints that keep the shade printable (the shoulder must clear the puck
@@ -76,12 +90,14 @@ export function clampToSchema(
  */
 export function normalizeClassicShade(
   input: Readonly<Partial<Record<ClassicShadeKey, unknown>>> = {},
+  options: ClassicShadeOptions = {},
 ): { values: ClassicShadeParams; warnings: Warning[] } {
   const clamped = clampToSchema(CLASSIC_SHADE_DEFS, input);
   // clampToSchema fills every key of CLASSIC_SHADE_DEFS with a number for number
   // definitions and one of the options for selects: exactly ClassicShadeParams.
   const out = { ...CLASSIC_SHADE_DEFAULTS, ...clamped.values } as ClassicShadeParams;
   const warnings = clamped.warnings;
+  if (options.puck === false) return { values: out, warnings };
 
   const rPocket = out.puckDiameter / 2 + out.puckClearance;
   const bossDiameter = 2 * (rPocket + out.bossWall);
@@ -164,6 +180,27 @@ export function normalizeMountParams<K extends MountKind>(
   const warnings = clamped.warnings.map((w) => {
     const path = w.paramPath !== undefined ? paths[w.paramPath] : undefined;
     return path === undefined ? w : { ...w, paramPath: `mount.${path}` };
+  });
+  return { values, warnings };
+}
+
+/**
+ * Clamp a bulb's or a strip's flat parameters (see `LIGHT_PARAM_PATHS`) to its
+ * definitions. Warnings carry the project path (`light.holeDiameter`).
+ * Cross-parameter rules of a light live in its assembly module
+ * (assembly/lights). The puck is normalised with the classic shade.
+ */
+export function normalizeLightParams<K extends FlatLightKind>(
+  kind: K,
+  input: Readonly<Partial<Record<string, unknown>>>,
+): { values: LightParamsByKind[K]; warnings: Warning[] } {
+  const clamped = clampToSchema(LIGHT_DEFS[kind], input);
+  // As in normalizeClassicShade: every key filled with a value of its definition's type.
+  const values = { ...LIGHT_DEFAULTS[kind], ...clamped.values } as LightParamsByKind[K];
+  const paths: Readonly<Record<string, string>> = LIGHT_PARAM_PATHS[kind];
+  const warnings = clamped.warnings.map((w) => {
+    const path = w.paramPath !== undefined ? paths[w.paramPath] : undefined;
+    return path === undefined ? w : { ...w, paramPath: `light.${path}` };
   });
   return { values, warnings };
 }

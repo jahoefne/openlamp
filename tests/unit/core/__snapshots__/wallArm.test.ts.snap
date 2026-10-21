@@ -143,10 +143,10 @@ exports[`assemble (wall arm) > matches the snapshot 1`] = `
         "y": 76,
         "z": 74.8813490500039,
       },
-      "buildKeyLength": 889,
+      "buildKeyLength": 837,
       "colour": "#d9d4cb",
       "displayName": "Hub",
-      "hash": "077a98acff99eb",
+      "hash": "10b14f66aa6b6c",
       "id": "hub",
       "instances": 1,
       "kind": "hub",
@@ -160,11 +160,6 @@ exports[`assemble (wall arm) > matches the snapshot 1`] = `
         "envelope": {
           "cableDiameter": 4.5,
           "cablePath": "side",
-          "heatZone": {
-            "clearance": 0,
-            "length": 8,
-            "radius": 29.5,
-          },
           "insertDepth": 10.3,
           "rCore": 32.6,
         },
@@ -220,7 +215,7 @@ exports[`assemble (wall arm) > matches the snapshot 1`] = `
       },
       "printNotes": [
         "Print as exported: collar ring on the bed, mount face up. No supports needed.",
-        "Press the puck in from below until it stops (crush ribs hold it); the cable runs out through the slot in the housing.",
+        "Press the puck in from below until it stops (crush ribs hold it); its cable runs up through the bore in the mount face.",
       ],
       "printTransform": [
         1,

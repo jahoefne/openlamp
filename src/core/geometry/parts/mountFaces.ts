@@ -201,27 +201,47 @@ function cableBoreRadius(face: ClosedMountFace): number {
   return r;
 }
 
+/** Ø of the hole a cable takes through a closed mount face (the cord hole, the stub's or the bore's cable bore). Pure. */
+export function cableBoreDiameter(face: ClosedMountFace): number {
+  return 2 * cableBoreRadius(face);
+}
+
+/**
+ * The radius of a closed face's feature (the cord boss, the stub's shoulder,
+ * the female bore's boss) before it is fitted to the housing: a housing
+ * should be at least 1 mm wider. Pure, no WASM.
+ */
+export function closedFeatureRadius(face: ClosedMountFace): number {
+  switch (face.kind) {
+    case 'cordBoss':
+      return cordBossDims(face).rKnot + CORD_BOSS_WALL;
+    case 'threadMale':
+      return face.joint.nominalDiameter / 2 + threadOf(face)!.depth + STUB_SHOULDER;
+    case 'threadFemale': {
+      const rBore = face.joint.nominalDiameter / 2 + face.joint.tolerance;
+      return rBore + threadOf(face)!.depth + COUNTERSINK_EXTRA + BORE_BOSS_WALL;
+    }
+  }
+}
+
 /** The layout of a closed top. Pure, no WASM. */
 export function closedTopLayout(face: ClosedMountFace, d: ClosedTopDims): ClosedTopLayout {
   const zApex = d.zTop + d.rPocket;
   // The outer roof stays one wall (perpendicular) above the inner one.
   const zRoofBase = Math.max(d.zBossStart + 0.5, zApex - d.rBoss + d.wall * Math.SQRT2);
   const roofAt = (r: number) => zRoofBase + (d.rBoss - r);
-  let rFeature: number;
+  let rFeature = closedFeatureRadius(face);
   let zFace: number;
   let stub = 0;
   switch (face.kind) {
     case 'cordBoss': {
       const { rHole, rKnot, knotHeight } = cordBossDims(face);
-      rFeature = rKnot + CORD_BOSS_WALL;
       // The cavity starts where the dome is as wide as it, its 45° ceiling narrows to the hole.
       const zCeiling = zApex - rKnot + knotHeight + (rKnot - rHole);
       zFace = zCeiling + CORD_BOSS_TOP;
       break;
     }
     case 'threadMale': {
-      const t = threadOf(face)!;
-      rFeature = face.joint.nominalDiameter / 2 + t.depth + STUB_SHOULDER;
       zFace = zApex + d.wall;
       stub = face.joint.length;
       break;
@@ -229,7 +249,6 @@ export function closedTopLayout(face: ClosedMountFace, d: ClosedTopDims): Closed
     case 'threadFemale': {
       const t = threadOf(face)!;
       const rBore = face.joint.nominalDiameter / 2 + face.joint.tolerance;
-      rFeature = rBore + t.depth + COUNTERSINK_EXTRA + BORE_BOSS_WALL;
       // The bore's bottom (plus the cutter's overrun) stays BORE_FLOOR above the dome.
       zFace = zApex - (rBore + t.depth) + face.joint.length + 0.5 + BORE_FLOOR;
       break;

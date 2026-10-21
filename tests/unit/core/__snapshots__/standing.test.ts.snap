@@ -181,10 +181,10 @@ exports[`assemble (standing lamp) > matches the table-lamp snapshot 1`] = `
         "y": 76,
         "z": 66.78134905000391,
       },
-      "buildKeyLength": 889,
+      "buildKeyLength": 837,
       "colour": "#d9d4cb",
       "displayName": "Hub",
-      "hash": "0108f05be10205",
+      "hash": "097e76a9d94fc0",
       "id": "hub",
       "instances": 1,
       "kind": "hub",
@@ -198,11 +198,6 @@ exports[`assemble (standing lamp) > matches the table-lamp snapshot 1`] = `
         "envelope": {
           "cableDiameter": 4.5,
           "cablePath": "side",
-          "heatZone": {
-            "clearance": 0,
-            "length": 8,
-            "radius": 29.5,
-          },
           "insertDepth": 10.3,
           "rCore": 32.6,
         },
@@ -258,7 +253,7 @@ exports[`assemble (standing lamp) > matches the table-lamp snapshot 1`] = `
       },
       "printNotes": [
         "Print as exported: collar ring on the bed, mount face up. No supports needed.",
-        "Press the puck in from below until it stops (crush ribs hold it); the cable runs out through the slot in the housing.",
+        "Press the puck in from below until it stops (crush ribs hold it); its cable runs up through the bore in the mount face.",
       ],
       "printTransform": [
         1,

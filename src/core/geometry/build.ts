@@ -44,11 +44,13 @@ export const PART_KIND_DESCRIPTIONS: { readonly [K in PartKind]: string } = {
     'the shade: hub and shade fused into one print (the classic shade), or a shade with a collar',
   canopy: 'the ceiling canopy of a pendant: cord hole, screw slots, collet neck (grip collet)',
   cordGrip: 'the screw-on grip that clamps the cord in the canopy collet (print in PETG)',
-  stem: 'a stem segment of the standing lamp (builder: M2.2b)',
-  base: 'the weighted base of the standing lamp (builder: M2.2b)',
-  baseLid: 'the lid of the base weight pocket (builder: M2.2b)',
-  wallPlate: 'the wall plate of the wall arm (builder: M2.2b)',
-  wallArm: 'the arm of the wall lamp (builder: M2.2b)',
+  stem: 'a stem segment of the standing lamp: tube with cable bore, male thread on top, female thread or screw flange below',
+  base: 'the weighted base of the standing lamp: weight pocket, cable groove, insert pockets for the stem flange',
+  baseLid: 'the lid of the base weight pocket (snap ring or three screws)',
+  wallPlate:
+    'the wall plate of the wall arm: keyholes, insert pockets for the arm flange, cable slot',
+  wallArm:
+    'the arm of the wall lamp: flange, straight / angled / curved tube, threaded end boss for the hub',
 };
 
 /** What a builder needs of a part spec: its kind and the matching params. */

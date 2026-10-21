@@ -64,7 +64,7 @@ describe('the mount registry', () => {
         insertDepth: 10,
         cableDiameter: 6,
         cablePath: 'axial' as const,
-        heatZone: { radius: 30, length: 100, clearance: 15 },
+        heatZone: { z0: -125, z1: -35, rMin: 45 },
       },
       joints: p.joints,
       printer: p.printer,
@@ -102,9 +102,11 @@ describe('closed mount faces', () => {
     const a = assemble(mounted('ceilingCord'), { quality: 'normal' });
     const { part, params } = hubOf(a);
     const d = deriveHub(params);
-    const ribDepth = params.insert.clearance + PUCK_CRUSH;
+    const puck = params.insert;
+    if (puck.kind !== 'puck') throw new Error('no puck');
+    const ribDepth = puck.clearance + PUCK_CRUSH;
     // The puck rests against the roof, `clearance` above the top of the pocket wall.
-    expect(d.zPuck).toBeCloseTo(d.zTop + params.insert.clearance - params.insert.height, 9);
+    expect(d.zPuck).toBeCloseTo(d.zTop + puck.clearance - puck.height, 9);
     expect(d.zApex).toBeCloseTo(d.zTop + d.rPocket, 9);
     withBuilt(k, tracker, [part], 'normal', ([hub]) => {
       scoped(k, (s) => {

@@ -1,7 +1,7 @@
 /**
  * Mounts by kind: every mount is one `MountModule` (see types.ts), so
- * `assemble()` stays generic. The standing lamp and the wall arm are stubs
- * until M2.2b (their modules keep their names and this registration).
+ * `assemble()` stays generic: the velcro strap, the pendant on a cord, the
+ * wall arm and the standing lamp.
  */
 import type { MountKind } from '../../schema/defs.ts';
 import { ceilingCordMount } from './ceilingCord.ts';

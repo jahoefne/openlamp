@@ -10,7 +10,8 @@ type PuckLight = Extract<LightSource, { kind: 'puck' }>;
 /**
  * The hub core around a puck is today's housing: `rCore = Ø/2 + clearance +
  * bossWall` (the classic shade's `rBoss`). The insert reaches from the mount
- * face down through the pocket and the ledge; the cable leaves sideways.
+ * face down through the pocket and the ledge; the cable leaves sideways. An
+ * LED puck stays cool: no heat zone.
  */
 export function puckEnvelope(light: PuckLight): LightEnvelope {
   const rPocket = light.diameter / 2 + light.clearance;
@@ -19,7 +20,6 @@ export function puckEnvelope(light: PuckLight): LightEnvelope {
     insertDepth: light.height + light.pocketExtraDepth + light.ledgeThickness,
     cableDiameter: light.cableWidth,
     cablePath: 'side',
-    heatZone: { radius: light.diameter / 2, length: light.height, clearance: 0 },
   };
 }
 

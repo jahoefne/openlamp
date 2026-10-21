@@ -345,6 +345,8 @@ export const CLASSIC_SHADE_DEFAULTS: Readonly<ClassicShadeParams> = Object.freez
 
 const split = (v: ParamValues) => v.fused !== true;
 const splitThread = (v: ParamValues) => split(v) && v.shadeToHub === 'thread';
+/** The vents are a bulb feature: the form passes the light's kind as `lightKind`. */
+const splitBulb = (v: ParamValues) => split(v) && v.lightKind === 'bulb';
 
 // The hub and the shade joint of a two-part lamp (`hub.fused: false`). Keys are
 // flat; `HUB_PARAM_PATHS` (project.ts) says where each one lives. The form shows
@@ -429,6 +431,17 @@ const HUB_JOINT_SCHEMA = [
         help: "Slope of the hub's roof from its collar ring up to the puck housing. Keep ≥ 45° for support-free printing.",
         visibleWhen: split,
       },
+      {
+        key: 'ventCount',
+        label: 'Vents',
+        unit: '',
+        min: 0,
+        max: 12,
+        step: 1,
+        default: 0,
+        help: "Ø6 mm vents through the hub's shoulder let the bulb's warm air out of the shade (bulb lights; 8 when you pick a bulb).",
+        visibleWhen: splitBulb,
+      },
     ],
   },
 ] as const satisfies readonly ParamGroup[];
@@ -443,15 +456,6 @@ const HUB_EXTRA_DEFS = [
     max: 5,
     step: 0.1,
     default: 2,
-  },
-  {
-    key: 'ventCount',
-    label: 'Vents',
-    unit: '',
-    min: 0,
-    max: 12,
-    step: 1,
-    default: 0,
   },
 ] as const satisfies readonly ParamDef[];
 
@@ -893,6 +897,299 @@ export const MOUNT_DEFAULTS: { readonly [K in MountKind]: Readonly<MountParamsBy
 function defaultsOf<T>(defs: readonly ParamDef[]): T {
   return Object.freeze(Object.fromEntries(defs.map((p) => [p.key, p.default]))) as T;
 }
+
+// ---------------------------------------------------------------- lights
+
+/** The light sources (`project.light.kind`). */
+export const LIGHT_KINDS = ['puck', 'bulb', 'strip'] as const;
+export type LightKind = (typeof LIGHT_KINDS)[number];
+
+/** Bulb lampholders: the cap size … */
+export const BULB_SIZES = ['E27', 'E14'] as const;
+export type BulbSize = (typeof BULB_SIZES)[number];
+/** … and how the lampholder is held: a threaded sleeve and its shade ring, or an M10 nipple and a nut. */
+export const BULB_FITTINGS = ['shadeRing', 'm10Nipple'] as const;
+export type BulbFitting = (typeof BULB_FITTINGS)[number];
+
+/** What the inspector's Light select offers: a light kind, and for bulbs the size. */
+export const LIGHT_CHOICES = ['puck', 'E27', 'E14', 'strip'] as const;
+export type LightChoice = (typeof LIGHT_CHOICES)[number];
+
+export const LIGHT_CHOICE_LABELS: Readonly<Record<LightChoice, string>> = {
+  puck: 'USB puck',
+  E27: 'E27 bulb',
+  E14: 'E14 bulb',
+  strip: 'LED strip',
+};
+
+/** One line per light choice for the form (and the CLI). */
+export const LIGHT_CHOICE_DESCRIPTIONS: Readonly<Record<LightChoice, string>> = {
+  puck: 'A USB LED puck (the Bambu Lab LED Lamp Kit-001 or similar) in a pocket of the hub.',
+  E27: 'A mains lampholder for an E27 LED bulb, held in a plate in the hub by its shade ring or an M10 nipple; vents in the hub let the warm air out.',
+  E14: 'A mains lampholder for an E14 LED bulb, held in a plate in the hub by its shade ring or an M10 nipple; vents in the hub let the warm air out.',
+  strip: 'An LED strip stuck into a ring channel under a wide, flat hub.',
+};
+
+/**
+ * The diameters each bulb size and fitting starts with: the plate's hole fits
+ * the lampholder's threaded sleeve (E27 Ø40, E14 Ø28) or an M10 nipple; the
+ * skirt around it and the bulb (A60 / C35) by size.
+ */
+export const BULB_PRESETS: {
+  readonly [S in BulbSize]: {
+    readonly holeDiameter: Readonly<Record<BulbFitting, number>>;
+    readonly skirtDiameter: number;
+    readonly bulbDiameter: number;
+    readonly bulbLength: number;
+  };
+} = {
+  E27: {
+    holeDiameter: { shadeRing: 40.5, m10Nipple: 10.5 },
+    skirtDiameter: 50,
+    bulbDiameter: 60,
+    bulbLength: 110,
+  },
+  E14: {
+    holeDiameter: { shadeRing: 28.5, m10Nipple: 10.5 },
+    skirtDiameter: 38,
+    bulbDiameter: 35,
+    bulbLength: 100,
+  },
+};
+
+// The bulb's and the strip's parameters as flat keys (unique across all forms);
+// `LIGHT_PARAM_PATHS` says where each lives inside `project.light`. The puck's
+// are the classic shade's `kit` group (the fused print needs them too).
+const BULB_LIGHT_SCHEMA = [
+  {
+    id: 'bulbHolder',
+    label: 'Lampholder',
+    params: [
+      {
+        key: 'bulbFitting',
+        label: 'Fitting',
+        type: 'select',
+        options: BULB_FITTINGS,
+        default: 'shadeRing',
+        optionLabels: { shadeRing: 'Threaded sleeve + shade ring', m10Nipple: 'M10 nipple + nut' },
+        help: "A lampholder with a threaded sleeve goes through the plate and its shade ring clamps it; a lampholder on an M10 × 1 nipple is held by a nut in a recess on the plate's mount side.",
+      },
+      {
+        key: 'bulbHoleDiameter',
+        label: 'Plate hole Ø',
+        unit: 'mm',
+        min: 6,
+        max: 60,
+        step: 0.5,
+        default: BULB_PRESETS.E27.holeDiameter.shadeRing,
+        help: 'E27 sleeve Ø40.5, E14 sleeve Ø28.5, M10 nipple Ø10.5. A new size or fitting sets it unless you changed it.',
+      },
+      {
+        key: 'bulbPlateThickness',
+        label: 'Plate thickness',
+        unit: 'mm',
+        min: 2,
+        max: 8,
+        step: 0.1,
+        default: 3,
+      },
+      {
+        key: 'bulbSkirtDiameter',
+        label: 'Skirt Ø',
+        unit: 'mm',
+        min: 24,
+        max: 100,
+        step: 0.5,
+        default: BULB_PRESETS.E27.skirtDiameter,
+        help: 'The tube around the lampholder under the plate; the hub and its collar grow with it.',
+      },
+      {
+        key: 'bulbSkirtHeight',
+        label: 'Skirt height',
+        unit: 'mm',
+        min: 4,
+        max: 40,
+        step: 0.5,
+        default: 12,
+      },
+      {
+        key: 'bulbCableDiameter',
+        label: 'Cable Ø',
+        unit: 'mm',
+        min: 3,
+        max: 12,
+        step: 0.1,
+        default: 6,
+        help: "The lampholder's mains cable; it runs through the hub's mount face (the cord of a pendant, the bore of the arm or stem).",
+      },
+    ],
+  },
+  {
+    id: 'bulb',
+    label: 'Bulb',
+    params: [
+      {
+        key: 'bulbDiameter',
+        label: 'Bulb Ø',
+        unit: 'mm',
+        min: 20,
+        max: 150,
+        step: 1,
+        default: BULB_PRESETS.E27.bulbDiameter,
+      },
+      {
+        key: 'bulbLength',
+        label: 'Bulb length',
+        unit: 'mm',
+        min: 30,
+        max: 250,
+        step: 1,
+        default: BULB_PRESETS.E27.bulbLength,
+        help: 'Overall length, cap included.',
+      },
+      {
+        key: 'bulbHeatClearance',
+        label: 'Heat clearance',
+        unit: 'mm',
+        min: 0,
+        max: 50,
+        step: 1,
+        default: 15,
+        help: 'How far printed parts should stay from the bulb. LED bulbs only; 15 mm or more is safe.',
+      },
+    ],
+  },
+] as const satisfies readonly ParamGroup[];
+
+/** Bulb parameters that are clamped like the form's but chosen elsewhere (the Light select picks the size). */
+const BULB_EXTRA_DEFS = [
+  {
+    key: 'bulbSize',
+    label: 'Size',
+    type: 'select',
+    options: BULB_SIZES,
+    default: 'E27',
+  },
+] as const satisfies readonly ParamDef[];
+
+const STRIP_LIGHT_SCHEMA = [
+  {
+    id: 'strip',
+    label: 'LED strip ring',
+    params: [
+      {
+        key: 'stripRingDiameter',
+        label: 'Ring Ø',
+        unit: 'mm',
+        min: 60,
+        max: 300,
+        step: 1,
+        default: 120,
+        help: 'Inner Ø of the ring channel the strip is stuck into; the hub is a disc as wide as the ring plus the strip and two walls.',
+      },
+      {
+        key: 'stripWidth',
+        label: 'Strip width',
+        unit: 'mm',
+        min: 3,
+        max: 20,
+        step: 0.5,
+        default: 10,
+        help: 'The channel is 0.4 mm wider. Up to 10.6 mm its ceiling prints as a short bridge.',
+      },
+      {
+        key: 'stripThickness',
+        label: 'Strip thickness',
+        unit: 'mm',
+        min: 0.5,
+        max: 6,
+        step: 0.1,
+        default: 2,
+      },
+      {
+        key: 'stripChannelDepth',
+        label: 'Channel depth',
+        unit: 'mm',
+        min: 1,
+        max: 10,
+        step: 0.1,
+        default: 3.5,
+        help: 'At least the strip thickness + 0.5 mm.',
+      },
+      {
+        key: 'stripCableWidth',
+        label: 'Cable width',
+        unit: 'mm',
+        min: 2,
+        max: 10,
+        step: 0.1,
+        default: 4.5,
+        help: "The strip's cable leaves the channel through a slot and runs to the hub's boss.",
+      },
+    ],
+  },
+] as const satisfies readonly ParamGroup[];
+
+/** The light kinds with flat parameters of their own (the puck's are the classic shade's). */
+export type FlatLightKind = Exclude<LightKind, 'puck'>;
+
+export type BulbLightParams = FlatParamsOf<typeof BULB_LIGHT_SCHEMA> & { bulbSize: BulbSize };
+export type StripLightParams = FlatParamsOf<typeof STRIP_LIGHT_SCHEMA>;
+
+/** The bulb's and the strip's parameters as flat values, by light kind. */
+export interface LightParamsByKind {
+  bulb: BulbLightParams;
+  strip: StripLightParams;
+}
+
+const KIT_GROUPS: readonly ParamGroup[] = CLASSIC_SHADE_GROUPS.filter((g) => g.id === 'kit');
+
+/** The form groups of each light (the puck's is the classic shade's `kit` group). */
+export const LIGHT_GROUPS: Readonly<Record<LightKind, readonly ParamGroup[]>> = {
+  puck: KIT_GROUPS,
+  bulb: BULB_LIGHT_SCHEMA,
+  strip: STRIP_LIGHT_SCHEMA,
+};
+
+/** Every parameter definition of the bulb and the strip. */
+export const LIGHT_DEFS: Readonly<Record<FlatLightKind, readonly ParamDef[]>> = {
+  bulb: [...defsOf(BULB_LIGHT_SCHEMA), ...BULB_EXTRA_DEFS],
+  strip: defsOf(STRIP_LIGHT_SCHEMA),
+};
+
+/** Where each flat light parameter lives inside `project.light`: the project path is `light.<path>`. */
+export const LIGHT_PARAM_PATHS: {
+  readonly [K in FlatLightKind]: Readonly<Record<keyof LightParamsByKind[K], string>>;
+} = {
+  bulb: {
+    bulbSize: 'size',
+    bulbFitting: 'fitting',
+    bulbHoleDiameter: 'holeDiameter',
+    bulbPlateThickness: 'plateThickness',
+    bulbSkirtDiameter: 'skirtDiameter',
+    bulbSkirtHeight: 'skirtHeight',
+    bulbDiameter: 'bulbDiameter',
+    bulbLength: 'bulbLength',
+    bulbHeatClearance: 'heatClearance',
+    bulbCableDiameter: 'cableDiameter',
+  },
+  strip: {
+    stripRingDiameter: 'ringDiameter',
+    stripWidth: 'stripWidth',
+    stripThickness: 'stripThickness',
+    stripChannelDepth: 'channelDepth',
+    stripCableWidth: 'cableWidth',
+  },
+};
+
+/** The default flat parameters of the bulb (an E27 on a shade ring) and the strip. */
+export const LIGHT_DEFAULTS: { readonly [K in FlatLightKind]: Readonly<LightParamsByKind[K]> } = {
+  bulb: defaultsOf<BulbLightParams>(LIGHT_DEFS.bulb),
+  strip: defaultsOf<StripLightParams>(LIGHT_DEFS.strip),
+};
+
+/** The hub's vents a light starts with (`hub.ventCount`): eight for a bulb, none otherwise. */
+export const DEFAULT_VENTS: Readonly<Record<LightKind, number>> = { puck: 0, bulb: 8, strip: 0 };
 
 /** Whether a parameter is shown for the given values (see `ParamDefBase.visibleWhen`). */
 export function isParamVisible(def: ParamDef, values: ParamValues): boolean {
