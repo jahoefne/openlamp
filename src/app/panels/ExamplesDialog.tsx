@@ -1,12 +1,25 @@
 /**
  * The example gallery. Picking one replaces the project (undoable) and frames
- * the camera on it once it is built.
+ * the camera on it once it is built. The copy is a new project (fresh id, the
+ * example's name), so autosave never writes over the example.
  */
 import { Dialog } from 'radix-ui';
+import { useMemo } from 'react';
+import { canonicalJson } from '@core/hash.ts';
 import type { Project } from '@core/model/project.ts';
+import { asNewProject } from '../persistence/identity.ts';
 import { useProjectStore } from '../store/projectStore.ts';
 import styles from './dialog.module.css';
 import { EXAMPLES } from './examples.ts';
+
+/** The lamp itself, without identity and bookkeeping: "is this still that example?". */
+function designKey(p: Project): string {
+  return canonicalJson({ ...p, id: '', name: '', revision: 0, updatedAt: '' });
+}
+
+const EXAMPLE_KEYS: ReadonlyMap<string, string> = new Map(
+  EXAMPLES.map((e) => [e.id, designKey(e)]),
+);
 
 function describe(p: Project): { dims: string; style: string } {
   const shade = p.shades[0];
@@ -31,9 +44,11 @@ export function ExamplesDialog({
   open: boolean;
   onOpenChange(open: boolean): void;
 }) {
-  const currentId = useProjectStore((s) => s.project.id);
+  const current = useProjectStore((s) => s.project);
+  const currentKey = useMemo(() => (open ? designKey(current) : ''), [open, current]);
   const pick = (example: Project) => {
-    useProjectStore.getState().replaceProject(example); // the camera rig frames it once built
+    // The camera rig frames it once built.
+    useProjectStore.getState().replaceProject(asNewProject(example));
     onOpenChange(false);
   };
   return (
@@ -61,7 +76,7 @@ export function ExamplesDialog({
                     key={example.id}
                     type="button"
                     className={styles.example}
-                    aria-current={example.id === currentId}
+                    aria-current={EXAMPLE_KEYS.get(example.id) === currentKey}
                     onClick={() => pick(example)}
                   >
                     <span className={styles.exampleName}>

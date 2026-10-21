@@ -22,6 +22,7 @@ import { SelectField } from '../forms/fields/SelectField.tsx';
 import { ToggleField } from '../forms/fields/ToggleField.tsx';
 import { commitEdit, editTransient, endEdit } from '../forms/editSession.ts';
 import { SchemaForm } from '../forms/SchemaForm.tsx';
+import { newProjectId } from '../persistence/identity.ts';
 import { useProjectStore } from '../store/projectStore.ts';
 import { useAssembly } from '../store/selectors.ts';
 import { useUiStore, type SectionAxis } from '../store/uiStore.ts';
@@ -146,7 +147,9 @@ function ViewOptions() {
 }
 
 export function Inspector() {
-  const reset = () => useProjectStore.getState().replaceProject(createDefaultProject());
+  // A new project (fresh id), so its autosave starts a slot of its own.
+  const reset = () =>
+    useProjectStore.getState().replaceProject(createDefaultProject({ id: newProjectId() }));
   return (
     <div className={styles.inspector}>
       <header className={styles.header}>

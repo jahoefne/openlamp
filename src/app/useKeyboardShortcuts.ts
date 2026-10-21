@@ -1,9 +1,11 @@
 /**
  * App-wide keys: ⌘/Ctrl+Z undo, ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y redo, F frames
- * the lamp, X toggles the section view. Text fields keep their own undo and
- * typing, open menus and select lists their typeahead.
+ * the lamp, X toggles the section view, ⌘/Ctrl+O open, ⌘/Ctrl+S save,
+ * ⇧⌘S / Ctrl+Shift+S save as. Text fields keep their own undo and typing,
+ * open menus and select lists their typeahead; the file keys work everywhere
+ * (they would otherwise open or save the web page).
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { redo, undo } from './store/projectStore.ts';
 import { useUiStore } from './store/uiStore.ts';
 
@@ -18,12 +20,35 @@ function ownsKeys(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement && TEXT_INPUTS.has(target.type);
 }
 
-export function useKeyboardShortcuts(): void {
+export interface FileShortcuts {
+  onOpen?: (() => void) | undefined;
+  onSave?: (() => void) | undefined;
+  onSaveAs?: (() => void) | undefined;
+}
+
+export function useKeyboardShortcuts(files: FileShortcuts = {}): void {
+  const filesRef = useRef(files);
+  useEffect(() => {
+    filesRef.current = files;
+  });
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.altKey || ownsKeys(e.target)) return;
+      if (e.defaultPrevented || e.altKey) return;
       const key = e.key.toLowerCase();
       const mod = e.metaKey || e.ctrlKey;
+      const { onOpen, onSave, onSaveAs } = filesRef.current;
+      if (mod && key === 's' && (e.shiftKey ? onSaveAs : onSave)) {
+        e.preventDefault();
+        if (e.shiftKey) onSaveAs?.();
+        else onSave?.();
+        return;
+      }
+      if (mod && !e.shiftKey && key === 'o' && onOpen) {
+        e.preventDefault();
+        onOpen();
+        return;
+      }
+      if (ownsKeys(e.target)) return;
       if (mod && key === 'z') {
         e.preventDefault();
         if (e.shiftKey) redo();

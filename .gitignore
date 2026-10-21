@@ -6,3 +6,4 @@ test-results/
 playwright-report/
 coverage/
 node_modules/.tmp/
+.claude/worktrees/

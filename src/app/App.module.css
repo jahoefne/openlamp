@@ -31,6 +31,26 @@
   overflow: hidden;
 }
 
+/* Shown while files are dragged over the window. */
+.dropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: rgb(21 23 28 / 70%);
+  border: 2px dashed var(--accent);
+  pointer-events: none;
+}
+
+.dropMessage {
+  padding: 12px 18px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  font-size: 15px;
+}
+
 /* Narrow screens: everything stacks, the sidebar takes the top half. */
 @media (max-width: 760px) {
   .app {

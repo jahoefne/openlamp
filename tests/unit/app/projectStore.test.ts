@@ -122,6 +122,19 @@ describe('history', () => {
     expect(project().name).toBe(example.name);
   });
 
+  it('clears dirty when the saved revision is still current, without an undo step', () => {
+    store().setClassicParam('height', 150);
+    expect(store().dirty).toBe(true);
+    const saved = project().revision;
+    pause();
+    store().setClassicParam('height', 151); // edited while the save was in flight
+    store().markSaved(saved);
+    expect(store().dirty).toBe(true);
+    store().markSaved(project().revision);
+    expect(store().dirty).toBe(false);
+    expect(steps()).toBe(2);
+  });
+
   it('ignores a commit that changes nothing', () => {
     store().setClassicParam('height', 120);
     expect(steps()).toBe(0);

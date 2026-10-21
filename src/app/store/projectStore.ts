@@ -45,7 +45,7 @@ export interface EditOptions {
 
 export interface ProjectState {
   project: Project;
-  /** Changed since it was last loaded (or, from M1.5 on, saved). */
+  /** Changed since it was last loaded or saved to a file. */
   dirty: boolean;
   /**
    * How many whole projects have been loaded (`replaceProject`). Not part of
@@ -54,6 +54,8 @@ export interface ProjectState {
   loads: number;
   /** Load a whole project (example, file, reset). Undoable. */
   replaceProject(project: Project): void;
+  /** The project at this revision was saved to a file: clear `dirty` unless it changed since. */
+  markSaved(revision: number): void;
   setProjectName(name: string): void;
   setPrinter(printer: PrinterSpec): void;
   setQuality(which: 'preview' | 'export', quality: Quality): void;
@@ -128,6 +130,10 @@ export const useProjectStore = create<ProjectState>()(
             s.dirty = false;
             s.loads += 1;
           });
+        },
+
+        markSaved(revision) {
+          if (get().project.revision === revision && get().dirty) set({ dirty: false });
         },
 
         setProjectName(name) {
