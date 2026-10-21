@@ -9,6 +9,7 @@ import type {
   BaseParams,
   CanopyParams,
   CordGripParams,
+  FitPieceParams,
   HubParams,
   ShadeParams,
   StemParams,
@@ -41,10 +42,21 @@ export interface Warning {
 /**
  * Part kinds with a builder (tiers and spacers join with the shade families of
  * M3): the hub and the shade, the pendant's canopy and cord grip, the standing
- * lamp's stem, base and base lid, the wall lamp's wall plate and arm.
+ * lamp's stem, base and base lid, the wall lamp's wall plate and arm, and the
+ * fit-test pair (`fitMale`, `fitFemale`) that tests the shade joint.
  */
 export type PartKind =
-  'hub' | 'shade' | 'canopy' | 'cordGrip' | 'stem' | 'base' | 'baseLid' | 'wallPlate' | 'wallArm';
+  | 'hub'
+  | 'shade'
+  | 'canopy'
+  | 'cordGrip'
+  | 'stem'
+  | 'base'
+  | 'baseLid'
+  | 'wallPlate'
+  | 'wallArm'
+  | 'fitMale'
+  | 'fitFemale';
 
 /**
  * The resolved parameters each part kind's builder takes. A `shade` is either
@@ -61,6 +73,8 @@ export interface PartParamsByKind {
   baseLid: BaseLidParams;
   wallPlate: WallPlateParams;
   wallArm: WallArmParams;
+  fitMale: FitPieceParams;
+  fitFemale: FitPieceParams;
 }
 
 // ---------------------------------------------------------------- joints

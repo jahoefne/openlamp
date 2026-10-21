@@ -332,15 +332,19 @@ describe('assemble (split into hub + shade)', () => {
     expect(hubOnly.parts[1]!.hash).toBe(base.parts[1]!.hash);
   });
 
-  it('keeps only the hub in fit-test mode', () => {
+  it("prints the shade joint's test pair in fit-test mode", () => {
     const a = assemble(
       project('bambu-a1', (p) => {
         split(p);
         p.fitTest = true;
       }),
     );
-    expect(a.parts.map((x) => [x.id, x.displayName])).toEqual([['hub', 'Hub (fit test)']]);
-    expect(a.derived.bottomZ).toBe(0);
+    expect(a.parts.map((x) => [x.id, x.displayName])).toEqual([
+      ['fitMale', 'Collar test piece'],
+      ['fitFemale', 'Ring test piece'],
+    ]);
+    expect(Object.keys(a.interfaces)).toEqual(['shadeToHub']);
+    expect(a.derived.bottomZ).toBe(-3);
   });
 
   it('matches the split snapshot', () => {

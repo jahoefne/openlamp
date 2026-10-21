@@ -1,5 +1,48 @@
 .inspector {
-  padding: 14px 18px 40px;
+  padding: 12px 16px 40px;
+}
+
+.title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.projectName {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+/* A label / value list (the printer's facts). */
+.facts {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 2px 8px;
+  margin: 4px 0 10px;
+  font-size: 13px;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.note {
+  margin: 4px 0 6px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* A full-width button in a fieldset. */
+.wide {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
 }
 
 .header {

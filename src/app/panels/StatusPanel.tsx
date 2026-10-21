@@ -1,9 +1,10 @@
 /**
- * Overlays on the viewport: the status line (top left: build status, plus a
- * short-lived notice such as "Link copied") and, bottom left, the stats: of
- * the one part, or for several parts a row per part (footprint, PLA,
+ * The status strip under the viewport: the status line (build status, a
+ * short-lived notice such as "Link copied", the bed-fit badge) and the stats:
+ * of the one part, or for several parts a row per part (footprint, PLA,
  * triangles, overhang, bed fit) with the totals plus the details of the
- * selected part; then the bed-fit badge and every warning.
+ * picked part; then every warning. Clicking a row picks that part (and
+ * selects its node in the lamp tree); clicking it again goes back to the project.
  */
 import type { PartSpec, PartStats, Warning } from '@core/model/assembly.ts';
 import { printerLabel } from '@core/schema/printers.ts';
@@ -93,8 +94,8 @@ function PartRows({
 }) {
   const builds = useBuildStore((s) => s.parts);
   const totals = useTotals();
-  const selection = useUiStore((s) => s.selection);
-  const select = useUiStore((s) => s.select);
+  const selection = useUiStore((s) => s.selectedPart);
+  const { selectPart, clearSelection } = useUiStore.getState();
   return (
     <table className={styles.parts} data-testid="part-rows">
       <thead>
@@ -118,7 +119,7 @@ function PartRows({
               data-part={part.id}
               aria-selected={selection === part.id}
               className={selection === part.id ? styles.selectedRow : undefined}
-              onClick={() => select(selection === part.id ? null : part.id)}
+              onClick={() => (selection === part.id ? clearSelection() : selectPart(part))}
             >
               <th scope="row">{part.displayName}</th>
               <td>{footprintOf(stats, part)}</td>
@@ -194,7 +195,7 @@ export function StatusPanel() {
   const notice = useUiStore((s) => s.notice);
 
   return (
-    <>
+    <section className={styles.panel} aria-label="Build status">
       <div className={styles.statusLine}>
         <div
           id="status"
@@ -214,14 +215,19 @@ export function StatusPanel() {
             {notice.text}
           </div>
         ) : null}
+        <div className={styles.spacer} />
+        <BedFitBadge />
       </div>
       <div id="stats" className={styles.stats}>
         {several ? <PartRows parts={assembly.parts} warnings={assembly.warnings} /> : null}
-        {several && part ? <div className={styles.partName}>{part.displayName}</div> : null}
-        {stats ? <StatsRows stats={stats} /> : null}
-        <BedFitBadge />
+        {stats ? (
+          <div className={styles.details}>
+            {several && part ? <div className={styles.partName}>{part.displayName}</div> : null}
+            <StatsRows stats={stats} />
+          </div>
+        ) : null}
         <Warnings warnings={warnings} />
       </div>
-    </>
+    </section>
   );
 }

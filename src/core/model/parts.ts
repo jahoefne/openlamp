@@ -393,3 +393,26 @@ export interface WallArmParams {
   hubJoint: JointInterface;
   quality: Quality;
 }
+
+// ---------------------------------------------------------------- fit test
+
+/**
+ * One piece of the fit-test pair (part kinds `fitMale` and `fitFemale`, see
+ * geometry/parts/fitPair.ts): a short section of the outer shade's collar
+ * (male) or of the hub's outer collar ring (female), built from the same
+ * collar numbers and `JointInterface` as the real parts, on a base so it
+ * stands on the bed.
+ */
+export interface FitPieceParams {
+  /** The outer shade's collar and the hub ring around it. */
+  collar: CollarDims;
+  /** The shade joint (`shadeToHub`); the male piece is its male side, the female piece its female side. */
+  joint: JointInterface;
+  /** Height of the collar (ring) section above the base. */
+  height: Mm;
+  /** Thickness of the base: the male's base disc (its top is the collar plane), the female's ring base at its mouth. */
+  base: Mm;
+  /** Outer radius of the base, a grip margin outside the hub ring's outer radius. */
+  baseRadius: Mm;
+  quality: Quality;
+}

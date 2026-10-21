@@ -1,10 +1,16 @@
+/*
+ * bar / tree | viewport | inspector / status. The status strip sits under the
+ * viewport, between the tree and the inspector, which run the full height.
+ */
 .app {
   display: grid;
   grid-template-areas:
-    'bar bar'
-    'sidebar viewport';
-  grid-template-columns: 360px minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
+    'bar bar bar'
+    'tree viewport inspector'
+    'tree status inspector';
+  grid-template-columns: 260px minmax(0, 1fr) 360px;
+  /* A fixed status strip: the viewport keeps its size whatever the status shows. */
+  grid-template-rows: auto minmax(0, 1fr) min(30vh, 220px);
   height: 100%;
 }
 
@@ -13,14 +19,24 @@
   min-width: 0;
 }
 
-.sidebar {
-  grid-area: sidebar;
-  /* Contains the visually hidden form inputs of Radix controls (absolutely
-     positioned), which would otherwise stretch the page past the viewport. */
+.tree,
+.inspector {
+  /* Contain the visually hidden texts and the hidden form inputs of Radix
+     controls (absolutely positioned), which would otherwise stretch the page. */
   position: relative;
+  min-height: 0;
   overflow-y: auto;
   background: var(--panel);
+}
+
+.tree {
+  grid-area: tree;
   border-right: 1px solid var(--border);
+}
+
+.inspector {
+  grid-area: inspector;
+  border-left: 1px solid var(--border);
 }
 
 .viewport {
@@ -29,6 +45,23 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.status {
+  grid-area: status;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
+/* Medium screens: the button that opens the inspector sheet. */
+.sheetToggle {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: var(--overlay);
 }
 
 /* Shown while files are dragged over the window. */
@@ -51,26 +84,50 @@
   font-size: 15px;
 }
 
-/* Narrow screens: everything stacks, the sidebar takes the top half. */
-@media (max-width: 760px) {
+/* Medium screens: the tree a rail of icons (or expanded), the inspector a sheet. */
+@media (max-width: 1099.98px) {
   .app {
     grid-template-areas:
+      'bar bar'
+      'tree viewport'
+      'tree status';
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .app[data-tree='open'] {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+}
+
+/* Narrow screens: everything stacks, the viewport takes half the height. */
+@media (max-width: 759.98px) {
+  .app,
+  .app[data-tree='open'] {
+    grid-template-areas:
       'bar'
-      'sidebar'
-      'viewport';
+      'tree'
+      'viewport'
+      'status'
+      'inspector';
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(50vh, 1fr);
+    grid-template-rows: auto auto 50vh auto auto;
     height: auto;
     min-height: 100%;
   }
 
-  .sidebar {
-    max-height: 50vh;
+  .tree {
     border-right: 0;
     border-bottom: 1px solid var(--border);
+    overflow: visible;
   }
 
-  .viewport {
-    min-height: 50vh;
+  .inspector {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    overflow: visible;
+  }
+
+  .status {
+    max-height: none;
   }
 }

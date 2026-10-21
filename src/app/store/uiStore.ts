@@ -3,10 +3,16 @@
  */
 import { create } from 'zustand';
 import type { Quality } from '@core/geometry/quality.ts';
+import type { PartSpec } from '@core/model/assembly.ts';
+import { ROOT_NODE, nodeOfPart, type NodeId } from './nodes.ts';
 
 export type SectionAxis = 'x' | 'y';
 export type ViewMode = 'assembled' | 'bed';
-export type PanelId = 'inspector' | 'status';
+/**
+ * `tree`: the lamp tree expanded (below 1100 px it is a rail of icons until
+ * expanded); `inspector`: the inspector sheet open (below 1100 px).
+ */
+export type PanelId = 'tree' | 'inspector';
 
 export interface FitRequest {
   /** 0 = never requested. */
@@ -26,11 +32,16 @@ export interface Notice {
 export const NOTICE_MS: Readonly<Record<Notice['tone'], number>> = { info: 2000, error: 6000 };
 
 export interface UiState {
-  /** Selected part id. */
-  selection: string | null;
-  /** Part id under the pointer (M2: LampTree hover highlight). */
+  /** The lamp-tree node whose inspector is shown (`project` when nothing is picked). */
+  selection: NodeId;
+  /**
+   * The part picked in the viewport, the tree or the status table (outlined,
+   * its details in the status panel), or null; it belongs to `selection`.
+   */
+  selectedPart: string | null;
+  /** Part id under the pointer. */
   hover: string | null;
-  /** Exploded view factor 0..1 (M2). */
+  /** Exploded view factor 0..1: parts move apart along z by up to 60 mm per rank. */
   explode: number;
   /** Cut the model in half. */
   section: boolean;
@@ -40,16 +51,25 @@ export interface UiState {
   ghosts: boolean;
   /** Show the lamp mounted on the ceiling instead of on the print bed. */
   mounted: boolean;
-  /** Assembled lamp, or the parts laid out on the bed (M2). */
+  /** Assembled lamp, or the parts laid out on the print bed as exported. */
   viewMode: ViewMode;
   /** Overrides the project's preview quality while set (draft during a slider drag). */
   previewQuality: Quality | null;
-  panels: Record<PanelId, boolean>;
+  /** Panel visibility; `null` = the layout's default (the tree is expanded on wide screens only). */
+  panels: Record<PanelId, boolean | null>;
   /** Ask the camera rig to frame the lamp. */
   fitRequest: FitRequest;
   notice: Notice | null;
 
-  select(id: string | null): void;
+  /**
+   * Show a node's inspector; `part` is the part picked with it (the tree
+   * passes a node's own part, e.g. the hub for Hub & joints), none if omitted.
+   */
+  select(node: NodeId, part?: string | null): void;
+  /** Pick a part (viewport, status table): its node's inspector and its outline. */
+  selectPart(part: Pick<PartSpec, 'id' | 'kind'>): void;
+  /** Back to the project node, nothing picked (a click on empty space). */
+  clearSelection(): void;
   setHover(id: string | null): void;
   setExplode(factor: number): void;
   setSection(on: boolean): void;
@@ -58,8 +78,9 @@ export interface UiState {
   setGhosts(on: boolean): void;
   setMounted(on: boolean): void;
   setViewMode(mode: ViewMode): void;
+  toggleViewMode(): void;
   setPreviewQuality(quality: Quality | null): void;
-  setPanel(panel: PanelId, open: boolean): void;
+  setPanel(panel: PanelId, open: boolean | null): void;
   requestFit(afterBuild: boolean): void;
   /** Show a notice in the status line for `NOTICE_MS[tone]`. */
   notify(text: string, tone?: Notice['tone']): void;
@@ -69,7 +90,8 @@ export interface UiState {
 let noticeSeq = 0;
 
 export const useUiStore = create<UiState>()((set, get) => ({
-  selection: null,
+  selection: ROOT_NODE,
+  selectedPart: null,
   hover: null,
   explode: 0,
   section: false,
@@ -78,11 +100,13 @@ export const useUiStore = create<UiState>()((set, get) => ({
   mounted: false,
   viewMode: 'assembled',
   previewQuality: null,
-  panels: { inspector: true, status: true },
+  panels: { tree: null, inspector: false },
   fitRequest: { id: 0, afterBuild: false },
   notice: null,
 
-  select: (selection) => set({ selection }),
+  select: (selection, part) => set({ selection, selectedPart: part ?? null }),
+  selectPart: (part) => set({ selection: nodeOfPart(part), selectedPart: part.id }),
+  clearSelection: () => set({ selection: ROOT_NODE, selectedPart: null }),
   setHover: (hover) => set({ hover }),
   setExplode: (explode) => set({ explode: Math.min(1, Math.max(0, explode)) }),
   setSection: (section) => set({ section }),
@@ -91,6 +115,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setGhosts: (ghosts) => set({ ghosts }),
   setMounted: (mounted) => set({ mounted }),
   setViewMode: (viewMode) => set({ viewMode }),
+  toggleViewMode: () => set((s) => ({ viewMode: s.viewMode === 'bed' ? 'assembled' : 'bed' })),
   setPreviewQuality: (previewQuality) => set({ previewQuality }),
   setPanel: (panel, open) => set((s) => ({ panels: { ...s.panels, [panel]: open } })),
   requestFit: (afterBuild) => set((s) => ({ fitRequest: { id: s.fitRequest.id + 1, afterBuild } })),

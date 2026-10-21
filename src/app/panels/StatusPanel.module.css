@@ -1,22 +1,28 @@
+/* The status strip under the viewport (grid area `status` of the app). */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
 .statusLine {
-  position: absolute;
-  top: 14px;
-  left: 16px;
-  right: 16px;
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
-  pointer-events: none;
+}
+
+.spacer {
+  flex: 1;
 }
 
 .status {
   font-size: 13px;
   color: var(--muted);
-  background: rgb(20 22 28 / 70%);
-  padding: 6px 10px;
-  border-radius: 6px;
-  pointer-events: none;
 }
 
 .busy::before {
@@ -37,9 +43,9 @@
 .notice {
   font-size: 13px;
   color: var(--text);
-  background: rgb(20 22 28 / 85%);
+  background: var(--panel-2);
   border: 1px solid rgb(242 181 68 / 45%);
-  padding: 5px 10px;
+  padding: 2px 10px;
   border-radius: 6px;
   animation: notice-in 0.15s ease-out;
 }
@@ -70,20 +76,17 @@
   }
 }
 
+/* The parts table and the picked part's details side by side, warnings below. */
 .stats {
-  position: absolute;
-  left: 16px;
-  bottom: 16px;
-  max-width: min(440px, calc(100% - 32px));
-  max-height: calc(100% - 72px);
-  overflow-y: auto;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text);
-  background: var(--overlay);
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 4px 28px;
+}
+
+.details {
+  min-width: 260px;
+  flex: 1 1 260px;
 }
 
 .rows {
@@ -108,7 +111,6 @@
 
 .parts {
   border-collapse: collapse;
-  margin-bottom: 6px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -144,6 +146,11 @@
   padding-top: 3px;
 }
 
+.parts tbody tr:hover th[scope='row'] {
+  text-decoration: underline;
+  text-decoration-color: var(--muted);
+}
+
 .selectedRow th[scope='row'] {
   color: var(--accent);
 }
@@ -157,7 +164,6 @@
 
 .badge {
   display: inline-block;
-  margin-top: 8px;
   padding: 2px 8px;
   border-radius: 999px;
   font-size: 12px;
@@ -177,8 +183,9 @@
 }
 
 .warnings {
+  flex: 1 1 100%;
   list-style: none;
-  margin: 6px 0 0;
+  margin: 0;
   padding: 0;
 }
 

@@ -5,7 +5,9 @@
  * the derived dimensions and the mount context of the assembly on screen
  * (`ceilingZ`, `puckZ`, `bulbZ`, `stripZ`, `context.cord`, … in the world
  * frame), so they move with the meshes, not ahead of them. Rendered inside
- * the display lift (see Viewport).
+ * the display lift (see Viewport). In the exploded view they follow their
+ * part: the light and the strap the hub (the fused shade), the cord the hub
+ * at its lower end and the canopy at its upper end.
  */
 import { useMemo } from 'react';
 import { DoubleSide, MeshStandardMaterial, Vector2 } from 'three';
@@ -162,7 +164,12 @@ function Cord({ z0, z1, diameter }: { z0: number; z1: number; diameter: number }
   );
 }
 
-export function Ghosts() {
+/** The exploded view's z offset of each part, by part id. */
+export type PartOffsets = ReadonlyMap<string, number>;
+
+const NO_OFFSETS: PartOffsets = new Map();
+
+export function Ghosts({ offsets = NO_OFFSETS }: { offsets?: PartOffsets }) {
   const visible = useUiStore((s) => s.ghosts);
   const d = useShownDerived();
   const cord = useShownContext()?.cord;
@@ -170,27 +177,34 @@ export function Ghosts() {
   const light = shownLightOf(d);
   const { ceilingZ, rBoss } = d;
   const { strapWidth, strapThickness, loopLength } = d;
+  // The light and the strap sit in the hub (the fused print has no hub: its shade).
+  const hubDz = offsets.get('hub') ?? offsets.get('shade') ?? 0;
+  const canopyDz = offsets.get('canopy') ?? 0;
   return (
     <>
-      {light?.kind === 'puck' ? (
-        <Puck z={light.z} diameter={light.diameter} height={light.height} />
-      ) : null}
-      {light?.kind === 'bulb' ? <Bulb {...light} /> : null}
-      {light?.kind === 'strip' ? <StripRing {...light} /> : null}
+      <group position={[0, 0, hubDz]}>
+        {light?.kind === 'puck' ? (
+          <Puck z={light.z} diameter={light.diameter} height={light.height} />
+        ) : null}
+        {light?.kind === 'bulb' ? <Bulb {...light} /> : null}
+        {light?.kind === 'strip' ? <StripRing {...light} /> : null}
+      </group>
       {ceilingZ !== undefined &&
       rBoss !== undefined &&
       strapWidth !== undefined &&
       strapThickness !== undefined &&
       loopLength !== undefined ? (
         <Strap
-          top={ceilingZ}
+          top={ceilingZ + hubDz}
           rBoss={rBoss}
           width={strapWidth}
           thickness={strapThickness}
           loopLength={loopLength}
         />
       ) : null}
-      {cord && cord.z1 > cord.z0 ? <Cord {...cord} /> : null}
+      {cord && cord.z1 + canopyDz > cord.z0 + hubDz ? (
+        <Cord z0={cord.z0 + hubDz} z1={cord.z1 + canopyDz} diameter={cord.diameter} />
+      ) : null}
     </>
   );
 }

@@ -2,12 +2,31 @@
  * Exports. Download STL writes a well-formed binary STL: an 80-byte header,
  * the triangle count n (little-endian uint32 at offset 80) and n 50-byte
  * records. The ZIP holds one such STL per part plus print-sheet.md. The print
- * sheet dialog shows the same sheet.
+ * sheet dialog shows the same sheet. One page for the file (the print-sheet
+ * test, last, leaves the examples dialog open).
  */
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { strFromU8, unzipSync } from 'fflate';
-import { loadExample, openApp, shownTriangles } from './helpers.ts';
+import {
+  defaultProject,
+  exampleProject,
+  sharedPage,
+  showProject,
+  shownTriangles,
+} from './helpers.ts';
+
+test.describe.configure({ mode: 'serial' });
+
+let page: Page;
+
+test.beforeAll(async ({ browser }, testInfo) => {
+  page = await sharedPage(browser, testInfo, { acceptDownloads: true });
+});
+
+test.afterAll(async () => {
+  await page.context().close();
+});
 
 /** The size a binary STL must have for its triangle count. */
 function expectWellFormedStl(stl: Uint8Array, name = 'stl'): void {
@@ -17,14 +36,16 @@ function expectWellFormedStl(stl: Uint8Array, name = 'stl'): void {
   expect(stl.length, name).toBe(84 + 50 * n);
 }
 
-async function openExportMenu(page: Page): Promise<void> {
+async function openExportMenu(): Promise<void> {
   await page.getByRole('button', { name: /^Export/ }).click();
 }
 
-test('Export → Download STL downloads a binary STL of the shade', async ({ page }) => {
-  await openApp(page);
+test('Export → Download STL downloads a binary STL of the shade', async () => {
+  const project = defaultProject('draft');
+  project.quality.export = 'draft';
+  await showProject(page, project);
 
-  await openExportMenu(page);
+  await openExportMenu();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('menuitem', { name: /Download STL/ }).click(),
@@ -33,18 +54,17 @@ test('Export → Download STL downloads a binary STL of the shade', async ({ pag
   expect(download.suggestedFilename()).toMatch(/^openlamp-.*\.stl$/);
   const stl = await readFile(await download.path());
   expectWellFormedStl(stl);
-  // Preview and export quality are both "normal" by default: same mesh.
+  // Preview and export quality are the same: the same mesh.
   expect(stl.readUInt32LE(80)).toBe(await shownTriangles(page));
 });
 
-test('Export → ZIP downloads one STL per part and the print sheet', async ({ page }) => {
-  await openApp(page);
-  await loadExample(page, 'Pendant on a cord');
+test('Export → ZIP downloads one STL per part and the print sheet', async () => {
+  await showProject(page, exampleProject('pendant-cord'));
   const rows = page.getByTestId('part-rows').locator('tbody tr');
   await expect(rows).toHaveCount(3);
   const parts = await rows.count();
 
-  await openExportMenu(page);
+  await openExportMenu();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('menuitem', { name: /ZIP of all parts/ }).click(),
@@ -67,11 +87,10 @@ test('Export → ZIP downloads one STL per part and the print sheet', async ({ p
   for (const name of stls) expect(sheet).toContain(`\`${name}\``);
 });
 
-test('Export → Print sheet… shows the parts table and downloads the sheet', async ({ page }) => {
-  await openApp(page);
-  await loadExample(page, 'Pendant on a cord');
+test('Export → Print sheet… shows the parts table and downloads the sheet', async () => {
+  await showProject(page, exampleProject('pendant-cord'));
 
-  await openExportMenu(page);
+  await openExportMenu();
   await page.getByRole('menuitem', { name: /Print sheet/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Print sheet' });
   await expect(dialog).toBeVisible();

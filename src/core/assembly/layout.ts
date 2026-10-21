@@ -34,6 +34,18 @@ export function layoutParts(
   bed: readonly [number, number, number],
   gap = 10,
 ): Layout {
+  return packParts(footprints, bed, gap).layout;
+}
+
+/**
+ * `layoutParts`, and which of its placements are copies that did not fit (the
+ * viewport's bed view draws those beside the bed).
+ */
+export function packParts(
+  footprints: readonly FootprintItem[],
+  bed: readonly [number, number, number],
+  gap = 10,
+): { layout: Layout; unplaced: ReadonlySet<Placement> } {
   const [bedX, bedY] = bed;
   const items = footprints.flatMap((f) => {
     // Landscape orientation unless only portrait fits the bed width.
@@ -106,8 +118,9 @@ export function layoutParts(
     p.x += dx;
     p.y += dy;
   }
+  const outside = new Set<Placement>();
   for (const it of unplaced) {
-    placed.push({
+    const p: Placement = {
       id: it.id,
       instance: it.instance,
       x: bedX / 2,
@@ -115,13 +128,18 @@ export function layoutParts(
       width: it.w,
       depth: it.d,
       rotated: it.rotated,
-    });
+    };
+    placed.push(p);
+    outside.add(p);
   }
   // Report placements in input order, the copies of a part in order.
   const index = new Map(footprints.map((f, i) => [f.id, i]));
   placed.sort((a, b) => (index.get(a.id) ?? 0) - (index.get(b.id) ?? 0) || a.instance - b.instance);
   const overflow = [...new Set(unplaced.map((it) => it.id))];
-  return { bed: [bed[0], bed[1], bed[2]], placements: placed, overflow };
+  return {
+    layout: { bed: [bed[0], bed[1], bed[2]], placements: placed, overflow },
+    unplaced: outside,
+  };
 }
 
 /** Print frame → bed: optional 90° turn about z, then move to the placement centre. */

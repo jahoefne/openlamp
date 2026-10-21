@@ -59,10 +59,8 @@ export interface MountHubCtx<K extends MountKind = MountKind> extends MountCtx<K
     /** In the hub's print frame: the collar plane at z 0, the mount face at `zFace`, the top at `hubHeight`. */
     derived: HubDerived;
   };
-  /** The shades hanging from the hub (none in fit-test mode). */
+  /** The shades hanging from the hub. */
   shades: readonly MountShade[];
-  /** Fit-test mode: only the hub is printed, `parts` is not called. */
-  fitTest: boolean;
 }
 
 export interface MountParts {
@@ -110,7 +108,7 @@ export interface MountModule<K extends MountKind = MountKind> {
   validate(ctx: MountCtx<K>): Warning[];
   /** What the hub carries on its mount face. */
   hubFace(ctx: MountCtx<K>): HubMountFace;
-  /** The mount's own parts and joints. Not called in fit-test mode. */
+  /** The mount's own parts and joints. Not called in fit-test mode (the joint's test pair is printed instead). */
   parts(ctx: MountHubCtx<K>): MountParts;
   /** World transforms of everything, and what the lamp is mounted on. */
   placement(ctx: MountHubCtx<K>, parts: MountParts): MountPlacement;
