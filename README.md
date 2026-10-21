@@ -8,7 +8,7 @@ from a browser UI with live preview, or from the command line.
 ceiling  ═════════════════════  self‑adhesive velcro strip stuck to the ceiling
          ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  strap lying across the top of the housing …
        ╔═╤═════════════════╤═╗  … held captive by two belt‑loop tunnels on the sides
-       ║ │    LED puck     │ ║  puck pocket, open towards the ceiling (Ø59.4 × 8.3 mm)
+       ║ │    LED puck     │ ║  puck pocket, open towards the ceiling (Ø60.4 × 8.3 mm)
        ║ └───┐         ┌───┘ ║  2 mm ledge with a Ø50 mm light opening
       ╱                       ╲ shoulder at 50° (prints without support)
      ╱          shade          ╲ 0.8 mm wall, smooth / ribbed / faceted, optional twist
@@ -22,7 +22,7 @@ ceiling  ═════════════════════  self�
    and lay the cable out through the slot in the housing wall.
 3. Thread a strip of the mating velcro down through one side tunnel, across the top of the
    housing (over the back of the puck) and down through the other tunnel. The strap keeps
-   the puck in and gives a 25 × 64 mm contact patch. Trim the tails.
+   the puck in and gives a 25 × 65 mm contact patch. Trim the tails.
 4. Press the lamp against the ceiling strip. To take it down, peel it off.
 
 The puck is not screwed or glued; the ledge carries it and the strap stops it from
@@ -60,7 +60,7 @@ would not clear the puck housing).
 | Group | Parameter | Default | Notes |
 | --- | --- | --- | --- |
 | Shape | bottomDiameter | 160 mm | opening that faces the room |
-| | topDiameter | 92 mm | where the wall meets the shoulder, must clear the Ø64 mm housing |
+| | topDiameter | 92 mm | where the wall meets the shoulder, must clear the Ø65 mm housing |
 | | height | 120 mm | wall height; the housing adds ≈ 34 mm |
 | | curve | 0.25 | < 0 trumpet flare, > 0 bell bulge |
 | | wallThickness | 0.8 mm | Bambu's design guide recommends 0.8 mm for translucency |
@@ -71,7 +71,7 @@ would not clear the puck housing).
 | | twist | 25° | pattern rotation bottom → top |
 | Puck | puckDiameter | 59 mm | Bambu lists D59 |
 | | puckHeight | 8 mm | Bambu's store lists H8, some resellers list 18 – **measure yours** |
-| | puckClearance | 0.2 mm | radial fit gap (Bambu's guide suggests 0.2) |
+| | puckClearance | 0.7 mm | radial fit gap, so the pocket is Ø60.4 for a Ø59 puck (0.2 mm printed too tight) |
 | | pocketExtraDepth | 0.3 mm | pocket is this much deeper than the puck |
 | | lightHoleDiameter | 50 mm | opening in the ledge (diffuser is ≈ 46 mm) |
 | | ledgeThickness | 2 mm | |
@@ -102,8 +102,8 @@ would not clear the puck housing).
 
 Every STL is produced by [manifold‑3d](https://github.com/elalish/manifold), which only
 emits oriented, watertight 2‑manifold meshes (`status: NoError` is checked). The default
-shade was additionally cross‑checked by slicing the STL numerically: pocket radius 29.70,
-light opening 25.00, housing 32.10 and belt loops out to 37.0 mm, as designed.
+shade was additionally cross‑checked by slicing the STL numerically: pocket radius 30.20,
+light opening 25.00, housing 32.60 and belt loops out to 37.5 mm, as designed.
 
 ## Project layout
 
