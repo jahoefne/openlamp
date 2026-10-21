@@ -6,6 +6,8 @@
     "jsx": "react-jsx",
     "types": ["vite/client"]
   },
+  // src/core is included because the app imports it; tsconfig.core.json is
+  // what proves it DOM-free.
   "include": ["src"],
   "exclude": ["src/worker.ts", "src/worker/**"]
 }

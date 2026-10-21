@@ -1,6 +1,7 @@
-# Job `check` typechecks, lints, checks formatting and builds the static site on
-# every push and PR; job `deploy` publishes the build to GitHub Pages from main.
-# Later milestones add unit tests, sample generation and e2e tests to `check`.
+# Job `check` typechecks, lints, checks formatting, runs the unit tests, builds
+# every example STL (a watertightness gate, uploaded as the `samples` artifact)
+# and builds the static site on every push and PR; job `deploy` publishes the
+# build to GitHub Pages from main. A later milestone adds e2e tests to `check`.
 name: CI
 
 on:
@@ -34,6 +35,16 @@ jobs:
       - run: npm run lint
 
       - run: npm run format:check
+
+      - run: npm test
+
+      - run: npm run samples
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: samples
+          path: samples/
+          retention-days: 14
 
       - run: npm run build
 

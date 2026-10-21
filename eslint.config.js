@@ -26,7 +26,7 @@ export default defineConfig([
     languageOptions: { globals: globals.worker },
   },
   {
-    files: ['cli.mjs', '*.config.{js,ts}'],
+    files: ['cli/**/*.ts', 'tests/**/*.ts', '*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },
   {

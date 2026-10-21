@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "id": "full-1234",
+  "name": "Everything set",
+  "revision": 17,
+  "updatedAt": "2026-10-21T14:30:00+02:00",
+  "printer": {
+    "id": "custom",
+    "vendor": "Custom",
+    "name": "Workshop printer",
+    "bed": [300, 280, 320],
+    "nozzle": 0.6,
+    "multiColour": true,
+    "notes": "Toolchanger, 4 heads"
+  },
+  "quality": {
+    "preview": "normal",
+    "export": "fine"
+  },
+  "light": {
+    "kind": "puck",
+    "preset": "custom",
+    "diameter": 62,
+    "height": 18,
+    "clearance": 0.5,
+    "lightHoleDiameter": 48,
+    "ledgeThickness": 2.5,
+    "cableWidth": 5
+  },
+  "mount": {
+    "kind": "ceilingStrap",
+    "strapWidth": 20,
+    "strapThickness": 3,
+    "loopLength": 12,
+    "loopWall": 2.8
+  },
+  "hub": {
+    "wallThickness": 1.2,
+    "shoulderAngle": 55,
+    "bossWall": 3,
+    "pocketExtraDepth": 0.5,
+    "fused": true
+  },
+  "shades": [
+    {
+      "id": "outer",
+      "role": "outer",
+      "colour": "#1e90ff",
+      "wallThickness": 1.2,
+      "style": {
+        "family": "revolved",
+        "bottomDiameter": 210,
+        "topDiameter": 110,
+        "height": 160,
+        "curve": 0.4,
+        "surface": {
+          "style": "ribbed",
+          "patternCount": 36,
+          "ribDepth": 2.4,
+          "twist": -45
+        }
+      }
+    }
+  ],
+  "colours": {
+    "shade": "#ffcc00",
+    "classicShade": "#AABBCC"
+  },
+  "fitTest": true
+}

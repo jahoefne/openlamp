@@ -7,5 +7,6 @@
     "moduleResolution": "nodenext",
     "types": ["node"]
   },
-  "include": ["vite.config.ts"]
+  // The CLI and the tests run src/core directly under Node (type stripping).
+  "include": ["cli", "tests", "vite.config.ts", "vitest.config.ts", "src/core"]
 }
