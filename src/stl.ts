@@ -5,12 +5,14 @@
  * from the cross product points outward, which is what slicers expect.
  */
 
-/**
- * @param {{numProp:number, vertProperties:Float32Array, triVerts:Uint32Array}} mesh
- * @param {string} [name]
- * @returns {ArrayBuffer}
- */
-export function meshToBinaryStl(mesh, name = 'openlamp lamp shade') {
+/** The subset of a manifold-3d `Mesh` the writer reads. */
+export interface StlMesh {
+  numProp: number;
+  vertProperties: Float32Array;
+  triVerts: Uint32Array;
+}
+
+export function meshToBinaryStl(mesh: StlMesh, name = 'openlamp lamp shade'): ArrayBuffer {
   const { numProp, vertProperties, triVerts } = mesh;
   const numTri = triVerts.length / 3;
   const buffer = new ArrayBuffer(84 + numTri * 50);
@@ -20,21 +22,39 @@ export function meshToBinaryStl(mesh, name = 'openlamp lamp shade') {
   header.set(headerText);
   view.setUint32(80, numTri, true);
 
+  // Every index below is in range for a well-formed mesh (3 indices per
+  // triangle, numProp floats per vertex), hence the non-null assertions.
   let offset = 84;
   for (let t = 0; t < numTri; t++) {
-    const i0 = triVerts[t * 3] * numProp;
-    const i1 = triVerts[t * 3 + 1] * numProp;
-    const i2 = triVerts[t * 3 + 2] * numProp;
-    const ax = vertProperties[i0], ay = vertProperties[i0 + 1], az = vertProperties[i0 + 2];
-    const bx = vertProperties[i1], by = vertProperties[i1 + 1], bz = vertProperties[i1 + 2];
-    const cx = vertProperties[i2], cy = vertProperties[i2 + 1], cz = vertProperties[i2 + 2];
-    const ux = bx - ax, uy = by - ay, uz = bz - az;
-    const vx = cx - ax, vy = cy - ay, vz = cz - az;
+    const i0 = triVerts[t * 3]! * numProp;
+    const i1 = triVerts[t * 3 + 1]! * numProp;
+    const i2 = triVerts[t * 3 + 2]! * numProp;
+    const ax = vertProperties[i0]!;
+    const ay = vertProperties[i0 + 1]!;
+    const az = vertProperties[i0 + 2]!;
+    const bx = vertProperties[i1]!;
+    const by = vertProperties[i1 + 1]!;
+    const bz = vertProperties[i1 + 2]!;
+    const cx = vertProperties[i2]!;
+    const cy = vertProperties[i2 + 1]!;
+    const cz = vertProperties[i2 + 2]!;
+    const ux = bx - ax;
+    const uy = by - ay;
+    const uz = bz - az;
+    const vx = cx - ax;
+    const vy = cy - ay;
+    const vz = cz - az;
     let nx = uy * vz - uz * vy;
     let ny = uz * vx - ux * vz;
     let nz = ux * vy - uy * vx;
     const len = Math.hypot(nx, ny, nz);
-    if (len > 0) { nx /= len; ny /= len; nz /= len; } else { nx = ny = nz = 0; }
+    if (len > 0) {
+      nx /= len;
+      ny /= len;
+      nz /= len;
+    } else {
+      nx = ny = nz = 0;
+    }
 
     view.setFloat32(offset, nx, true);
     view.setFloat32(offset + 4, ny, true);

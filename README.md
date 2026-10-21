@@ -47,7 +47,7 @@ ceiling" view), then click **Download STL**. The settings are mirrored in the UR
 **Copy link** gives you a shareable configuration.
 
 `npm run build` produces a static site in `dist/`. It is built for the base path
-`/openlamp/` (set in `vite.config.js`), so serve it from a directory of that name;
+`/openlamp/` (set in `vite.config.ts`), so serve it from a directory of that name;
 `npm run preview` serves the build on http://localhost:4173/openlamp/. Every push to
 `main` builds the site and deploys it to GitHub Pages (`.github/workflows/ci.yml`).
 
@@ -122,13 +122,14 @@ light opening 25.00, housing 32.60 and belt loops out to 37.5 mm, as designed.
 ```
 cli.mjs                   command‑line generator
 index.html                web UI shell
-src/params.js             parameter schema, defaults, presets, validation
-src/geometry.js           shade geometry (profile → revolve → warp → booleans)
-src/stl.js                binary STL writer
-src/worker.js             web worker that owns the WASM geometry kernel
-src/app.js                UI, three.js preview, STL download
+src/params.ts             parameter schema, defaults, presets, validation
+src/geometry.ts           shade geometry (profile → revolve → warp → booleans)
+src/stl.ts                binary STL writer
+src/worker.ts             web worker that owns the WASM geometry kernel
+src/protocol.ts           typed messages between the UI and the worker
+src/app.ts                UI, three.js preview, STL download
 docs/ARCHITECTURE.md      target architecture and milestones
-.github/workflows/ci.yml  build and GitHub Pages deploy
+.github/workflows/ci.yml  typecheck, lint, format check, build and GitHub Pages deploy
 ```
 
 Sample STLs are not committed. Regenerate them with the CLI, for example

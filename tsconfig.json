@@ -1,0 +1,12 @@
+// Solution file: `tsc -b` (npm run typecheck) checks every project below.
+// A `core` project (src/core, lib ES2023, `types: []` to prove it is DOM-free)
+// is added in M1.2 together with src/core; tsc rejects a project whose include
+// matches no files. cli.mjs is plain JavaScript and is not typechecked.
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.worker.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}

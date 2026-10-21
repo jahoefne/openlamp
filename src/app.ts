@@ -1,25 +1,35 @@
 /**
  * Browser UI: parameter form, live three.js preview, STL download.
- * Geometry is built in a web worker (see worker.js) so the page stays responsive.
+ * Geometry is built in a web worker (see worker.ts) so the page stays responsive.
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { PARAM_GROUPS, PARAMS, DEFAULTS, PRESETS, normalizeParams } from './params.js';
+import {
+  PARAM_GROUPS,
+  PARAMS,
+  DEFAULTS,
+  PRESETS,
+  normalizeParams,
+  type ParamKey,
+  type Params,
+  type SelectParamKey,
+} from './params.ts';
+import type { BuildStats, WorkerRequest, WorkerResponse } from './protocol.ts';
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1); // Z is up, like the printer
 
 // ---------------------------------------------------------------- state
 const state = { ...DEFAULTS, ...paramsFromUrl() };
-let lastStats = null;
-let lastParams = null;
+let lastStats: BuildStats | null = null;
 let buildId = 0;
-let pendingStl = null;
+let pendingStl = 0;
 
-const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+const send = (msg: WorkerRequest) => worker.postMessage(msg);
 
 // ---------------------------------------------------------------- form
-const form = document.getElementById('params');
-const inputs = new Map();
+const form = document.getElementById('params')!;
+const inputs = new Map<ParamKey, { set: (v: Params[ParamKey]) => void }>();
 
 for (const group of PARAM_GROUPS) {
   const fs = document.createElement('fieldset');
@@ -31,30 +41,57 @@ for (const group of PARAM_GROUPS) {
     row.className = 'param';
     const label = document.createElement('label');
     label.htmlFor = `p-${p.key}`;
-    label.innerHTML = `${p.label}${p.unit ? `<span class="unit">${p.unit}</span>` : ''}`;
+    const unit = p.type === 'select' ? undefined : p.unit;
+    label.innerHTML = `${p.label}${unit ? `<span class="unit">${unit}</span>` : ''}`;
     row.appendChild(label);
     if (p.type === 'select') {
       const sel = document.createElement('select');
       sel.id = `p-${p.key}`;
       for (const o of p.options) {
         const opt = document.createElement('option');
-        opt.value = o; opt.textContent = o;
+        opt.value = o;
+        opt.textContent = o;
         sel.appendChild(opt);
       }
       sel.value = state[p.key];
-      sel.addEventListener('change', () => setParam(p.key, sel.value));
+      // The dropdown only offers p.options, which are the valid values for p.key.
+      sel.addEventListener('change', () => setParam(p.key, sel.value as Params[SelectParamKey]));
       row.appendChild(sel);
-      inputs.set(p.key, { set: (v) => { sel.value = v; } });
+      inputs.set(p.key, {
+        set: (v) => {
+          sel.value = String(v);
+        },
+      });
     } else {
       const range = document.createElement('input');
-      range.type = 'range'; range.min = p.min; range.max = p.max; range.step = p.step; range.value = state[p.key];
+      range.type = 'range';
+      range.min = String(p.min);
+      range.max = String(p.max);
+      range.step = String(p.step);
+      range.value = String(state[p.key]);
       const num = document.createElement('input');
-      num.type = 'number'; num.id = `p-${p.key}`; num.min = p.min; num.max = p.max; num.step = p.step; num.value = state[p.key];
-      range.addEventListener('input', () => { num.value = range.value; setParam(p.key, parseFloat(range.value)); });
-      num.addEventListener('change', () => { range.value = num.value; setParam(p.key, parseFloat(num.value)); });
+      num.type = 'number';
+      num.id = `p-${p.key}`;
+      num.min = String(p.min);
+      num.max = String(p.max);
+      num.step = String(p.step);
+      num.value = String(state[p.key]);
+      range.addEventListener('input', () => {
+        num.value = range.value;
+        setParam(p.key, parseFloat(range.value));
+      });
+      num.addEventListener('change', () => {
+        range.value = num.value;
+        setParam(p.key, parseFloat(num.value));
+      });
       row.appendChild(range);
       row.appendChild(num);
-      inputs.set(p.key, { set: (v) => { range.value = v; num.value = v; } });
+      inputs.set(p.key, {
+        set: (v) => {
+          range.value = String(v);
+          num.value = String(v);
+        },
+      });
     }
     if (p.help) {
       const help = document.createElement('div');
@@ -67,24 +104,29 @@ for (const group of PARAM_GROUPS) {
   form.appendChild(fs);
 }
 
-const presetSel = document.getElementById('preset');
+const presetSel = document.getElementById('preset') as HTMLSelectElement;
 for (const name of Object.keys(PRESETS)) {
   const opt = document.createElement('option');
-  opt.value = name; opt.textContent = name;
+  opt.value = name;
+  opt.textContent = name;
   presetSel.appendChild(opt);
 }
-for (const ev of ['change', 'input']) presetSel.addEventListener(ev, () => applyParams({ ...DEFAULTS, ...PRESETS[presetSel.value] }));
-document.getElementById('reset').addEventListener('click', () => { presetSel.value = Object.keys(PRESETS)[0]; applyParams({ ...DEFAULTS }); });
+for (const ev of ['change', 'input'])
+  presetSel.addEventListener(ev, () => applyParams({ ...DEFAULTS, ...PRESETS[presetSel.value] }));
+document.getElementById('reset')!.addEventListener('click', () => {
+  presetSel.value = Object.keys(PRESETS)[0]!;
+  applyParams({ ...DEFAULTS });
+});
 
-function setParam(key, value) {
+function setParam<K extends ParamKey>(key: K, value: Params[K]) {
   state[key] = value;
   refreshVisibility();
   scheduleBuild();
 }
 
-function applyParams(params) {
+function applyParams(params: Params) {
   Object.assign(state, params);
-  for (const p of PARAMS) inputs.get(p.key).set(state[p.key]);
+  for (const p of PARAMS) inputs.get(p.key)!.set(state[p.key]);
   refreshVisibility();
   scheduleBuild();
 }
@@ -92,27 +134,31 @@ function applyParams(params) {
 function refreshVisibility() {
   const smooth = state.style === 'smooth';
   const faceted = state.style === 'faceted';
-  document.getElementById('p-patternCount').closest('.param').style.display = smooth ? 'none' : '';
-  document.getElementById('p-ribDepth').closest('.param').style.display = (smooth || faceted) ? 'none' : '';
-  document.getElementById('p-twist').closest('.param').style.display = smooth ? 'none' : '';
+  const row = (key: ParamKey) =>
+    document.getElementById(`p-${key}`)!.closest<HTMLElement>('.param')!;
+  row('patternCount').style.display = smooth ? 'none' : '';
+  row('ribDepth').style.display = smooth || faceted ? 'none' : '';
+  row('twist').style.display = smooth ? 'none' : '';
 }
 
 // ---------------------------------------------------------------- url state
-function paramsFromUrl() {
+function paramsFromUrl(): Params {
   const q = new URLSearchParams(location.search);
-  const out = {};
-  for (const p of PARAMS) if (q.has(p.key)) out[p.key] = p.type === 'select' ? q.get(p.key) : parseFloat(q.get(p.key));
+  const out: Partial<Record<ParamKey, unknown>> = {};
+  for (const p of PARAMS)
+    if (q.has(p.key)) out[p.key] = p.type === 'select' ? q.get(p.key) : parseFloat(q.get(p.key)!);
   return normalizeParams(out).params;
 }
-function urlForParams(params) {
+function urlForParams(params: Params) {
   const q = new URLSearchParams();
-  for (const p of PARAMS) if (params[p.key] !== DEFAULTS[p.key]) q.set(p.key, params[p.key]);
+  for (const p of PARAMS)
+    if (params[p.key] !== DEFAULTS[p.key]) q.set(p.key, String(params[p.key]));
   const s = q.toString();
   return location.pathname + (s ? '?' + s : '');
 }
 
 // ---------------------------------------------------------------- three.js
-const canvas = document.getElementById('canvas');
+const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
 renderer.localClippingEnabled = true;
@@ -135,68 +181,117 @@ scene.add(fill);
 const bed = new THREE.GridHelper(256, 16, 0x4a5060, 0x2c3038);
 bed.rotation.x = Math.PI / 2; // GridHelper lies in XZ by default; rotate to XY
 scene.add(bed);
-const bedLabel = new THREE.Mesh(new THREE.PlaneGeometry(256, 256), new THREE.MeshBasicMaterial({ color: 0x1a1d24, transparent: true, opacity: 0.6, side: THREE.DoubleSide }));
+const bedLabel = new THREE.Mesh(
+  new THREE.PlaneGeometry(256, 256),
+  new THREE.MeshBasicMaterial({
+    color: 0x1a1d24,
+    transparent: true,
+    opacity: 0.6,
+    side: THREE.DoubleSide,
+  }),
+);
 bedLabel.position.z = -0.2;
 scene.add(bedLabel);
 
 const model = new THREE.Group();
 scene.add(model);
 const clipPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // keeps y <= 0 when enabled
-const shadeMaterial = new THREE.MeshStandardMaterial({ color: 0xf4efe6, roughness: 0.55, metalness: 0.0, flatShading: false, side: THREE.DoubleSide });
+const shadeMaterial = new THREE.MeshStandardMaterial({
+  color: 0xf4efe6,
+  roughness: 0.55,
+  metalness: 0.0,
+  flatShading: false,
+  side: THREE.DoubleSide,
+});
 const shadeMesh = new THREE.Mesh(new THREE.BufferGeometry(), shadeMaterial);
 model.add(shadeMesh);
 
 // Ghost objects: the LED puck in its pocket and the strap through the tunnels.
 const ghosts = new THREE.Group();
 model.add(ghosts);
-const puckMat = new THREE.MeshStandardMaterial({ color: 0x9fd3ff, transparent: true, opacity: 0.55, roughness: 0.3 });
-const strapMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, transparent: true, opacity: 0.75, roughness: 0.9 });
-const ceilingMat = new THREE.MeshStandardMaterial({ color: 0xe9e4dc, roughness: 0.9, side: THREE.DoubleSide });
+const puckMat = new THREE.MeshStandardMaterial({
+  color: 0x9fd3ff,
+  transparent: true,
+  opacity: 0.55,
+  roughness: 0.3,
+});
+const strapMat = new THREE.MeshStandardMaterial({
+  color: 0x3a3a3a,
+  transparent: true,
+  opacity: 0.75,
+  roughness: 0.9,
+});
+const ceilingMat = new THREE.MeshStandardMaterial({
+  color: 0xe9e4dc,
+  roughness: 0.9,
+  side: THREE.DoubleSide,
+});
 const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), ceilingMat);
 ceiling.visible = false;
 scene.add(ceiling);
 
-function rebuildGhosts(stats, params) {
+function rebuildGhosts(stats: BuildStats, params: Params) {
   ghosts.clear();
   const d = stats.derived;
   ghosts.position.z = stats.zOffset || 0;
-  const puck = new THREE.Mesh(new THREE.CylinderGeometry(params.puckDiameter / 2, params.puckDiameter / 2, params.puckHeight, 64), puckMat);
+  const puck = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      params.puckDiameter / 2,
+      params.puckDiameter / 2,
+      params.puckHeight,
+      64,
+    ),
+    puckMat,
+  );
   puck.rotation.x = Math.PI / 2;
   puck.position.z = d.zFloor + params.puckHeight / 2;
   ghosts.add(puck);
-  const w = params.strapWidth, th = Math.min(params.strapThickness, 2);
+  const w = params.strapWidth,
+    th = Math.min(params.strapThickness, 2);
   const span = 2 * (d.rBoss + params.strapThickness);
   const top = new THREE.Mesh(new THREE.BoxGeometry(w, span, th), strapMat);
   top.position.z = d.zTop + th / 2;
   ghosts.add(top);
   for (const s of [-1, 1]) {
     const tail = new THREE.Mesh(new THREE.BoxGeometry(w, th, params.loopLength + 14), strapMat);
-    tail.position.set(0, s * (d.rBoss + params.strapThickness / 2), d.zTop - (params.loopLength + 14) / 2 + 1);
+    tail.position.set(
+      0,
+      s * (d.rBoss + params.strapThickness / 2),
+      d.zTop - (params.loopLength + 14) / 2 + 1,
+    );
     ghosts.add(tail);
   }
 }
 
-function setMounted(on) {
+function setMounted(on: boolean) {
   // The print orientation already is the mounted orientation (housing up, open
   // end down), so just swap the print bed for a ceiling plane sitting on the
   // strap (strap + mating velcro ≈ 3 mm).
   if (on) {
     ceiling.position.z = (lastStats ? lastStats.derived.zTop + (lastStats.zOffset || 0) : 150) + 3;
-    ceiling.visible = true; bed.visible = false; bedLabel.visible = false;
+    ceiling.visible = true;
+    bed.visible = false;
+    bedLabel.visible = false;
   } else {
-    ceiling.visible = false; bed.visible = true; bedLabel.visible = true;
+    ceiling.visible = false;
+    bed.visible = true;
+    bedLabel.visible = true;
   }
 }
 
-document.getElementById('section').addEventListener('change', (e) => {
-  shadeMaterial.clippingPlanes = e.target.checked ? [clipPlane] : [];
+const checked = (e: Event) => (e.target as HTMLInputElement).checked;
+document.getElementById('section')!.addEventListener('change', (e) => {
+  shadeMaterial.clippingPlanes = checked(e) ? [clipPlane] : [];
   shadeMaterial.needsUpdate = true;
 });
-document.getElementById('ghosts').addEventListener('change', (e) => { ghosts.visible = e.target.checked; });
-document.getElementById('mounted').addEventListener('change', (e) => setMounted(e.target.checked));
+document.getElementById('ghosts')!.addEventListener('change', (e) => {
+  ghosts.visible = checked(e);
+});
+document.getElementById('mounted')!.addEventListener('change', (e) => setMounted(checked(e)));
 
 function resize() {
-  const w = canvas.clientWidth, h = canvas.clientHeight;
+  const w = canvas.clientWidth,
+    h = canvas.clientHeight;
   if (canvas.width !== w || canvas.height !== h) {
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
@@ -212,10 +307,10 @@ function animate() {
 animate();
 
 // ---------------------------------------------------------------- worker glue
-const statusEl = document.getElementById('status');
-const statsEl = document.getElementById('stats');
-const downloadBtn = document.getElementById('download');
-let buildTimer = null;
+const statusEl = document.getElementById('status')!;
+const statsEl = document.getElementById('stats')!;
+const downloadBtn = document.getElementById('download') as HTMLButtonElement;
+let buildTimer: ReturnType<typeof setTimeout> | undefined;
 
 function scheduleBuild() {
   clearTimeout(buildTimer);
@@ -225,10 +320,10 @@ function requestBuild() {
   const id = ++buildId;
   statusEl.textContent = 'Building…';
   statusEl.className = 'status busy';
-  worker.postMessage({ type: 'build', id, params: { ...state } });
+  send({ type: 'build', id, params: { ...state } });
 }
 
-worker.onmessage = (e) => {
+worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
   const msg = e.data;
   if (msg.type === 'built') {
     if (msg.id !== buildId) return; // stale
@@ -239,9 +334,8 @@ worker.onmessage = (e) => {
     shadeMesh.geometry.dispose();
     shadeMesh.geometry = geo;
     lastStats = msg.stats;
-    lastParams = msg.params;
     rebuildGhosts(msg.stats, msg.params);
-    if (document.getElementById('mounted').checked) setMounted(true);
+    if ((document.getElementById('mounted') as HTMLInputElement).checked) setMounted(true);
     showStats(msg.stats, msg.warnings);
     statusEl.textContent = `Ready · built in ${msg.stats.buildMs} ms`;
     statusEl.className = 'status';
@@ -268,24 +362,36 @@ worker.onmessage = (e) => {
 downloadBtn.addEventListener('click', () => {
   downloadBtn.disabled = true;
   downloadBtn.textContent = 'Exporting…';
-  worker.postMessage({ type: 'stl', id: ++pendingStl, params: { ...state } });
+  send({ type: 'stl', id: ++pendingStl, params: { ...state } });
 });
 
-document.getElementById('share').addEventListener('click', async () => {
+document.getElementById('share')!.addEventListener('click', async () => {
   const url = location.origin + urlForParams(normalizeParams(state).params);
-  try { await navigator.clipboard.writeText(url); statusEl.textContent = 'Link copied'; }
-  catch { prompt('Copy this link', url); }
+  try {
+    await navigator.clipboard.writeText(url);
+    statusEl.textContent = 'Link copied';
+  } catch {
+    prompt('Copy this link', url);
+  }
 });
 
-function fmt(n, d = 1) { return Number(n).toFixed(d); }
-function showStats(s, warnings) {
+function fmt(n: number, d = 1) {
+  return Number(n).toFixed(d);
+}
+function showStats(s: BuildStats, warnings: string[] | undefined) {
   const over = s.maxOverhangDeg;
   const overClass = over > 55 ? 'warn' : 'ok';
   const rows = [
     ['Footprint', `${fmt(s.size.x)} × ${fmt(s.size.y)} mm, ${fmt(s.size.z)} mm tall`],
-    ['Housing', `Ø${fmt(s.housingDiameter)} mm · pocket Ø${fmt(s.pocketDiameter, 2)} × ${fmt(s.pocketDepth)} mm`],
+    [
+      'Housing',
+      `Ø${fmt(s.housingDiameter)} mm · pocket Ø${fmt(s.pocketDiameter, 2)} × ${fmt(s.pocketDepth)} mm`,
+    ],
     ['Material', `${fmt(s.volumeMm3 / 1000)} cm³ ≈ ${fmt(s.estGramsPla, 0)} g PLA`],
-    ['Max overhang', `<span class="${overClass}">${fmt(over, 0)}° from vertical${over > 55 ? ' – may need support' : ''}</span>`],
+    [
+      'Max overhang',
+      `<span class="${overClass}">${fmt(over, 0)}° from vertical${over > 55 ? ' – may need support' : ''}</span>`,
+    ],
     ['Mesh', `${s.triangles.toLocaleString()} triangles`],
   ];
   let html = rows.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
