@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "id": "drum",
+  "name": "Drum",
+  "revision": 0,
+  "updatedAt": "2026-10-21T00:00:00.000Z",
+  "printer": {
+    "id": "bambu-a1",
+    "vendor": "Bambu Lab",
+    "name": "A1",
+    "bed": [256, 256, 256],
+    "nozzle": 0.4,
+    "multiColour": true,
+    "notes": "AMS lite"
+  },
+  "quality": {
+    "preview": "normal",
+    "export": "normal"
+  },
+  "light": {
+    "kind": "puck",
+    "preset": "bambu-kit-001",
+    "diameter": 59,
+    "height": 8,
+    "clearance": 0.7,
+    "lightHoleDiameter": 50,
+    "ledgeThickness": 2,
+    "cableWidth": 4.5
+  },
+  "mount": {
+    "kind": "ceilingStrap",
+    "strapWidth": 25,
+    "strapThickness": 2.5,
+    "loopLength": 10,
+    "loopWall": 2.4
+  },
+  "hub": {
+    "wallThickness": 0.8,
+    "shoulderAngle": 50,
+    "bossWall": 2.4,
+    "pocketExtraDepth": 0.3,
+    "fused": true
+  },
+  "shades": [
+    {
+      "id": "outer",
+      "role": "outer",
+      "colour": "#f4efe6",
+      "wallThickness": 0.8,
+      "style": {
+        "family": "revolved",
+        "bottomDiameter": 140,
+        "topDiameter": 140,
+        "height": 100,
+        "curve": 0,
+        "surface": {
+          "style": "ribbed",
+          "patternCount": 60,
+          "ribDepth": 1.2,
+          "twist": 0
+        }
+      }
+    }
+  ],
+  "colours": {},
+  "fitTest": false
+}

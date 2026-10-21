@@ -54,17 +54,18 @@ ceiling" view), then click **Download STL**. The settings are mirrored in the UR
 ## Command line
 
 ```bash
-node cli.mjs                                   # default shade → samples/shade.stl
-node cli.mjs --list                            # all parameters and presets
-node cli.mjs --preset "Faceted" -o faceted.stl
-node cli.mjs --bottomDiameter 200 --height 150 --style ribbed --patternCount 48 --twist 60 --quality fine -o big.stl
-node cli.mjs --json                            # stats as JSON
+node cli/openlamp.ts part classicShade         # default shade → samples/openlamp-classicShade.stl
+node cli/openlamp.ts list                      # printers, examples and all parameters
+node cli/openlamp.ts project src/examples/faceted.lamp.json --out prints/
+node cli/openlamp.ts part classicShade --bottomDiameter 200 --height 150 --style ribbed --patternCount 48 --twist 60 --quality fine -o big.stl
+node cli/openlamp.ts part classicShade --json  # stats as JSON
+npm run samples                                # every example → samples/
 ```
 
-Any parameter from `--list` can be passed as `--key value`. Values are clamped to their
-range and cross‑checked (for example the top of the shade is widened automatically if it
-would not clear the puck housing). The package also exposes the CLI as an `openlamp`
-binary (`npm link`, then `openlamp --list`).
+Any parameter from `list` can be passed to `part classicShade` as `--key value`. Values are
+clamped to their range and cross‑checked (for example the top of the shade is widened
+automatically if it would not clear the puck housing). The package also exposes the CLI as an
+`openlamp` binary (`npm link`, then `openlamp list`).
 
 ## Parameters
 
@@ -106,7 +107,7 @@ binary (`npm link`, then `openlamp --list`).
   light – a smooth PEI plate and a slow first layer work well.
 * Fine quality exports are ~10 MB; the slicer copes, but "normal" is plenty for printing.
 * **Check the fit first:** set *Fit test only* to *yes* (or `--fitTest yes`) to export just the
-  13 mm tall housing ring (`node cli.mjs --fitTest yes -o samples/fit-test-ring.stl`,
+  13 mm tall housing ring (`node cli/openlamp.ts part classicShade --fitTest yes -o samples/fit-test-ring.stl`,
   ≈ 15 g, ≈ 10 min). Drop your puck in, thread the strap, then adjust `puckDiameter`,
   `puckHeight` or `puckClearance` if needed.
 
@@ -120,20 +121,21 @@ light opening 25.00, housing 32.60 and belt loops out to 37.5 mm, as designed.
 ## Project layout
 
 ```
-cli.mjs                   command‑line generator
+cli/openlamp.ts           command‑line generator
 index.html                web UI shell
-src/params.ts             parameter schema, defaults, presets, validation
-src/geometry.ts           shade geometry (profile → revolve → warp → booleans)
-src/stl.ts                binary STL writer
+src/core/                 shared core: schema, project model, assembly, geometry, STL writer
+src/examples/             example projects (.lamp.json)
 src/worker.ts             web worker that owns the WASM geometry kernel
 src/protocol.ts           typed messages between the UI and the worker
 src/app.ts                UI, three.js preview, STL download
 docs/ARCHITECTURE.md      target architecture and milestones
-.github/workflows/ci.yml  typecheck, lint, format check, build and GitHub Pages deploy
+.github/workflows/ci.yml  typecheck, lint, format check, tests, samples, build and GitHub Pages deploy
+tests/                    Vitest unit tests and fixtures
 ```
 
-Sample STLs are not committed. Regenerate them with the CLI, for example
-`node cli.mjs --preset "Faceted" -o samples/shade-faceted.stl` (`samples/` is git‑ignored).
+Sample STLs are not committed. Regenerate them with `npm run samples` (every example →
+`samples/`, which is git‑ignored) or build one with
+`node cli/openlamp.ts project src/examples/faceted.lamp.json --out samples/`.
 
 ## Sources for the kit dimensions
 

@@ -4,22 +4,32 @@
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { loadProject, projectToClassicParams, type Project } from '@core/model/project.ts';
 import {
-  PARAM_GROUPS,
-  PARAMS,
-  DEFAULTS,
-  PRESETS,
-  normalizeParams,
-  type ParamKey,
-  type Params,
-  type SelectParamKey,
-} from './params.ts';
+  CLASSIC_SHADE_DEFAULTS,
+  CLASSIC_SHADE_DEFS,
+  CLASSIC_SHADE_GROUPS,
+  isParamVisible,
+  type ClassicSelectKey,
+  type ClassicShadeKey,
+  type ClassicShadeParams,
+} from '@core/schema/defs.ts';
+import { normalizeClassicShade } from '@core/schema/normalize.ts';
 import type { BuildStats, WorkerRequest, WorkerResponse } from './protocol.ts';
+
+// The example gallery: every src/examples/*.lamp.json, validated, default first.
+const DEFAULT_EXAMPLE_ID = 'bell-default';
+const rank = (p: Project) => (p.id === DEFAULT_EXAMPLE_ID ? 0 : 1);
+const EXAMPLES: Project[] = Object.values(
+  import.meta.glob<{ default: unknown }>('./examples/*.lamp.json', { eager: true }),
+)
+  .map((mod) => loadProject(mod.default))
+  .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1); // Z is up, like the printer
 
 // ---------------------------------------------------------------- state
-const state = { ...DEFAULTS, ...paramsFromUrl() };
+const state: ClassicShadeParams = { ...CLASSIC_SHADE_DEFAULTS, ...paramsFromUrl() };
 let lastStats: BuildStats | null = null;
 let buildId = 0;
 let pendingStl = 0;
@@ -29,9 +39,12 @@ const send = (msg: WorkerRequest) => worker.postMessage(msg);
 
 // ---------------------------------------------------------------- form
 const form = document.getElementById('params')!;
-const inputs = new Map<ParamKey, { set: (v: Params[ParamKey]) => void }>();
+const inputs = new Map<
+  ClassicShadeKey,
+  { set: (v: ClassicShadeParams[ClassicShadeKey]) => void }
+>();
 
-for (const group of PARAM_GROUPS) {
+for (const group of CLASSIC_SHADE_GROUPS) {
   const fs = document.createElement('fieldset');
   const legend = document.createElement('legend');
   legend.textContent = group.label;
@@ -55,7 +68,9 @@ for (const group of PARAM_GROUPS) {
       }
       sel.value = state[p.key];
       // The dropdown only offers p.options, which are the valid values for p.key.
-      sel.addEventListener('change', () => setParam(p.key, sel.value as Params[SelectParamKey]));
+      sel.addEventListener('change', () =>
+        setParam(p.key, sel.value as ClassicShadeParams[ClassicSelectKey]),
+      );
       row.appendChild(sel);
       inputs.set(p.key, {
         set: (v) => {
@@ -105,54 +120,54 @@ for (const group of PARAM_GROUPS) {
 }
 
 const presetSel = document.getElementById('preset') as HTMLSelectElement;
-for (const name of Object.keys(PRESETS)) {
+for (const example of EXAMPLES) {
   const opt = document.createElement('option');
-  opt.value = name;
-  opt.textContent = name;
+  opt.value = example.id;
+  opt.textContent = example.name;
   presetSel.appendChild(opt);
 }
 for (const ev of ['change', 'input'])
-  presetSel.addEventListener(ev, () => applyParams({ ...DEFAULTS, ...PRESETS[presetSel.value] }));
+  presetSel.addEventListener(ev, () => {
+    const example = EXAMPLES.find((x) => x.id === presetSel.value);
+    if (example) applyParams(projectToClassicParams(example));
+  });
 document.getElementById('reset')!.addEventListener('click', () => {
-  presetSel.value = Object.keys(PRESETS)[0]!;
-  applyParams({ ...DEFAULTS });
+  presetSel.value = EXAMPLES[0]?.id ?? '';
+  applyParams({ ...CLASSIC_SHADE_DEFAULTS });
 });
 
-function setParam<K extends ParamKey>(key: K, value: Params[K]) {
+function setParam<K extends ClassicShadeKey>(key: K, value: ClassicShadeParams[K]) {
   state[key] = value;
   refreshVisibility();
   scheduleBuild();
 }
 
-function applyParams(params: Params) {
+function applyParams(params: ClassicShadeParams) {
   Object.assign(state, params);
-  for (const p of PARAMS) inputs.get(p.key)!.set(state[p.key]);
+  for (const p of CLASSIC_SHADE_DEFS) inputs.get(p.key)!.set(state[p.key]);
   refreshVisibility();
   scheduleBuild();
 }
 
 function refreshVisibility() {
-  const smooth = state.style === 'smooth';
-  const faceted = state.style === 'faceted';
-  const row = (key: ParamKey) =>
-    document.getElementById(`p-${key}`)!.closest<HTMLElement>('.param')!;
-  row('patternCount').style.display = smooth ? 'none' : '';
-  row('ribDepth').style.display = smooth || faceted ? 'none' : '';
-  row('twist').style.display = smooth ? 'none' : '';
+  for (const p of CLASSIC_SHADE_DEFS) {
+    const row = document.getElementById(`p-${p.key}`)!.closest<HTMLElement>('.param')!;
+    row.style.display = isParamVisible(p, state) ? '' : 'none';
+  }
 }
 
 // ---------------------------------------------------------------- url state
-function paramsFromUrl(): Params {
+function paramsFromUrl(): ClassicShadeParams {
   const q = new URLSearchParams(location.search);
-  const out: Partial<Record<ParamKey, unknown>> = {};
-  for (const p of PARAMS)
+  const out: Partial<Record<ClassicShadeKey, unknown>> = {};
+  for (const p of CLASSIC_SHADE_DEFS)
     if (q.has(p.key)) out[p.key] = p.type === 'select' ? q.get(p.key) : parseFloat(q.get(p.key)!);
-  return normalizeParams(out).params;
+  return normalizeClassicShade(out).values;
 }
-function urlForParams(params: Params) {
+function urlForParams(params: ClassicShadeParams) {
   const q = new URLSearchParams();
-  for (const p of PARAMS)
-    if (params[p.key] !== DEFAULTS[p.key]) q.set(p.key, String(params[p.key]));
+  for (const p of CLASSIC_SHADE_DEFS)
+    if (params[p.key] !== CLASSIC_SHADE_DEFAULTS[p.key]) q.set(p.key, String(params[p.key]));
   const s = q.toString();
   return location.pathname + (s ? '?' + s : '');
 }
@@ -230,10 +245,10 @@ const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), ceilingMat);
 ceiling.visible = false;
 scene.add(ceiling);
 
-function rebuildGhosts(stats: BuildStats, params: Params) {
+function rebuildGhosts(stats: BuildStats, params: ClassicShadeParams) {
   ghosts.clear();
   const d = stats.derived;
-  ghosts.position.z = stats.zOffset || 0;
+  ghosts.position.z = d.zOffset || 0;
   const puck = new THREE.Mesh(
     new THREE.CylinderGeometry(
       params.puckDiameter / 2,
@@ -268,7 +283,8 @@ function setMounted(on: boolean) {
   // end down), so just swap the print bed for a ceiling plane sitting on the
   // strap (strap + mating velcro ≈ 3 mm).
   if (on) {
-    ceiling.position.z = (lastStats ? lastStats.derived.zTop + (lastStats.zOffset || 0) : 150) + 3;
+    ceiling.position.z =
+      (lastStats ? lastStats.derived.zTop + (lastStats.derived.zOffset || 0) : 150) + 3;
     ceiling.visible = true;
     bed.visible = false;
     bedLabel.visible = false;
@@ -366,7 +382,7 @@ downloadBtn.addEventListener('click', () => {
 });
 
 document.getElementById('share')!.addEventListener('click', async () => {
-  const url = location.origin + urlForParams(normalizeParams(state).params);
+  const url = location.origin + urlForParams(normalizeClassicShade(state).values);
   try {
     await navigator.clipboard.writeText(url);
     statusEl.textContent = 'Link copied';
@@ -381,11 +397,16 @@ function fmt(n: number, d = 1) {
 function showStats(s: BuildStats, warnings: string[] | undefined) {
   const over = s.maxOverhangDeg;
   const overClass = over > 55 ? 'warn' : 'ok';
+  const { min, max } = s.bbox;
+  const d = s.derived;
   const rows = [
-    ['Footprint', `${fmt(s.size.x)} × ${fmt(s.size.y)} mm, ${fmt(s.size.z)} mm tall`],
+    [
+      'Footprint',
+      `${fmt(max[0] - min[0])} × ${fmt(max[1] - min[1])} mm, ${fmt(max[2] - min[2])} mm tall`,
+    ],
     [
       'Housing',
-      `Ø${fmt(s.housingDiameter)} mm · pocket Ø${fmt(s.pocketDiameter, 2)} × ${fmt(s.pocketDepth)} mm`,
+      `Ø${fmt(2 * d.rBoss)} mm · pocket Ø${fmt(2 * d.rPocket, 2)} × ${fmt(d.pocketDepth)} mm`,
     ],
     ['Material', `${fmt(s.volumeMm3 / 1000)} cm³ ≈ ${fmt(s.estGramsPla, 0)} g PLA`],
     [

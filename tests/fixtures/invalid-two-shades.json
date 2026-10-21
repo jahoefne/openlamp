@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "id": "minimal",
+  "name": "Minimal",
+  "revision": 0,
+  "updatedAt": "2026-10-21T12:00:00.000Z",
+  "printer": {
+    "id": "prusa-mini",
+    "vendor": "Prusa Research",
+    "name": "MINI+",
+    "bed": [180, 180, 180],
+    "nozzle": 0.4,
+    "multiColour": false
+  },
+  "quality": {
+    "preview": "draft",
+    "export": "normal"
+  },
+  "light": {
+    "kind": "puck",
+    "preset": "bambu-kit-001",
+    "diameter": 59,
+    "height": 8,
+    "clearance": 0.7,
+    "lightHoleDiameter": 50,
+    "ledgeThickness": 2,
+    "cableWidth": 4.5
+  },
+  "mount": {
+    "kind": "ceilingStrap",
+    "strapWidth": 25,
+    "strapThickness": 2.5,
+    "loopLength": 10,
+    "loopWall": 2.4
+  },
+  "hub": {
+    "wallThickness": 0.8,
+    "shoulderAngle": 50,
+    "bossWall": 2.4,
+    "pocketExtraDepth": 0.3,
+    "fused": true
+  },
+  "shades": [
+    {
+      "id": "outer",
+      "role": "outer",
+      "colour": "#f4efe6",
+      "wallThickness": 0.8,
+      "style": {
+        "family": "revolved",
+        "bottomDiameter": 140,
+        "topDiameter": 92,
+        "height": 100,
+        "curve": 0,
+        "surface": {
+          "style": "smooth",
+          "patternCount": 40,
+          "ribDepth": 1.6,
+          "twist": 0
+        }
+      }
+    },
+    {
+      "id": "outer",
+      "role": "outer",
+      "colour": "#f4efe6",
+      "wallThickness": 0.8,
+      "style": {
+        "family": "revolved",
+        "bottomDiameter": 140,
+        "topDiameter": 92,
+        "height": 100,
+        "curve": 0,
+        "surface": {
+          "style": "smooth",
+          "patternCount": 40,
+          "ribDepth": 1.6,
+          "twist": 0
+        }
+      }
+    }
+  ],
+  "colours": {},
+  "fitTest": false
+}

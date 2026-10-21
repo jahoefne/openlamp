@@ -1,34 +1,42 @@
 /**
- * Parameter schema for the lamp shade generator.
+ * Parameter definitions: the schema that drives the parameter form, the CLI
+ * flags and normalisation (see normalize.ts).
  *
- * All lengths are millimetres, angles are degrees. The same schema drives the
- * web UI form, the CLI flags and validation, so every parameter lives here.
+ * All lengths are millimetres, angles are degrees.
  */
 
-/** A numeric parameter, rendered as a slider plus a number input. */
-export interface NumberParamDef<K extends string = NumberParamKey> {
-  readonly type?: 'number';
+import { QUALITIES } from '../geometry/quality.ts';
+import { SURFACE_STYLES } from '../geometry/surface.ts';
+
+/** Current values of the parameters a definition belongs to, for `visibleWhen`. */
+export type ParamValues = Readonly<Record<string, unknown>>;
+
+interface ParamDefBase<K extends string> {
   readonly key: K;
   readonly label: string;
+  readonly help?: string;
+  /** Whether the field is shown for the current values; always shown when absent. */
+  readonly visibleWhen?: (values: ParamValues) => boolean;
+}
+
+/** A numeric parameter, rendered as a slider plus a number input. */
+export interface NumberParamDef<K extends string = string> extends ParamDefBase<K> {
+  readonly type?: 'number';
   readonly unit?: string;
   readonly min: number;
   readonly max: number;
   readonly step: number;
   readonly default: number;
-  readonly help?: string;
 }
 
 /** A parameter with a fixed set of string options, rendered as a dropdown. */
-export interface SelectParamDef<K extends string = SelectParamKey> {
+export interface SelectParamDef<K extends string = string> extends ParamDefBase<K> {
   readonly type: 'select';
-  readonly key: K;
-  readonly label: string;
   readonly options: readonly string[];
   readonly default: string;
-  readonly help?: string;
 }
 
-export type ParamDef = NumberParamDef | SelectParamDef;
+export type ParamDef<K extends string = string> = NumberParamDef<K> | SelectParamDef<K>;
 
 export interface ParamGroup<D = ParamDef> {
   readonly id: string;
@@ -36,9 +44,12 @@ export interface ParamGroup<D = ParamDef> {
   readonly params: readonly D[];
 }
 
-// The schema is a const literal so the `Params` type below can be derived from it:
-// every key, and the exact option union of every select.
-const SCHEMA = [
+const notSmooth = (v: ParamValues) => v.style !== 'smooth';
+const ribbedOnly = (v: ParamValues) => v.style === 'ribbed';
+
+// The schema is a const literal so the `ClassicShadeParams` type below can be
+// derived from it: every key, and the exact option union of every select.
+const CLASSIC_SHADE_SCHEMA = [
   {
     id: 'shape',
     label: 'Shade shape',
@@ -113,7 +124,7 @@ const SCHEMA = [
         key: 'style',
         label: 'Style',
         type: 'select',
-        options: ['smooth', 'ribbed', 'faceted'],
+        options: SURFACE_STYLES,
         default: 'ribbed',
       },
       {
@@ -124,6 +135,7 @@ const SCHEMA = [
         max: 160,
         step: 1,
         default: 40,
+        visibleWhen: notSmooth,
       },
       {
         key: 'ribDepth',
@@ -134,6 +146,7 @@ const SCHEMA = [
         step: 0.1,
         default: 1.6,
         help: 'Peak-to-valley depth of the ribs (ignored for smooth and faceted).',
+        visibleWhen: ribbedOnly,
       },
       {
         key: 'twist',
@@ -144,6 +157,7 @@ const SCHEMA = [
         step: 5,
         default: 25,
         help: 'Rotation of the pattern from bottom to top.',
+        visibleWhen: notSmooth,
       },
     ],
   },
@@ -283,7 +297,7 @@ const SCHEMA = [
         key: 'quality',
         label: 'Mesh quality',
         type: 'select',
-        options: ['draft', 'normal', 'fine'],
+        options: QUALITIES,
         default: 'normal',
         help: 'Draft is fast for previews. Fine gives the smoothest STL at a larger file size.',
       },
@@ -297,137 +311,34 @@ const SCHEMA = [
       },
     ],
   },
-] as const satisfies readonly ParamGroup<NumberParamDef<string> | SelectParamDef<string>>[];
+] as const satisfies readonly ParamGroup[];
 
-type SchemaParam = (typeof SCHEMA)[number]['params'][number];
+type SchemaParam = (typeof CLASSIC_SHADE_SCHEMA)[number]['params'][number];
 
-/** One complete, normalized parameter set. */
-export type Params = {
+/** One complete, normalised parameter set of the classic shade. */
+export type ClassicShadeParams = {
   [P in SchemaParam as P['key']]: P extends { readonly options: readonly (infer O)[] } ? O : number;
 };
 
-export type ParamKey = keyof Params;
-export type SelectParamKey = Extract<SchemaParam, { type: 'select' }>['key'];
-export type NumberParamKey = Exclude<ParamKey, SelectParamKey>;
-export type ShadeStyle = Params['style'];
-export type Quality = Params['quality'];
+export type ClassicShadeKey = keyof ClassicShadeParams;
+export type ClassicSelectKey = Extract<SchemaParam, { type: 'select' }>['key'];
+export type ClassicNumberKey = Exclude<ClassicShadeKey, ClassicSelectKey>;
+export type ClassicShadeParamDef =
+  NumberParamDef<ClassicNumberKey> | SelectParamDef<ClassicSelectKey>;
 
-export const PARAM_GROUPS: readonly ParamGroup[] = SCHEMA;
+export const CLASSIC_SHADE_GROUPS: readonly ParamGroup<ClassicShadeParamDef>[] =
+  CLASSIC_SHADE_SCHEMA;
 
-export const PARAMS: readonly ParamDef[] = PARAM_GROUPS.flatMap((g) => g.params);
+export const CLASSIC_SHADE_DEFS: readonly ClassicShadeParamDef[] = CLASSIC_SHADE_GROUPS.flatMap(
+  (g) => g.params,
+);
 
-// Built from the schema at runtime; the schema guarantees one entry per key.
-export const DEFAULTS = Object.fromEntries(PARAMS.map((p) => [p.key, p.default])) as Params;
+/** Built from the schema at runtime; the schema guarantees one entry per key. */
+export const CLASSIC_SHADE_DEFAULTS: Readonly<ClassicShadeParams> = Object.freeze(
+  Object.fromEntries(CLASSIC_SHADE_DEFS.map((p) => [p.key, p.default])) as ClassicShadeParams,
+);
 
-export const PRESETS: Record<string, Partial<Params>> = {
-  'Bell (default)': {},
-  'Straight cone': { curve: 0, bottomDiameter: 180, topDiameter: 90, height: 110, style: 'smooth' },
-  Drum: {
-    bottomDiameter: 140,
-    topDiameter: 140,
-    height: 100,
-    curve: 0,
-    style: 'ribbed',
-    patternCount: 60,
-    ribDepth: 1.2,
-    twist: 0,
-  },
-  'Fluted twist': {
-    bottomDiameter: 150,
-    topDiameter: 100,
-    height: 150,
-    curve: 0.35,
-    style: 'ribbed',
-    patternCount: 48,
-    ribDepth: 2,
-    twist: 60,
-  },
-  Faceted: {
-    bottomDiameter: 170,
-    topDiameter: 96,
-    height: 120,
-    curve: 0.15,
-    style: 'faceted',
-    patternCount: 10,
-    twist: 15,
-  },
-  'Wide & shallow': {
-    bottomDiameter: 240,
-    topDiameter: 110,
-    height: 70,
-    curve: -0.3,
-    style: 'smooth',
-  },
-  Trumpet: {
-    bottomDiameter: 200,
-    topDiameter: 80,
-    height: 140,
-    curve: -0.6,
-    style: 'ribbed',
-    patternCount: 72,
-    ribDepth: 1,
-    twist: 0,
-  },
-};
-
-/**
- * Coerce, clamp and sanity-check a parameter object. Returns a fresh object
- * plus a list of human-readable warnings for values that had to be adjusted.
- */
-export function normalizeParams(input: Partial<Record<ParamKey, unknown>> = {}): {
-  params: Params;
-  warnings: string[];
-} {
-  const out: Params = { ...DEFAULTS };
-  const warnings: string[] = [];
-  for (const p of PARAMS) {
-    const v = input[p.key];
-    if (!(p.key in input) || v === undefined || v === null || v === '') continue;
-    if (p.type === 'select') {
-      if (typeof v === 'string' && p.options.includes(v)) {
-        // v is one of p.options, which is exactly the option union of Params[p.key].
-        (out as Record<SelectParamKey, string>)[p.key] = v;
-      } else {
-        warnings.push(`${p.key}: unknown option "${String(v)}", using "${p.default}"`);
-      }
-      continue;
-    }
-    const n = typeof v === 'number' ? v : parseFloat(String(v));
-    if (!Number.isFinite(n)) {
-      warnings.push(`${p.key}: not a number, using ${p.default}`);
-      continue;
-    }
-    const clamped = Math.min(p.max, Math.max(p.min, n));
-    if (clamped !== n) warnings.push(`${p.key}: ${n} clamped to ${clamped}`);
-    out[p.key] = clamped;
-  }
-
-  // Cross-parameter constraints.
-  const rPocket = out.puckDiameter / 2 + out.puckClearance;
-  const bossDiameter = 2 * (rPocket + out.bossWall);
-  if (out.topDiameter < bossDiameter + 2) {
-    warnings.push(
-      `topDiameter raised to ${Math.ceil(bossDiameter + 2)} mm so the shoulder clears the puck housing`,
-    );
-    out.topDiameter = Math.ceil(bossDiameter + 2);
-  }
-  const maxHole = 2 * (rPocket - 1.5);
-  if (out.lightHoleDiameter > maxHole) {
-    warnings.push(
-      `lightHoleDiameter reduced to ${maxHole.toFixed(1)} mm to keep a 1.5 mm ledge under the puck`,
-    );
-    out.lightHoleDiameter = maxHole;
-  }
-  if (out.strapWidth + 2 * out.loopWall > bossDiameter - 2) {
-    const w = Math.floor(bossDiameter - 2 - 2 * out.loopWall);
-    warnings.push(`strapWidth reduced to ${w} mm to fit the puck housing`);
-    out.strapWidth = w;
-  }
-  return { params: out, warnings };
+/** Whether a parameter is shown for the given values (see `ParamDefBase.visibleWhen`). */
+export function isParamVisible(def: ParamDef, values: ParamValues): boolean {
+  return def.visibleWhen ? def.visibleWhen(values) : true;
 }
-
-export const QUALITY = {
-  draft: { segments: 128, wallStep: 3 },
-  normal: { segments: 256, wallStep: 1.5 },
-  fine: { segments: 512, wallStep: 1 },
-} as const satisfies Record<Quality, { segments: number; wallStep: number }>;

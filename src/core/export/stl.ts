@@ -3,6 +3,9 @@
  *
  * The mesh's `triVerts` are CCW from the outside, so the facet normal computed
  * from the cross product points outward, which is what slicers expect.
+ *
+ * Core runs on the plain ES library (no TextEncoder), so the 80-byte header is
+ * written as ASCII; any other character becomes `?`.
  */
 
 /** The subset of a manifold-3d `Mesh` the writer reads. */
@@ -18,8 +21,11 @@ export function meshToBinaryStl(mesh: StlMesh, name = 'openlamp lamp shade'): Ar
   const buffer = new ArrayBuffer(84 + numTri * 50);
   const view = new DataView(buffer);
   const header = new Uint8Array(buffer, 0, 80);
-  const headerText = new TextEncoder().encode(name.slice(0, 79));
-  header.set(headerText);
+  const headerText = name.slice(0, 79);
+  for (let i = 0; i < headerText.length; i++) {
+    const code = headerText.charCodeAt(i);
+    header[i] = code < 128 ? code : 0x3f;
+  }
   view.setUint32(80, numTri, true);
 
   // Every index below is in range for a well-formed mesh (3 indices per

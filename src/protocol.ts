@@ -4,15 +4,15 @@
  * Every response carries the `id` of the request it answers so the UI can drop
  * stale builds. Typed arrays and buffers are transferred, not copied.
  */
-import type { ShadeStats } from './geometry.ts';
-import type { Params } from './params.ts';
+import type { ClassicShadeStats } from '@core/geometry/parts/classicShade.ts';
+import type { ClassicShadeParams } from '@core/schema/defs.ts';
 
 export type WorkerRequest =
-  | { type: 'build'; id: number; params: Partial<Params> }
-  | { type: 'stl'; id: number; params: Partial<Params> };
+  | { type: 'build'; id: number; params: Partial<ClassicShadeParams> }
+  | { type: 'stl'; id: number; params: Partial<ClassicShadeParams> };
 
 /** Shade stats plus the time the worker spent building the manifold. */
-export interface BuildStats extends ShadeStats {
+export interface BuildStats extends ClassicShadeStats {
   buildMs: number;
 }
 
@@ -25,7 +25,7 @@ export interface BuiltResponse {
   indices: Uint32Array<ArrayBuffer>;
   stats: BuildStats;
   /** The normalized parameters the mesh was built from. */
-  params: Params;
+  params: ClassicShadeParams;
   warnings: string[];
 }
 
@@ -34,7 +34,7 @@ export interface StlResponse {
   id: number;
   /** A complete binary STL file. */
   buffer: ArrayBuffer;
-  params: Params;
+  params: ClassicShadeParams;
 }
 
 export interface ErrorResponse {
