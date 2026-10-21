@@ -1,7 +1,8 @@
 /**
- * The left sidebar: the shade's parameters (from the core schema), the hub &
- * joint of a two-part lamp, output and colour options, view options and
- * reset. (M2.5 adds the LampTree and one inspector per selected part.)
+ * The left sidebar: the shade's parameters (from the core schema), the mount
+ * (which one, and its parameters), the hub & joint of a two-part lamp, output
+ * and colour options, view options and reset. (M2.5 adds the LampTree and one
+ * inspector per selected part.)
  */
 import { QUALITIES, type Quality } from '@core/geometry/quality.ts';
 import type { Warning } from '@core/model/assembly.ts';
@@ -9,6 +10,8 @@ import {
   CLASSIC_PARAM_PATHS,
   HUB_PARAM_PATHS,
   createDefaultProject,
+  mountParamPath,
+  mountToParams,
   projectToClassicParams,
   projectToHubParams,
 } from '@core/model/project.ts';
@@ -16,16 +19,21 @@ import {
   CLASSIC_SHADE_DEFS,
   CLASSIC_SHADE_GROUPS,
   HUB_JOINT_GROUPS,
+  MOUNT_DESCRIPTIONS,
+  MOUNT_GROUPS,
+  MOUNT_KINDS,
+  MOUNT_LABELS,
   type ClassicShadeKey,
   type ClassicShadeParams,
   type HubJointKey,
   type HubJointParams,
+  type MountKind,
 } from '@core/schema/defs.ts';
 import { useMemo } from 'react';
 import { ColourField } from '../forms/fields/ColourField.tsx';
 import { SelectField } from '../forms/fields/SelectField.tsx';
 import { ToggleField } from '../forms/fields/ToggleField.tsx';
-import { commitEdit, editTransient, endEdit, hubEdits } from '../forms/editSession.ts';
+import { commitEdit, editTransient, endEdit, hubEdits, mountEdits } from '../forms/editSession.ts';
 import { SchemaForm } from '../forms/SchemaForm.tsx';
 import { newProjectId } from '../persistence/identity.ts';
 import { useProjectStore } from '../store/projectStore.ts';
@@ -33,8 +41,12 @@ import { useAssembly } from '../store/selectors.ts';
 import { useUiStore, type SectionAxis } from '../store/uiStore.ts';
 import styles from './Inspector.module.css';
 
-/** The "Output" group is rendered by hand: quality is per use, fit test is a toggle. */
-const SHADE_GROUPS = CLASSIC_SHADE_GROUPS.filter((g) => g.id !== 'output');
+/**
+ * The "Output" group is rendered by hand (quality is per use, fit test is a
+ * toggle), the strap's "mount" group with the other mounts.
+ */
+const SHADE_GROUPS = CLASSIC_SHADE_GROUPS.filter((g) => g.id !== 'output' && g.id !== 'mount');
+const isMountKind = (k: string): k is MountKind => (MOUNT_KINDS as readonly string[]).includes(k);
 const defOf = (key: ClassicShadeKey) => CLASSIC_SHADE_DEFS.find((d) => d.key === key);
 
 const asKey = (key: string) => key as ClassicShadeKey;
@@ -73,10 +85,53 @@ function ShadeForm() {
   );
 }
 
+/**
+ * Which mount, and its parameters. Switching keeps the light, the shade, the
+ * hub and the joints and gives the new mount its defaults (one undo step).
+ */
+function MountForm() {
+  const mount = useProjectStore((s) => s.project.mount);
+  const values = useMemo(() => mountToParams(mount), [mount]);
+  const byPath = useWarningsByPath();
+  const warningsFor = (key: string) => byPath.get(mountParamPath(mount.kind, key) ?? '') ?? [];
+  const setMount = (kind: string) => {
+    if (!isMountKind(kind)) return;
+    useProjectStore.getState().setMount(kind);
+    useUiStore.getState().requestFit(true); // the lamp changes shape: frame it once built
+  };
+  return (
+    <>
+      <fieldset>
+        <legend>Mount</legend>
+        <SelectField
+          id="p-mount"
+          label="Mount"
+          value={mount.kind}
+          options={MOUNT_KINDS}
+          optionLabel={(k) => (isMountKind(k) ? MOUNT_LABELS[k] : k)}
+          help={MOUNT_DESCRIPTIONS[mount.kind]}
+          warnings={byPath.get('mount.kind')}
+          onChange={setMount}
+        />
+      </fieldset>
+      <SchemaForm
+        groups={MOUNT_GROUPS[mount.kind]}
+        values={values}
+        warningsFor={warningsFor}
+        onTransient={(key, v) => mountEdits.transient(key, v)}
+        onCommit={(key, v) => mountEdits.commit(key, v)}
+        onEnd={mountEdits.end}
+      />
+    </>
+  );
+}
+
 /** Fused (one print) or split into a hub and a shade, and the split lamp's hub and joint. */
 function HubJointForm() {
   const project = useProjectStore((s) => s.project);
-  const fused = project.hub.fused;
+  // Only the strap has a single-piece print; every other mount splits the lamp.
+  const strap = project.mount.kind === 'ceilingStrap';
+  const fused = strap && project.hub.fused;
   const values = useMemo(() => ({ ...projectToHubParams(project), fused }), [project, fused]);
   const byPath = useWarningsByPath();
   const warningsFor = (key: string) => byPath.get(HUB_PARAM_PATHS[asHubKey(key)]) ?? [];
@@ -92,15 +147,22 @@ function HubJointForm() {
       onTransient={(key, v) => hubEdits.transient(asHubKey(key), v)}
       onCommit={(key, v) => hubEdits.commit(asHubKey(key), asHubValue(v))}
       onEnd={hubEdits.end}
-      lead={() => (
-        <ToggleField
-          id="p-fused"
-          label="Single-piece print (fused)"
-          checked={fused}
-          help="On: hub and shade print as one part (the classic shade). Off: a separate hub holds the puck and hangs from the strap, and the shade hangs from the hub on a bayonet, press fit or thread."
-          onChange={setFused}
-        />
-      )}
+      lead={() =>
+        strap ? (
+          <ToggleField
+            id="p-fused"
+            label="Single-piece print (fused)"
+            checked={fused}
+            help="On: hub and shade print as one part (the classic shade). Off: a separate hub holds the puck and hangs from the strap, and the shade hangs from the hub on a bayonet, press fit or thread."
+            onChange={setFused}
+          />
+        ) : (
+          <p className={styles.hint}>
+            With this mount the hub and the shade print separately; the shade hangs from the hub on
+            a bayonet, press fit or thread.
+          </p>
+        )
+      }
     />
   );
 }
@@ -175,13 +237,13 @@ function ViewOptions() {
       )}
       <ToggleField
         id="v-ghosts"
-        label="Show LED puck and strap"
+        label="Show LED puck, strap and cord"
         checked={ghosts}
         onChange={setGhosts}
       />
       <ToggleField
         id="v-mounted"
-        label="Show as mounted on the ceiling"
+        label="Show as mounted (ceiling, wall or floor)"
         checked={mounted}
         onChange={setMounted}
       />
@@ -198,7 +260,7 @@ export function Inspector() {
     <div className={styles.inspector}>
       <header className={styles.header}>
         <p className={styles.sub}>
-          Ceiling lamp shade for the Bambu Lab LED Lamp Kit‑001, hung from a velcro strap.
+          A lamp for the Bambu Lab LED Lamp Kit‑001: shape the shade, pick a mount.
         </p>
         <button type="button" title="Back to the default shade" onClick={reset}>
           Reset
@@ -206,6 +268,7 @@ export function Inspector() {
       </header>
       <form autoComplete="off" onSubmit={(e) => e.preventDefault()}>
         <ShadeForm />
+        <MountForm />
         <HubJointForm />
         <OutputOptions />
         <ViewOptions />

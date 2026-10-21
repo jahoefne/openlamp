@@ -26,6 +26,8 @@ import {
   HUB_PARAM_PATHS,
   classicParamsToProject,
   createDefaultProject,
+  defaultMount,
+  mountParamPath,
   projectToClassicParams,
   type Project,
 } from '@core/model/project.ts';
@@ -34,6 +36,7 @@ import type {
   ClassicShadeParams,
   HubJointKey,
   HubJointParams,
+  MountKind,
 } from '@core/schema/defs.ts';
 import type { PrinterSpec } from '@core/schema/printers.ts';
 
@@ -76,6 +79,16 @@ export interface ProjectState {
   setHubParam<K extends HubJointKey>(key: K, value: HubJointParams[K], options?: EditOptions): void;
   /** Print hub and shade as one part (the classic shade) or as two parts joined by a collar. */
   setFused(fused: boolean): void;
+  /**
+   * Switch to another mount with that mount's defaults (light, shade, hub and
+   * joints stay). One undo step; nothing happens if it already is that mount.
+   */
+  setMount(kind: MountKind): void;
+  /**
+   * Set one flat parameter of the current mount (see `MOUNT_PARAM_PATHS`);
+   * a key the current mount does not have is ignored.
+   */
+  setMountParam(key: string, value: number | string, options?: EditOptions): void;
   /**
    * End a transient edit without a final value (a drag released where it
    * started): one undo step if the project changed, none if it did not.
@@ -225,6 +238,23 @@ export const useProjectStore = create<ProjectState>()(
         setFused(fused) {
           edit((p) => {
             p.hub.fused = fused;
+          });
+        },
+
+        setMount(kind) {
+          if (get().project.mount.kind === kind) return;
+          cancelTransient();
+          const mount = defaultMount(kind);
+          edit((p) => {
+            p.mount = mount;
+          });
+        },
+
+        setMountParam(key, value, options = {}) {
+          const path = mountParamPath(get().project.mount.kind, key);
+          if (path === undefined) return;
+          editParam(options, (_current, draft) => {
+            setAtPath(draft.project, path, value);
           });
         },
 

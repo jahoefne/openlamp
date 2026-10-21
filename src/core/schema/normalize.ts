@@ -8,10 +8,15 @@ import {
   CLASSIC_SHADE_DEFS,
   HUB_JOINT_DEFAULTS,
   HUB_JOINT_DEFS,
+  MOUNT_DEFAULTS,
+  MOUNT_DEFS,
+  MOUNT_PARAM_PATHS,
   type ClassicShadeKey,
   type ClassicShadeParams,
   type HubJointKey,
   type HubJointParams,
+  type MountKind,
+  type MountParamsByKind,
   type ParamDef,
 } from './defs.ts';
 
@@ -139,4 +144,26 @@ export function normalizeHubJoint(input: Readonly<Partial<Record<HubJointKey, un
     out.threadDepth = maxDepth;
   }
   return { values: out, warnings };
+}
+
+/**
+ * Clamp a mount's flat parameters (see `MOUNT_PARAM_PATHS`) to its
+ * definitions. Warnings carry the project path (`mount.canopy.diameter`).
+ * Cross-parameter rules of a mount live in its assembly module
+ * (`MountModule.normalize`). The velcro strap is normalised with the classic
+ * shade (`normalizeClassicShade`), whose builder shares its parameters.
+ */
+export function normalizeMountParams<K extends MountKind>(
+  kind: K,
+  input: Readonly<Partial<Record<string, unknown>>>,
+): { values: MountParamsByKind[K]; warnings: Warning[] } {
+  const clamped = clampToSchema(MOUNT_DEFS[kind], input);
+  // As in normalizeClassicShade: every key filled with a value of its definition's type.
+  const values = { ...MOUNT_DEFAULTS[kind], ...clamped.values } as MountParamsByKind[K];
+  const paths: Readonly<Record<string, string>> = MOUNT_PARAM_PATHS[kind];
+  const warnings = clamped.warnings.map((w) => {
+    const path = w.paramPath !== undefined ? paths[w.paramPath] : undefined;
+    return path === undefined ? w : { ...w, paramPath: `mount.${path}` };
+  });
+  return { values, warnings };
 }

@@ -23,6 +23,13 @@ export interface SchemaFormProps {
   lead?: ((groupId: string) => ReactNode) | undefined;
 }
 
+const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** A select's display labels: its own, else the capitalised option. */
+function labelsOf(labels: Readonly<Record<string, string>> | undefined) {
+  return labels ? (o: string) => labels[o] ?? capitalise(o) : undefined;
+}
+
 export function SchemaForm({
   groups,
   values,
@@ -48,6 +55,7 @@ export function SchemaForm({
               label={def.label}
               value={String(values[def.key])}
               options={def.options}
+              optionLabel={labelsOf(def.optionLabels)}
               help={def.help}
               warnings={warningsFor?.(def.key)}
               onChange={(v) => onCommit(def.key, v)}

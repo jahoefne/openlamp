@@ -38,8 +38,22 @@ export const strapMaterial = new MeshStandardMaterial({
   roughness: 0.9,
 });
 
+/** The pendant's cord ghost. */
+export const cordMaterial = new MeshStandardMaterial({
+  color: 0x2b2b2b,
+  transparent: true,
+  opacity: 0.85,
+  roughness: 0.95,
+});
+
 export const ceilingMaterial = new MeshStandardMaterial({
   color: 0xe9e4dc,
   roughness: 0.9,
+  side: DoubleSide,
+});
+
+export const wallMaterial = new MeshStandardMaterial({
+  color: 0xdcd6cc,
+  roughness: 0.95,
   side: DoubleSide,
 });

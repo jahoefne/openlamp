@@ -25,16 +25,19 @@ Requires Node.js 24 (the version CI uses).
 
 ## Using the app
 
-- **Examples** opens a gallery of seven starting shapes (bell, drum, faceted, fluted twist,
-  straight cone, trumpet, wide & shallow). Picking one replaces the current lamp, which stays
-  one undo away.
+- **Examples** opens a gallery of starting points: seven classic shades (bell, drum, faceted,
+  fluted twist, straight cone, trumpet, wide & shallow) and a pendant on a cord. Picking one
+  replaces the current lamp, which stays one undo away.
 - **The inspector** on the left holds every parameter of the shade: shape, surface style,
   the LED puck and the velcro mount. Each number has a slider and a text field; values out of
   range are clamped and explained under the field. Rows that do not apply are hidden (a
   smooth shade has no rib count). While you drag a slider the preview builds at draft
-  quality; releasing it builds the full mesh. **Hub & joint** switches between the
-  single-piece print and the two-part lamp (_Single-piece print (fused)_ off) and, for the
-  two-part lamp, picks the joint (bayonet, press fit, thread), its clearance, the thread pitch
+  quality; releasing it builds the full mesh. **Mount** picks how the lamp is hung or stands:
+  the velcro strap on the ceiling, a pendant on a cord (with a ceiling canopy, the cord knotted
+  in it or held by a collet and a screw-on grip), a wall arm or a standing lamp (the parts of
+  the last two arrive in the next step), each with its own parameters. **Hub & joint**
+  switches between the single-piece print (velcro strap only) and the two-part lamp
+  (_Single-piece print (fused)_ off) and, for the two-part lamp, picks the joint (bayonet, press fit, thread), its clearance, the thread pitch
   and depth, the collar wall and the hub's own shoulder angle. **Output** sets the preview and
   export mesh quality, the fit-test mode and the shade colour.
 - **Undo / redo**: ⌘Z / Ctrl+Z and ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y, or the arrows in the top
@@ -169,6 +172,8 @@ node cli/openlamp.ts part shade --bottomDiameter 200 --height 150 --style ribbed
 node cli/openlamp.ts part shade --fitTest yes -o samples/fit-test-ring.stl
 node cli/openlamp.ts part hub --joint thread   # hub of a two-part lamp → samples/openlamp-hub.stl
 node cli/openlamp.ts part shade --joint snap   # its shade, with a press-fit collar
+node cli/openlamp.ts part hub --mount ceilingCord  # the pendant's hub (cord boss on top)
+node cli/openlamp.ts part canopy               # a mount's own part, with the mount's defaults
 node cli/openlamp.ts part shade --json         # stats as JSON
 node cli/openlamp.ts project src/examples/faceted.lamp.json --out prints/
 node cli/openlamp.ts samples                   # every example → samples/ (same as npm run samples)
@@ -178,7 +183,9 @@ node cli/openlamp.ts samples                   # every example → samples/ (sam
   be passed as `--<param> <value>`. Values are clamped to their range and cross-checked (for
   example the top of the shade is widened automatically if it would not clear the puck
   housing). Kinds: `shade` (the single-piece shade, or with `--joint bayonet|snap|thread` the
-  shade of a two-part lamp) and `hub` (the hub of a two-part lamp, bayonet by default).
+  shade of a two-part lamp) and `hub` (the hub of a two-part lamp, bayonet by default);
+  `--mount <kind>` picks the mount, and a mount's own parts (`canopy`, `cordGrip`) come with
+  that mount's defaults.
 - `project <file.lamp.json>` builds every part of a project at its export quality into
   `--out <dir>` as `openlamp-<project>-<part>.stl`.
 - `samples` builds every `src/examples/*.lamp.json` into `samples/` (git-ignored).
@@ -195,12 +202,12 @@ the examples and the CLI. Its top-level fields:
 
 | Field                                 | Contents                                                                                                      |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `version`                             | format version (currently `2`); older versions are migrated on load                                           |
+| `version`                             | format version (currently `3`); older versions are migrated on load                                           |
 | `id`, `name`, `revision`, `updatedAt` | identity, display name, edit counter, ISO timestamp                                                           |
 | `printer`                             | `{ id, vendor, name, bed: [x, y, z], nozzle, multiColour, notes? }`                                           |
 | `quality`                             | `{ preview, export }`, each `draft`, `normal` or `fine`                                                       |
 | `light`                               | the light source: `{ kind: "puck", diameter, height, clearance, bossWall, … }`                                |
-| `mount`                               | how the lamp is hung: `{ kind: "ceilingStrap", strapWidth, … }`                                               |
+| `mount`                               | how the lamp is hung or stands: `ceilingStrap`, `ceilingCord`, `wallArm` or `standing`, with its parameters   |
 | `hub`                                 | `{ wallThickness, shoulderAngle, collarWall, radialGap, ventCount, fused }`                                   |
 | `shades`                              | one outer shade `{ colour, wallThickness, collarDiameter?, style: { family: "revolved", shoulderAngle, … } }` |
 | `joints`                              | `{ shadeToHub, tolerance, threadPitch, threadDepth, screw: "M3", heatSet }`                                   |

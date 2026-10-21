@@ -1,13 +1,14 @@
 /**
- * Translucent stand-ins for what is not printed: the LED puck in its pocket
- * and the velcro strap through the tunnels, placed from the derived
- * dimensions of the assembly on screen (`ceilingZ`, `puckZ`, … in the world
- * frame), so they move with the meshes, not ahead of them. Rendered inside
- * the display lift (see Viewport).
+ * Translucent stand-ins for what is not printed: the LED puck in its pocket,
+ * the velcro strap through the tunnels and the pendant's cord, placed from
+ * the derived dimensions and the mount context of the assembly on screen
+ * (`ceilingZ`, `puckZ`, `context.cord`, … in the world frame), so they move
+ * with the meshes, not ahead of them. Rendered inside the display lift (see
+ * Viewport).
  */
-import { useShownDerived } from './sceneDerived.ts';
+import { useShownContext, useShownDerived } from './sceneDerived.ts';
 import { useUiStore } from '../store/uiStore.ts';
-import { puckMaterial, strapMaterial } from './materials.ts';
+import { cordMaterial, puckMaterial, strapMaterial } from './materials.ts';
 
 function Puck({ z, diameter, height }: { z: number; diameter: number; height: number }) {
   const r = diameter / 2;
@@ -52,9 +53,20 @@ function Strap({
   );
 }
 
+/** The cord: a thin vertical cylinder on the axis from z0 up to z1. */
+function Cord({ z0, z1, diameter }: { z0: number; z1: number; diameter: number }) {
+  const r = diameter / 2;
+  return (
+    <mesh material={cordMaterial} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, (z0 + z1) / 2]}>
+      <cylinderGeometry args={[r, r, z1 - z0, 12]} />
+    </mesh>
+  );
+}
+
 export function Ghosts() {
   const visible = useUiStore((s) => s.ghosts);
   const d = useShownDerived();
+  const cord = useShownContext()?.cord;
   if (!visible || !d) return null;
   const { puckZ, puckDiameter, puckHeight, ceilingZ, rBoss } = d;
   const { strapWidth, strapThickness, loopLength } = d;
@@ -76,6 +88,7 @@ export function Ghosts() {
           loopLength={loopLength}
         />
       ) : null}
+      {cord && cord.z1 > cord.z0 ? <Cord {...cord} /> : null}
     </>
   );
 }
