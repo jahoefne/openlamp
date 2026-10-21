@@ -7,7 +7,8 @@
     "types": ["vite/client"]
   },
   // src/core is included because the app imports it; tsconfig.core.json is
-  // what proves it DOM-free.
+  // what proves it DOM-free. The worker is checked by tsconfig.worker.json (the
+  // app still sees the types of src/worker/protocol.ts through its imports).
   "include": ["src"],
-  "exclude": ["src/worker.ts", "src/worker/**"]
+  "exclude": ["src/worker"]
 }

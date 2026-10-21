@@ -238,9 +238,9 @@ Shared contract: body in print frame, open end on the bed, terminating in an ann
 ```ts
 type ToWorker =
   | { t: 'init' }
-  | { t: 'build'; gen: number; parts: PartSpec[]; quality: Quality }
-  | { t: 'export'; jobId: string; parts: PartSpec[]; quality: Quality; format: 'stl' | 'zip-stl' | '3mf';
-      layout: PlacedPart[]; printer: PrinterSpec; meta: { name: string; shareUrl?: string } }
+  | { t: 'build'; gen: number; parts: PartSpec[] }   // quality is baked into each part's params by assemble()
+  | { t: 'export'; jobId: string; parts: PartSpec[]; format: 'stl' | 'zip-stl' | '3mf';
+      layout: Layout; printer: PrinterSpec; meta: { name: string; shareUrl?: string } }
   | { t: 'cancel-export'; jobId: string };
 type FromWorker =
   | { t: 'ready'; kernelMs: number }
@@ -254,9 +254,10 @@ type FromWorker =
 ```
 
 - The worker initialises the kernel as today (`Module({ locateFile: () => wasmUrl }); setup()`).
-- The build loop checks `gen !== latestGen` between parts (cooperative cancel); a throwing builder yields `part-error` for that part only and the loop continues.
+- The build loop yields to the event loop and checks `gen !== latestGen` before each part (cooperative cancel); a throwing builder yields `part-error` for that part only and the loop continues. One `PartCache` (3 M triangles) lives as long as the worker.
+- Normals: `calculateNormals(0, 180)` (smooth, a few ms) then `getMesh(0)`; sharp-edge angles below 180° cost 40–1000 ms per mesh on ribbed shades. `part.warnings` carries the post-build checks (`validateGeometry`); the assembly's own warnings stay on the main thread.
 - Export builds at export quality (the cache makes unchanged parts free), applies `printTransform` + layout offset, writes STL / 3MF / ZIP inside the worker and transfers the buffers.
-- `workerClient.ts` exposes `build()`, `export()` with `onProgress`, and `onPart()`. `useBuildPipeline` subscribes to `project` + preview quality, debounces 120 ms, runs `assemble()`, diffs part hashes against `buildStore`, bumps `gen` and posts `build`.
+- `workerClient.ts` exposes `ready`, `build()` (returns the generation; stale `part` / `part-error` / `build-done` are dropped), `export()` with `onProgress` and an abort `signal`, `onPart()`, `onPartError()`, `onBuildDone()`, `onError()` and `dispose()`. `useBuildPipeline` subscribes to `project` + preview quality, debounces 120 ms, runs `assemble()`, diffs part hashes against `buildStore`, bumps `gen` and posts `build`.
 
 ## 10. App (React 19, `src/app/`)
 

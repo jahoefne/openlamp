@@ -125,8 +125,8 @@ cli/openlamp.ts           command‑line generator
 index.html                web UI shell
 src/core/                 shared core: schema, project model, assembly, geometry, STL writer
 src/examples/             example projects (.lamp.json)
-src/worker.ts             web worker that owns the WASM geometry kernel
-src/protocol.ts           typed messages between the UI and the worker
+src/worker/               web worker that owns the WASM geometry kernel, and its typed messages
+src/app/worker/           main-thread client for the worker (builds, exports)
 src/app.ts                UI, three.js preview, STL download
 docs/ARCHITECTURE.md      target architecture and milestones
 .github/workflows/ci.yml  typecheck, lint, format check, tests, samples, build and GitHub Pages deploy

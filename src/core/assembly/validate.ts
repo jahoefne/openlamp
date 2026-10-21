@@ -1,7 +1,7 @@
 /**
  * Project checks that warn without adjusting anything. Pure, no WASM.
  */
-import type { Layout, PartSpec, Warning } from '../model/assembly.ts';
+import type { GeometryStats, Layout, PartSpec, Warning } from '../model/assembly.ts';
 import { printerLabel, type PrinterSpec } from '../schema/printers.ts';
 
 const mm = (n: number) => (Math.round(n * 10) / 10).toString();
@@ -46,4 +46,24 @@ export function validateLayout(layout: Layout, alreadyWarned: ReadonlySet<string
       partId: id,
       message: `${id} does not fit on the same plate as the other parts; print it separately.`,
     }));
+}
+
+/**
+ * Post-build checks of a part's geometry stats: an `error` if manifold did not
+ * produce a valid solid. (The overhang check of the full plan joins here once
+ * the status panel replaces today's overhang row.)
+ */
+export function validateGeometry(
+  part: Pick<PartSpec, 'id' | 'displayName'>,
+  stats: Pick<GeometryStats, 'status'>,
+): Warning[] {
+  if (stats.status === 'NoError') return [];
+  return [
+    {
+      severity: 'error',
+      code: 'geometry-status',
+      partId: part.id,
+      message: `${part.displayName} is not a valid solid (manifold status ${stats.status}).`,
+    },
+  ];
 }

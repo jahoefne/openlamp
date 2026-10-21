@@ -22,7 +22,7 @@ export default defineConfig([
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ['src/worker.ts', 'src/worker/**/*.ts'],
+    files: ['src/worker/**/*.ts'],
     languageOptions: { globals: globals.worker },
   },
   {

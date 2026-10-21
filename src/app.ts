@@ -1,10 +1,20 @@
 /**
  * Browser UI: parameter form, live three.js preview, STL download.
- * Geometry is built in a web worker (see worker.ts) so the page stays responsive.
+ * Geometry is built in a web worker (src/worker/geometry.worker.ts, driven
+ * through src/app/worker/workerClient.ts) so the page stays responsive.
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { loadProject, projectToClassicParams, type Project } from '@core/model/project.ts';
+import { assemble } from '@core/assembly/assemble.ts';
+import type { ClassicShadeDerived } from '@core/geometry/parts/classicShade.ts';
+import type { Assembly, PartStats, Warning } from '@core/model/assembly.ts';
+import {
+  classicParamsToProject,
+  createDefaultProject,
+  loadProject,
+  projectToClassicParams,
+  type Project,
+} from '@core/model/project.ts';
 import {
   CLASSIC_SHADE_DEFAULTS,
   CLASSIC_SHADE_DEFS,
@@ -15,7 +25,7 @@ import {
   type ClassicShadeParams,
 } from '@core/schema/defs.ts';
 import { normalizeClassicShade } from '@core/schema/normalize.ts';
-import type { BuildStats, WorkerRequest, WorkerResponse } from './protocol.ts';
+import { createWorkerClient, type ExportFile } from './app/worker/workerClient.ts';
 
 // The example gallery: every src/examples/*.lamp.json, validated, default first.
 const DEFAULT_EXAMPLE_ID = 'bell-default';
@@ -30,12 +40,16 @@ THREE.Object3D.DEFAULT_UP.set(0, 0, 1); // Z is up, like the printer
 
 // ---------------------------------------------------------------- state
 const state: ClassicShadeParams = { ...CLASSIC_SHADE_DEFAULTS, ...paramsFromUrl() };
-let lastStats: BuildStats | null = null;
-let buildId = 0;
-let pendingStl = 0;
+/**
+ * Everything the flat parameters do not describe (name, printer, colours): the
+ * example last picked, else a new project.
+ */
+let baseProject: Project = createDefaultProject();
+/** The project and assembly of the latest build request. */
+let latest: { project: Project; assembly: Assembly } | null = null;
+let lastDerived: ClassicShadeDerived | null = null;
 
-const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-const send = (msg: WorkerRequest) => worker.postMessage(msg);
+const client = createWorkerClient();
 
 // ---------------------------------------------------------------- form
 const form = document.getElementById('params')!;
@@ -129,10 +143,14 @@ for (const example of EXAMPLES) {
 for (const ev of ['change', 'input'])
   presetSel.addEventListener(ev, () => {
     const example = EXAMPLES.find((x) => x.id === presetSel.value);
-    if (example) applyParams(projectToClassicParams(example));
+    if (example) {
+      baseProject = example;
+      applyParams(projectToClassicParams(example));
+    }
   });
 document.getElementById('reset')!.addEventListener('click', () => {
   presetSel.value = EXAMPLES[0]?.id ?? '';
+  baseProject = createDefaultProject();
   applyParams({ ...CLASSIC_SHADE_DEFAULTS });
 });
 
@@ -245,9 +263,8 @@ const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), ceilingMat);
 ceiling.visible = false;
 scene.add(ceiling);
 
-function rebuildGhosts(stats: BuildStats, params: ClassicShadeParams) {
+function rebuildGhosts(d: ClassicShadeDerived, params: ClassicShadeParams) {
   ghosts.clear();
-  const d = stats.derived;
   ghosts.position.z = d.zOffset || 0;
   const puck = new THREE.Mesh(
     new THREE.CylinderGeometry(
@@ -283,8 +300,7 @@ function setMounted(on: boolean) {
   // end down), so just swap the print bed for a ceiling plane sitting on the
   // strap (strap + mating velcro ≈ 3 mm).
   if (on) {
-    ceiling.position.z =
-      (lastStats ? lastStats.derived.zTop + (lastStats.derived.zOffset || 0) : 150) + 3;
+    ceiling.position.z = (lastDerived ? lastDerived.zTop + (lastDerived.zOffset || 0) : 150) + 3;
     ceiling.visible = true;
     bed.visible = false;
     bedLabel.visible = false;
@@ -333,52 +349,79 @@ function scheduleBuild() {
   buildTimer = setTimeout(requestBuild, 120);
 }
 function requestBuild() {
-  const id = ++buildId;
+  latest = currentAssembly();
   statusEl.textContent = 'Building…';
   statusEl.className = 'status busy';
-  send({ type: 'build', id, params: { ...state } });
+  client.build(latest.assembly.parts);
 }
 
-worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
-  const msg = e.data;
-  if (msg.type === 'built') {
-    if (msg.id !== buildId) return; // stale
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(msg.positions, 3));
-    geo.setIndex(new THREE.BufferAttribute(msg.indices, 1));
-    geo.computeVertexNormals();
-    shadeMesh.geometry.dispose();
-    shadeMesh.geometry = geo;
-    lastStats = msg.stats;
-    rebuildGhosts(msg.stats, msg.params);
-    if ((document.getElementById('mounted') as HTMLInputElement).checked) setMounted(true);
-    showStats(msg.stats, msg.warnings);
-    statusEl.textContent = `Ready · built in ${msg.stats.buildMs} ms`;
-    statusEl.className = 'status';
-    downloadBtn.disabled = false;
-    history.replaceState(null, '', urlForParams(msg.params));
-  } else if (msg.type === 'stl') {
-    const blob = new Blob([msg.buffer], { type: 'model/stl' });
-    const a = document.createElement('a');
-    const p = msg.params;
-    a.href = URL.createObjectURL(blob);
-    a.download = `openlamp-shade-${p.bottomDiameter}x${p.height}-${p.style}.stl`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    downloadBtn.disabled = false;
-    downloadBtn.textContent = 'Download STL';
-  } else if (msg.type === 'error') {
-    statusEl.textContent = 'Error: ' + msg.message;
-    statusEl.className = 'status error';
-    downloadBtn.disabled = false;
-    downloadBtn.textContent = 'Download STL';
-  }
-};
+/** The project for the current parameters, assembled at the chosen quality. */
+function currentAssembly(): { project: Project; assembly: Assembly } {
+  const project = classicParamsToProject({ ...state }, baseProject);
+  return { project, assembly: assemble(project, { quality: state.quality }) };
+}
 
-downloadBtn.addEventListener('click', () => {
+/** The classic-shade builder reports its derived dimensions in the stats. */
+function classicDerived(stats: PartStats): ClassicShadeDerived {
+  return stats.derived as ClassicShadeDerived;
+}
+
+function showError(message: string) {
+  statusEl.textContent = 'Error: ' + message;
+  statusEl.className = 'status error';
+  downloadBtn.disabled = false;
+  downloadBtn.textContent = 'Download STL';
+}
+
+client.onPart((msg) => {
+  // The client only passes on parts of the latest build, which `latest` describes.
+  const part = latest?.assembly.parts.find((p) => p.id === msg.partId);
+  if (!latest || !part) return;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(msg.positions, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(msg.normals, 3));
+  geo.setIndex(new THREE.BufferAttribute(msg.indices, 1));
+  shadeMesh.geometry.dispose();
+  shadeMesh.geometry = geo;
+  lastDerived = classicDerived(msg.stats);
+  rebuildGhosts(lastDerived, part.params);
+  if ((document.getElementById('mounted') as HTMLInputElement).checked) setMounted(true);
+  showStats(msg.stats, lastDerived, [...latest.assembly.warnings, ...msg.warnings]);
+  statusEl.textContent = msg.cached ? 'Ready · from cache' : `Ready · built in ${msg.buildMs} ms`;
+  statusEl.className = 'status';
+  downloadBtn.disabled = false;
+  history.replaceState(null, '', urlForParams(part.params));
+});
+client.onPartError((msg) => showError(msg.message));
+client.onError((err) => showError(err.message));
+
+function download(file: ExportFile) {
+  const blob = new Blob([file.data], { type: file.mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = file.name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+downloadBtn.addEventListener('click', async () => {
   downloadBtn.disabled = true;
   downloadBtn.textContent = 'Exporting…';
-  send({ type: 'stl', id: ++pendingStl, params: { ...state } });
+  try {
+    const { project, assembly } = currentAssembly();
+    const files = await client.export({
+      format: 'stl',
+      parts: assembly.parts,
+      layout: assembly.layout,
+      printer: project.printer,
+      meta: { name: project.name },
+    });
+    for (const file of files) download(file);
+    downloadBtn.disabled = false;
+    downloadBtn.textContent = 'Download STL';
+  } catch (err) {
+    showError(err instanceof Error ? err.message : String(err));
+  }
 });
 
 document.getElementById('share')!.addEventListener('click', async () => {
@@ -394,11 +437,10 @@ document.getElementById('share')!.addEventListener('click', async () => {
 function fmt(n: number, d = 1) {
   return Number(n).toFixed(d);
 }
-function showStats(s: BuildStats, warnings: string[] | undefined) {
+function showStats(s: PartStats, d: ClassicShadeDerived, warnings: readonly Warning[]) {
   const over = s.maxOverhangDeg;
   const overClass = over > 55 ? 'warn' : 'ok';
   const { min, max } = s.bbox;
-  const d = s.derived;
   const rows = [
     [
       'Footprint',
@@ -416,7 +458,7 @@ function showStats(s: BuildStats, warnings: string[] | undefined) {
     ['Mesh', `${s.triangles.toLocaleString()} triangles`],
   ];
   let html = rows.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('');
-  for (const w of warnings || []) html += `<div class="warn">⚠ ${w}</div>`;
+  for (const w of warnings) html += `<div class="warn">⚠ ${w.message}</div>`;
   statsEl.innerHTML = html;
 }
 
