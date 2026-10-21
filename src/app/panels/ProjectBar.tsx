@@ -1,7 +1,8 @@
 /**
  * The top bar: app name, project name (with an unsaved-changes dot), printer,
  * undo / redo, project file actions (Open ▾ with the recent projects, Save,
- * Share), examples and export.
+ * Share), examples and export (STL files, a ZIP of them with the print sheet,
+ * the print-sheet dialog).
  */
 import { DropdownMenu, Tooltip } from 'radix-ui';
 import { useState, type ReactNode } from 'react';
@@ -11,6 +12,7 @@ import { useBuildStore } from '../store/buildStore.ts';
 import { redo, undo, useProjectStore, useTemporal } from '../store/projectStore.ts';
 import { ExamplesDialog } from './ExamplesDialog.tsx';
 import { PrinterDialog } from './PrinterDialog.tsx';
+import { PrintSheetDialog } from './PrintSheetDialog.tsx';
 import styles from './ProjectBar.module.css';
 
 /** Project file actions; App passes the persistence handlers. */
@@ -137,7 +139,7 @@ function OpenMenu({
   );
 }
 
-function ExportMenu() {
+function ExportMenu({ onPrintSheet }: { onPrintSheet: () => void }) {
   const exporting = useBuildStore((s) => s.exporting);
   const progress = useBuildStore((s) => s.exportProgress);
   const ready = useBuildStore((s) => s.kernelReady);
@@ -157,13 +159,21 @@ function ExportMenu() {
             Download STL
             <span className={styles.menuHint}>one file per part</span>
           </DropdownMenu.Item>
-          <DropdownMenu.Item className={styles.menuItem} disabled>
-            ZIP of STLs
-            <span className={styles.menuHint}>later</span>
+          <DropdownMenu.Item
+            className={styles.menuItem}
+            onSelect={() => void exportProject('zip-stl')}
+          >
+            ZIP of all parts (STL + print sheet)
+            <span className={styles.menuHint}>one .zip</span>
           </DropdownMenu.Item>
           <DropdownMenu.Item className={styles.menuItem} disabled>
             3MF
             <span className={styles.menuHint}>later</span>
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator className={styles.menuSeparator} />
+          <DropdownMenu.Item className={styles.menuItem} onSelect={onPrintSheet}>
+            Print sheet…
+            <span className={styles.menuHint}>parts, assembly, printing</span>
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -188,6 +198,7 @@ export function ProjectBar({
   const canRedo = useTemporal((s) => s.futureStates.length > 0);
   const [printerOpen, setPrinterOpen] = useState(false);
   const [examplesOpen, setExamplesOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   return (
     <header className={styles.bar}>
@@ -261,10 +272,11 @@ export function ProjectBar({
       <button type="button" onClick={() => setExamplesOpen(true)}>
         Examples
       </button>
-      <ExportMenu />
+      <ExportMenu onPrintSheet={() => setSheetOpen(true)} />
 
       <PrinterDialog open={printerOpen} onOpenChange={setPrinterOpen} />
       <ExamplesDialog open={examplesOpen} onOpenChange={setExamplesOpen} />
+      <PrintSheetDialog open={sheetOpen} onOpenChange={setSheetOpen} />
     </header>
   );
 }

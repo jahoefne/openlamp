@@ -18,10 +18,20 @@ export interface ExportNaming {
 }
 
 /**
- * `openlamp-<project-slug>-<part-id>.<ext>`, e.g. `openlamp-bell-default-shade.stl`.
- * The project slug falls back to the slugified id, then to `project`.
+ * `openlamp-<project-slug>`, the stem of every export file name. The project
+ * slug falls back to the slugified id, then to `project`.
  */
-export function partFileName(meta: ExportNaming, part: Pick<PartSpec, 'id'>, ext: string): string {
+export function exportStem(meta: ExportNaming): string {
   const project = slugify(meta.name) || slugify(meta.id ?? '') || 'project';
-  return `openlamp-${project}-${part.id}.${ext}`;
+  return `openlamp-${project}`;
+}
+
+/** `openlamp-<project-slug>-<part-id>.<ext>`, e.g. `openlamp-bell-default-shade.stl`. */
+export function partFileName(meta: ExportNaming, part: Pick<PartSpec, 'id'>, ext: string): string {
+  return `${exportStem(meta)}-${part.id}.${ext}`;
+}
+
+/** `openlamp-<project-slug>.<ext>`, e.g. `openlamp-bell-default.zip`: one file for the whole lamp. */
+export function archiveFileName(meta: ExportNaming, ext: string): string {
+  return `${exportStem(meta)}.${ext}`;
 }

@@ -13,12 +13,21 @@ import type { PrinterSpec } from '@core/schema/printers.ts';
 
 export type ExportFormat = 'stl' | 'zip-stl' | '3mf';
 
+/** A text file the main thread adds to an archive export (e.g. the print sheet). */
+export interface ExportTextFile {
+  /** Path inside the archive. */
+  name: string;
+  text: string;
+}
+
 export interface ExportMeta {
   /** Project name, used in file names and file headers. */
   name: string;
   /** Project id, the file-name fallback for a name without letters or digits. */
   id?: string;
   shareUrl?: string;
+  /** Written into a `zip-stl` archive next to the STLs (ignored by the `stl` export). */
+  extraFiles?: ExportTextFile[];
 }
 
 export interface ExportFile {
