@@ -1,7 +1,12 @@
 {
-  "name": "reflector",
+  "name": "openlamp",
   "version": "0.1.0",
-  "description": "Parametric, 3D-printable ceiling lamp shade generator for the Bambu Lab LED Lamp Kit-001 (velcro ceiling mount)",
+  "description": "Parametric, 3D-printable lamp generator (manifold-3d, three.js)",
+  "homepage": "https://jahoefne.github.io/openlamp/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jahoefne/openlamp.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -10,7 +15,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "manifold-3d": "^3.1.1",
@@ -21,6 +26,6 @@
   },
   "private": true,
   "bin": {
-    "reflector": "./cli.mjs"
+    "openlamp": "./cli.mjs"
   }
 }

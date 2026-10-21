@@ -10,7 +10,7 @@
  * @param {string} [name]
  * @returns {ArrayBuffer}
  */
-export function meshToBinaryStl(mesh, name = 'reflector lamp shade') {
+export function meshToBinaryStl(mesh, name = 'openlamp lamp shade') {
   const { numProp, vertProperties, triVerts } = mesh;
   const numTri = triVerts.length / 3;
   const buffer = new ArrayBuffer(84 + numTri * 50);
