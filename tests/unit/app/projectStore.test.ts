@@ -1,0 +1,166 @@
+import { readFileSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDefaultProject, parseProject } from '@core/model/project.ts';
+import { findPrinter } from '@core/schema/printers.ts';
+import {
+  HISTORY_THROTTLE_MS,
+  canRedo,
+  canUndo,
+  clearHistory,
+  redo,
+  undo,
+  useProjectStore,
+} from '../../../src/app/store/projectStore.ts';
+
+const store = () => useProjectStore.getState();
+const project = () => store().project;
+const steps = () => useProjectStore.temporal.getState().pastStates.length;
+const height = () => project().shades[0].style.height;
+/** Let the history throttle window pass, so the next commit opens a new step. */
+const pause = () => vi.advanceTimersByTime(HISTORY_THROTTLE_MS + 50);
+
+beforeEach(() => {
+  vi.useFakeTimers({ now: new Date('2026-10-21T12:00:00Z') });
+  store().replaceProject(createDefaultProject({ id: 'test', name: 'Test lamp' }));
+  clearHistory();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('slider drags', () => {
+  it('records a transient sequence plus its commit as exactly one undo step', () => {
+    expect(height()).toBe(120);
+    const before = project().revision;
+    for (const h of [121, 123, 126, 130]) {
+      store().setClassicParam('height', h, { transient: true });
+      vi.advanceTimersByTime(50); // a drag spans many throttle windows
+    }
+    expect(height()).toBe(130);
+    expect(steps()).toBe(0); // paused while dragging
+    store().setClassicParam('height', 131);
+    expect(height()).toBe(131);
+    expect(steps()).toBe(1);
+    expect(project().revision).toBe(before + 5);
+
+    undo();
+    expect(height()).toBe(120); // back to before the drag, not to 130
+    expect(canUndo()).toBe(false);
+    redo();
+    expect(height()).toBe(131);
+    expect(canRedo()).toBe(false);
+  });
+
+  it('records nothing for a drag released where it started', () => {
+    store().setClassicParam('height', 140, { transient: true });
+    store().setClassicParam('height', 120, { transient: true });
+    store().endTransient();
+    expect(height()).toBe(120);
+    expect(steps()).toBe(0);
+  });
+
+  it('ends a drag without a commit as one step', () => {
+    store().setClassicParam('curve', 0.5, { transient: true });
+    store().endTransient();
+    expect(steps()).toBe(1);
+    undo();
+    expect(project().shades[0].style.curve).toBe(0.25);
+  });
+
+  it('keeps the history running after a drag', () => {
+    store().setClassicParam('height', 150, { transient: true });
+    store().setClassicParam('height', 150);
+    pause();
+    store().setClassicParam('bottomDiameter', 200);
+    expect(steps()).toBe(2);
+    undo();
+    expect(project().shades[0].style.bottomDiameter).toBe(160);
+    expect(height()).toBe(150);
+  });
+});
+
+describe('history', () => {
+  it('merges commits inside the throttle window into one step', () => {
+    store().setProjectName('L');
+    store().setProjectName('La');
+    store().setProjectName('Lam');
+    expect(steps()).toBe(1);
+    pause();
+    store().setProjectName('Lamp');
+    expect(steps()).toBe(2);
+    undo();
+    expect(project().name).toBe('Lam');
+    undo();
+    expect(project().name).toBe('Test lamp');
+  });
+
+  it('opens a new step right after an undo, which clears the redo stack', () => {
+    store().setClassicParam('height', 150);
+    undo();
+    store().setClassicParam('height', 160);
+    expect(canRedo()).toBe(false);
+    expect(steps()).toBe(1);
+  });
+
+  it('makes replaceProject undoable, even onto a project with the same revision', () => {
+    const text = readFileSync(
+      new URL('../../../src/examples/faceted.lamp.json', import.meta.url),
+      'utf8',
+    );
+    const example = { ...parseProject(text), revision: project().revision };
+    const loads = store().loads;
+    store().replaceProject(example);
+    expect(store().loads).toBe(loads + 1); // the camera rig frames loaded projects
+    expect(project().id).toBe('faceted');
+    expect(project().revision).toBeGreaterThan(0);
+    expect(store().dirty).toBe(false);
+    expect(steps()).toBe(1);
+    undo();
+    expect(project().id).toBe('test');
+    redo();
+    expect(project().name).toBe(example.name);
+  });
+
+  it('ignores a commit that changes nothing', () => {
+    store().setClassicParam('height', 120);
+    expect(steps()).toBe(0);
+  });
+});
+
+describe('mutations', () => {
+  it('setPrinter bumps the revision, copies the profile and is undoable', () => {
+    const mini = findPrinter('bambu-a1-mini')!;
+    const before = project().revision;
+    store().setPrinter(mini);
+    expect(project().revision).toBe(before + 1);
+    expect(project().printer).toEqual(mini);
+    expect(project().printer.bed).not.toBe(mini.bed);
+    expect(store().dirty).toBe(true);
+    undo();
+    expect(project().printer.id).toBe('bambu-a1');
+  });
+
+  it('maps flat classic parameters into the project', () => {
+    store().setClassicParam('style', 'faceted');
+    store().setClassicParam('fitTest', 'yes');
+    store().setClassicParam('quality', 'draft');
+    store().setClassicParam('strapWidth', 20);
+    const p = project();
+    expect(p.shades[0].style.surface.style).toBe('faceted');
+    expect(p.fitTest).toBe(true);
+    expect(p.quality).toEqual({ preview: 'draft', export: 'normal' });
+    expect(p.mount.strapWidth).toBe(20);
+  });
+
+  it('sets quality, fit test and colour, each bumping the revision', () => {
+    const r = project().revision;
+    store().setQuality('export', 'fine');
+    store().setFitTest(true);
+    store().setShadeColour('#7fa7c9');
+    expect(project().quality.export).toBe('fine');
+    expect(project().fitTest).toBe(true);
+    expect(project().shades[0].colour).toBe('#7fa7c9');
+    expect(project().revision).toBe(r + 3);
+  });
+});

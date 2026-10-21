@@ -1,0 +1,100 @@
+/* The dark palette and base element styles (from the first app's style.css). */
+:root {
+  --bg: #15171c;
+  --panel: #1d2026;
+  --panel-2: #262a32;
+  --border: #343944;
+  --text: #e8eaf0;
+  --muted: #9aa1b1;
+  --accent: #f2b544;
+  --accent-text: #1a1203;
+  --warn: #ff8a65;
+  --ok: #7ed491;
+  --overlay: rgb(20 22 28 / 78%);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+select,
+input[type='number'],
+input[type='text'] {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+}
+
+input:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
+button {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--muted);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button[data-variant='primary'] {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 12px 0;
+  padding: 8px 12px 10px;
+  min-width: 0;
+}
+
+legend {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  padding: 0 6px;
+}

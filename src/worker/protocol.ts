@@ -16,6 +16,8 @@ export type ExportFormat = 'stl' | 'zip-stl' | '3mf';
 export interface ExportMeta {
   /** Project name, used in file names and file headers. */
   name: string;
+  /** Project id, the file-name fallback for a name without letters or digits. */
+  id?: string;
   shareUrl?: string;
 }
 

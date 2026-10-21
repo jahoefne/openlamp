@@ -1,0 +1,56 @@
+.app {
+  display: grid;
+  grid-template-areas:
+    'bar bar'
+    'sidebar viewport';
+  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+}
+
+.bar {
+  grid-area: bar;
+  min-width: 0;
+}
+
+.sidebar {
+  grid-area: sidebar;
+  /* Contains the visually hidden form inputs of Radix controls (absolutely
+     positioned), which would otherwise stretch the page past the viewport. */
+  position: relative;
+  overflow-y: auto;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+.viewport {
+  grid-area: viewport;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Narrow screens: everything stacks, the sidebar takes the top half. */
+@media (max-width: 760px) {
+  .app {
+    grid-template-areas:
+      'bar'
+      'sidebar'
+      'viewport';
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(50vh, 1fr);
+    height: auto;
+    min-height: 100%;
+  }
+
+  .sidebar {
+    max-height: 50vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .viewport {
+    min-height: 50vh;
+  }
+}
