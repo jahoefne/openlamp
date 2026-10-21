@@ -1,15 +1,90 @@
 # openlamp
 
-**openlamp** is the start of a full parametric lamp generator: pluggable light sources,
-several mount types, inner and outer shades in different styles, structural parts and
-printer-aware, slicer-ready exports. Try the live app at
-**https://jahoefne.github.io/openlamp/**; the target design and the roadmap are in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+**openlamp** is a parametric, 3D-printable lamp generator that runs in the browser. Today it
+designs one part: a ceiling lamp shade for the **Bambu Lab LED Lamp Kit-001**, hung from the
+ceiling with a velcro (hook-and-loop) strap. You shape it with sliders, watch a live 3D preview,
+check that it fits your printer's bed and download a watertight STL. The same core also runs
+from the command line.
 
-Today it generates one part: a parametric, 3D‑printable **ceiling lamp shade for the Bambu
-Lab LED Lamp Kit‑001**, hung from the ceiling with a velcro (hook‑and‑loop) strap. It
-produces a watertight binary STL from a browser UI with live preview, or from the command
-line.
+Try it at **https://jahoefne.github.io/openlamp/**.
+
+openlamp is growing into a generator for complete lamps: pluggable light sources (LED pucks,
+E27/E14 bulbs, LED strips), several mounts (ceiling cord, wall arm, standing base), inner and
+outer shades in different styles and multi-part, slicer-ready exports. The target design and
+the roadmap are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Quick start
+
+```bash
+npm install
+npm run dev        # http://localhost:5173/openlamp/
+```
+
+Requires Node.js 24 (the version CI uses).
+
+## Using the app
+
+- **Examples** opens a gallery of seven starting shapes (bell, drum, faceted, fluted twist,
+  straight cone, trumpet, wide & shallow). Picking one replaces the current lamp, which stays
+  one undo away.
+- **The inspector** on the left holds every parameter of the shade: shape, surface style,
+  the LED puck and the velcro mount. Each number has a slider and a text field; values out of
+  range are clamped and explained under the field. Rows that do not apply are hidden (a
+  smooth shade has no rib count). While you drag a slider the preview builds at draft
+  quality; releasing it builds the full mesh. **Output** sets the preview and export mesh
+  quality, the fit-test mode and the shade colour.
+- **Undo / redo**: ⌘Z / Ctrl+Z and ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y, or the arrows in the top
+  bar. A whole slider drag is one step.
+- **Printer**: the chip next to the project name opens the printer list (Bambu Lab, Prusa,
+  Creality, Elegoo, Voron, Anycubic) or a custom build volume. The badge under the stats says
+  whether the shade fits the bed, or by how many millimetres it is too large.
+- **The viewport** shows the shade with its build stats (footprint, housing, material, max
+  overhang, triangles). Drag to orbit, **F** frames the lamp. The **View** options cut the
+  shade in half (section view, **X**, across X or Y), show the LED puck and strap as ghosts
+  and show the shade mounted on the ceiling.
+- **Export → Download STL** writes one binary STL per part (today: the shade) at the export
+  quality, named `openlamp-<project>-<part>.stl`.
+- **Projects**: **Save** downloads the lamp as a `.lamp.json` file named after the project and
+  **Open** loads one back. **Share** copies a link that carries the whole project in the URL hash (`#p=…`);
+  the address bar follows your edits, so any URL of the app reopens what you see. The app
+  also autosaves in the browser and lists recent projects. Links from the first version of
+  the app (`?bottomDiameter=200&style=smooth`) still open and are rewritten to the new form.
+
+## Parameters
+
+The shade's parameters, as shown in the inspector and accepted by the CLI
+(`node cli/openlamp.ts list` prints them with their ranges):
+
+| Group  | Parameter         | Default | Notes                                                                            |
+| ------ | ----------------- | ------- | -------------------------------------------------------------------------------- |
+| Shape  | bottomDiameter    | 160 mm  | opening that faces the room                                                      |
+|        | topDiameter       | 92 mm   | where the wall meets the shoulder, must clear the Ø65 mm housing                 |
+|        | height            | 120 mm  | wall height; the housing adds ≈ 34 mm                                            |
+|        | curve             | 0.25    | < 0 trumpet flare, > 0 bell bulge                                                |
+|        | wallThickness     | 0.8 mm  | Bambu's design guide recommends 0.8 mm for translucency                          |
+|        | shoulderAngle     | 50°     | roof slope from horizontal; ≥ 45° needs no support                               |
+| Style  | style             | ribbed  | smooth, ribbed or faceted                                                        |
+|        | patternCount      | 40      | number of ribs or facets                                                         |
+|        | ribDepth          | 1.6 mm  | peak-to-valley                                                                   |
+|        | twist             | 25°     | pattern rotation bottom → top                                                    |
+| Puck   | puckDiameter      | 59 mm   | Bambu lists D59                                                                  |
+|        | puckHeight        | 8 mm    | Bambu's store lists H8, some resellers list 18 – **measure yours**               |
+|        | puckClearance     | 0.7 mm  | radial fit gap, so the pocket is Ø60.4 for a Ø59 puck (0.2 mm printed too tight) |
+|        | pocketExtraDepth  | 0.3 mm  | pocket is this much deeper than the puck                                         |
+|        | lightHoleDiameter | 50 mm   | opening in the ledge (diffuser is ≈ 46 mm)                                       |
+|        | ledgeThickness    | 2 mm    |                                                                                  |
+|        | bossWall          | 2.4 mm  | housing wall around the pocket                                                   |
+|        | cableSlotWidth    | 4.5 mm  |                                                                                  |
+| Mount  | strapWidth        | 25 mm   | common velcro widths are 20, 25 and 50 mm                                        |
+|        | strapThickness    | 2.5 mm  | tunnel gap                                                                       |
+|        | loopLength        | 10 mm   | vertical tunnel length                                                           |
+|        | loopWall          | 2.4 mm  |                                                                                  |
+| Output | quality           | normal  | draft / normal / fine                                                            |
+|        | fitTest           | no      | `yes` exports only the housing ring for a quick fit check                        |
+
+## Printing notes
+
+### How the mount works
 
 ```
 ceiling  ═════════════════════  self‑adhesive velcro strip stuck to the ceiling
@@ -22,128 +97,135 @@ ceiling  ═════════════════════  self�
     ╵───────────────────────────╵ open bottom – this edge sits on the print bed
 ```
 
-## How the mount works
-
-1. Stick the self‑adhesive **hook** strip (or the loop strip – either way round) to the ceiling.
-2. Drop the LED puck into the pocket from the top, diffuser facing down into the shade,
-   and lay the cable out through the slot in the housing wall.
+1. Stick the self-adhesive **hook** strip (or the loop strip – either way round) to the ceiling.
+2. Drop the LED puck into the pocket from the top, diffuser facing down into the shade, and
+   lay the cable out through the slot in the housing wall.
 3. Thread a strip of the mating velcro down through one side tunnel, across the top of the
-   housing (over the back of the puck) and down through the other tunnel. The strap keeps
-   the puck in and gives a 25 × 65 mm contact patch. Trim the tails.
+   housing (over the back of the puck) and down through the other tunnel. The strap keeps the
+   puck in and gives a 25 × 65 mm contact patch. Trim the tails.
 4. Press the lamp against the ceiling strip. To take it down, peel it off.
 
-The puck is not screwed or glued; the ledge carries it and the strap stops it from
-rattling, so it can be swapped at any time.
+The puck is not screwed or glued; the ledge carries it and the strap stops it from rattling,
+so it can be swapped at any time.
 
-## Run the app
+### Printing
 
-```bash
-npm install
-npm run dev        # opens the UI on http://localhost:5173/openlamp/
-```
+- Print **as exported**: open end on the bed, housing on top. Every overhang is ≤ 45° from
+  vertical (the shoulder is 50° from the bed, the tunnel chamfers 45°), so no supports.
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for nicer ribs), 2 walls, no infill needed for the
+  shade (the housing is solid anyway). White or "Jade White" PLA diffuses the light best.
+- The 0.8 mm wall is a 1.6 mm wide ring on the first layer; use a brim or a textured plate if
+  adhesion is a worry. Bambu's guide prefers no brim because the brim marks show under light –
+  a smooth PEI plate and a slow first layer work well.
+- Fine quality exports are ~10 MB; the slicer copes, but "normal" is plenty for printing.
+- **Check the fit first:** turn on _Fit test only_ (or pass `--fitTest yes`) to export just the
+  13 mm tall housing ring (≈ 15 g, ≈ 10 min). Drop your puck in, thread the strap, then adjust
+  `puckDiameter`, `puckHeight` or `puckClearance` if needed.
 
-Pick a printer and an example, adjust the sliders (⌘Z / Ctrl+Z undoes a whole drag), watch
-the preview (there is a section view and a "mounted on the ceiling" view), then choose
-**Export → Download STL**. Saving, opening and share links return in the next step.
-
-`npm run build` produces a static site in `dist/`. It is built for the base path
-`/openlamp/` (set in `vite.config.ts`), so serve it from a directory of that name;
-`npm run preview` serves the build on http://localhost:4173/openlamp/. Every push to
-`main` builds the site and deploys it to GitHub Pages (`.github/workflows/ci.yml`).
+Every STL is produced by [manifold-3d](https://github.com/elalish/manifold), which only emits
+oriented, watertight 2-manifold meshes; the app, the CLI and the tests check `status: NoError`.
+The default shade was additionally cross-checked by slicing the STL numerically: pocket radius
+30.20, light opening 25.00, housing 32.60 and belt loops out to 37.5 mm, as designed.
 
 ## Command line
 
+The CLI builds STLs with the same core as the app (Node runs the TypeScript directly):
+
 ```bash
-node cli/openlamp.ts part classicShade         # default shade → samples/openlamp-classicShade.stl
 node cli/openlamp.ts list                      # printers, examples and all parameters
-node cli/openlamp.ts project src/examples/faceted.lamp.json --out prints/
-node cli/openlamp.ts part classicShade --bottomDiameter 200 --height 150 --style ribbed --patternCount 48 --twist 60 --quality fine -o big.stl
+node cli/openlamp.ts part classicShade         # default shade → samples/openlamp-classicShade.stl
+node cli/openlamp.ts part classicShade --bottomDiameter 200 --height 150 --style ribbed \
+  --patternCount 48 --twist 60 --quality fine -o big.stl
+node cli/openlamp.ts part classicShade --fitTest yes -o samples/fit-test-ring.stl
 node cli/openlamp.ts part classicShade --json  # stats as JSON
-npm run samples                                # every example → samples/
+node cli/openlamp.ts project src/examples/faceted.lamp.json --out prints/
+node cli/openlamp.ts samples                   # every example → samples/ (same as npm run samples)
 ```
 
-Any parameter from `list` can be passed to `part classicShade` as `--key value`. Values are
-clamped to their range and cross‑checked (for example the top of the shade is widened
-automatically if it would not clear the puck housing). The package also exposes the CLI as an
-`openlamp` binary (`npm link`, then `openlamp list`).
+- `part <kind>` builds one part from parameters; every parameter from `list` can be passed as
+  `--<param> <value>`. Values are clamped to their range and cross-checked (for example the top
+  of the shade is widened automatically if it would not clear the puck housing).
+- `project <file.lamp.json>` builds every part of a project at its export quality into
+  `--out <dir>` as `openlamp-<project>-<part>.stl`.
+- `samples` builds every `src/examples/*.lamp.json` into `samples/` (git-ignored).
+- `--quality draft|normal|fine` overrides the quality, `--json` prints the stats as JSON,
+  `--help` shows the full usage. `part`, `project` and `samples` exit with 1 if any mesh is not
+  a valid manifold.
 
-## Parameters
+The package also exposes the CLI as an `openlamp` binary (`npm link`, then `openlamp list`).
 
-| Group | Parameter | Default | Notes |
-| --- | --- | --- | --- |
-| Shape | bottomDiameter | 160 mm | opening that faces the room |
-| | topDiameter | 92 mm | where the wall meets the shoulder, must clear the Ø65 mm housing |
-| | height | 120 mm | wall height; the housing adds ≈ 34 mm |
-| | curve | 0.25 | < 0 trumpet flare, > 0 bell bulge |
-| | wallThickness | 0.8 mm | Bambu's design guide recommends 0.8 mm for translucency |
-| | shoulderAngle | 50° | roof slope from horizontal; ≥ 45° needs no support |
-| Style | style | ribbed | smooth, ribbed or faceted |
-| | patternCount | 40 | number of ribs or facets |
-| | ribDepth | 1.6 mm | peak‑to‑valley |
-| | twist | 25° | pattern rotation bottom → top |
-| Puck | puckDiameter | 59 mm | Bambu lists D59 |
-| | puckHeight | 8 mm | Bambu's store lists H8, some resellers list 18 – **measure yours** |
-| | puckClearance | 0.7 mm | radial fit gap, so the pocket is Ø60.4 for a Ø59 puck (0.2 mm printed too tight) |
-| | pocketExtraDepth | 0.3 mm | pocket is this much deeper than the puck |
-| | lightHoleDiameter | 50 mm | opening in the ledge (diffuser is ≈ 46 mm) |
-| | ledgeThickness | 2 mm | |
-| | bossWall | 2.4 mm | housing wall around the pocket |
-| | cableSlotWidth | 4.5 mm | |
-| Mount | strapWidth | 25 mm | common velcro widths are 20, 25 and 50 mm |
-| | strapThickness | 2.5 mm | tunnel gap |
-| | loopLength | 10 mm | vertical tunnel length |
-| | loopWall | 2.4 mm | |
-| Output | quality | normal | draft / normal / fine |
-| | fitTest | no | `yes` exports only the housing ring for a quick fit check |
+## The `.lamp.json` format
 
-## Printing
+A project is one versioned JSON document, the same for saved files, autosave, share links,
+the examples and the CLI. Its top-level fields:
 
-* Print **as exported**: open end on the bed, housing on top. Every overhang is ≤ 45°
-  from vertical (the shoulder is 50° from the bed, the tunnel chamfers 45°), so no supports.
-* 0.4 mm nozzle, 0.2 mm layers (0.12 mm for nicer ribs), 2 walls, no infill needed for the
-  shade (the housing is solid anyway). White or "Jade White" PLA diffuses the light best.
-* The 0.8 mm wall is a 1.6 mm wide ring on the first layer; use a brim or a textured plate
-  if adhesion is a worry. Bambu's guide prefers no brim because the brim marks show under
-  light – a smooth PEI plate and a slow first layer work well.
-* Fine quality exports are ~10 MB; the slicer copes, but "normal" is plenty for printing.
-* **Check the fit first:** set *Fit test only* to *yes* (or `--fitTest yes`) to export just the
-  13 mm tall housing ring (`node cli/openlamp.ts part classicShade --fitTest yes -o samples/fit-test-ring.stl`,
-  ≈ 15 g, ≈ 10 min). Drop your puck in, thread the strap, then adjust `puckDiameter`,
-  `puckHeight` or `puckClearance` if needed.
+| Field                                 | Contents                                                                          |
+| ------------------------------------- | --------------------------------------------------------------------------------- |
+| `version`                             | format version (currently `1`); older versions are migrated on load               |
+| `id`, `name`, `revision`, `updatedAt` | identity, display name, edit counter, ISO timestamp                               |
+| `printer`                             | `{ id, vendor, name, bed: [x, y, z], nozzle, multiColour, notes? }`               |
+| `quality`                             | `{ preview, export }`, each `draft`, `normal` or `fine`                           |
+| `light`                               | the light source; v1: `{ kind: "puck", diameter, height, clearance, … }`          |
+| `mount`                               | how the lamp is hung; v1: `{ kind: "ceilingStrap", strapWidth, … }`               |
+| `hub`                                 | the light holder (housing, shoulder); v1 is always `fused` to the shade           |
+| `shades`                              | v1: one outer shade `{ colour, wallThickness, style: { family: "revolved", … } }` |
+| `colours`, `fitTest`                  | colour overrides by part id or kind; export only the fit-test ring                |
 
-## Verification
+The schema (zod) and the migrations are in
+[`src/core/model/project.ts`](src/core/model/project.ts); a complete example is
+[`src/examples/bell-default.lamp.json`](src/examples/bell-default.lamp.json).
 
-Every STL is produced by [manifold‑3d](https://github.com/elalish/manifold), which only
-emits oriented, watertight 2‑manifold meshes (`status: NoError` is checked). The default
-shade was additionally cross‑checked by slicing the STL numerically: pocket radius 30.20,
-light opening 25.00, housing 32.60 and belt loops out to 37.5 mm, as designed.
+## Development
 
-## Project layout
+| Script                            | What it does                                                 |
+| --------------------------------- | ------------------------------------------------------------ |
+| `npm run dev`                     | Vite dev server on http://localhost:5173/openlamp/           |
+| `npm run build`                   | static site in `dist/`, built for the base path `/openlamp/` |
+| `npm run preview`                 | serves `dist/` on http://localhost:4173/openlamp/            |
+| `npm run typecheck`               | `tsc -b` over the core, app, worker and Node projects        |
+| `npm run lint`                    | ESLint                                                       |
+| `npm run format` / `format:check` | Prettier                                                     |
+| `npm test` / `test:watch`         | Vitest unit tests (`tests/unit`)                             |
+| `npm run samples`                 | every example → `samples/`; fails on any non-watertight mesh |
+| `npm run generate -- <command>`   | the CLI, e.g. `npm run generate -- list`                     |
+| `npm run e2e` / `e2e:ui`          | Playwright smoke tests (`tests/e2e`) against the built site  |
+
+The e2e tests drive headless Chromium against the production build (Playwright starts
+`npm run preview` itself), so build first; install the browser once:
+
+```bash
+npx playwright install --only-shell chromium
+npm run build && npm run e2e
+```
+
+Layout:
 
 ```
-cli/openlamp.ts           command‑line generator
-index.html                web UI shell
-src/core/                 shared core: schema, project model, assembly, geometry, STL writer
+src/core/                 pure TypeScript shared by the worker, the CLI and the tests:
+                          schema, project model, assembly, geometry, STL writer (no DOM)
 src/examples/             example projects (.lamp.json)
 src/worker/               web worker that owns the WASM geometry kernel, and its typed messages
 src/app/                  React UI: stores, build pipeline, react-three-fiber viewport, panels
-src/app/worker/           main-thread client for the worker, build pipeline, mesh registry
+cli/openlamp.ts           command-line generator
+tests/unit/               Vitest unit tests (builders, schema and migrations, examples, stores)
+tests/e2e/                Playwright smoke tests
+tests/fixtures/           project files used by the tests
 docs/ARCHITECTURE.md      target architecture and milestones
-.github/workflows/ci.yml  typecheck, lint, format check, tests, samples, build and GitHub Pages deploy
-tests/                    Vitest unit tests and fixtures
+.github/workflows/ci.yml  CI and the GitHub Pages deploy
 ```
 
-Sample STLs are not committed. Regenerate them with `npm run samples` (every example →
-`samples/`, which is git‑ignored) or build one with
-`node cli/openlamp.ts project src/examples/faceted.lamp.json --out samples/`.
+**CI and Pages**: every push and pull request runs typecheck, lint, format check, unit tests,
+`npm run samples` (the STLs are uploaded as the `samples` artifact), the build and the
+Playwright tests (their report is uploaded when they fail). Every push to `main` then deploys
+`dist/` to GitHub Pages at https://jahoefne.github.io/openlamp/.
 
 ## Sources for the kit dimensions
 
-* Bambu Lab store: product size D59 × H8 mm, 5 V 3 W, 1.5 m cable, contents: lamp,
-  2 × BT3×12 self‑tapping screws, 1 × Ø40 mm 3M VHB tape.
-* Bambu Lab "LED Lamp Kit‑001 Design Guide" (MakerWorld model 13717): 0.8 mm walls,
+- Bambu Lab store: product size D59 × H8 mm, 5 V 3 W, 1.5 m cable, contents: lamp,
+  2 × BT3×12 self-tapping screws, 1 × Ø40 mm 3M VHB tape.
+- Bambu Lab "LED Lamp Kit-001 Design Guide" (MakerWorld model 13717): 0.8 mm walls,
   overhangs > 40° print cleanly, 0.2 mm fit tolerance.
-* Resellers (3DJake, 3D Universe) list 59 × 18 mm – the puck thickness is therefore a
+- Resellers (3DJake, 3D Universe) list 59 × 18 mm – the puck thickness is therefore a
   parameter; measure your kit before printing.
 
 ## License
