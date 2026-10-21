@@ -6,7 +6,11 @@ shades in different styles, structural parts, printer-aware bed-fit warnings, pr
 slicer-ready exports. The code is migrating toward it milestone by milestone (see
 [Milestones](#16-milestones)). Milestone 1 has landed: the React app, the pure core, the worker
 protocol, project files and share links, tests and the Pages deploy are in place, and the
-[reuse map](#15-reuse-map) records where each of the original modules went. Keep this document in sync when the design changes.
+[reuse map](#15-reuse-map) records where each of the original modules went. M2 step 1 has
+landed too: schema v2, the light envelope and mount dispatch, the hub, the revolved shade with
+its collar, the bayonet / snap / thread / screw joint builders, and `hub.fused` keeping the
+classic one-piece print (byte-identical meshes); notes marked **As built** below record where
+the implementation differs from the original design. Keep this document in sync when the design changes.
 
 ## Scope
 
@@ -46,18 +50,21 @@ openlamp/
   docs/ARCHITECTURE.md             this document
   src/core/
     index.ts
-    model/project.ts               TS types + zod schema + PROJECT_VERSION + migrate() (incl. legacy ?query → v1)
+    model/project.ts               TS types + zod schema + PROJECT_VERSION + migrate() (incl. legacy ?query → current)
+    model/assembly.ts, model/parts.ts   resolved types: PartSpec, JointInterface, Assembly; builder params
     schema/defs.ts                 ParamDef[] per variant (drives Inspector + CLI list)
     schema/normalize.ts            clampToSchema (generalised normalizeParams)
     schema/printers.ts             curated printer DB
     assembly/assemble.ts           project → Assembly (parts, interfaces, warnings); pure
-    assembly/interfaces.ts         light envelope → collars → shade joints; mount → hub mount face
+    assembly/interfaces.ts         light envelope → collars → shade joints (+ screw joints for the mounts)
+    assembly/lights/{index,puck}.ts      light kind → envelope + hub insert (bulb, strip: M2.3)
+    assembly/mounts/{index,ceilingStrap}.ts   mount kind → hub mount face + mount parts (cord, wall, standing: M2.2)
     assembly/layout.ts             shelf-packing of footprints → printTransform, overflow warnings
     assembly/validate.ts           non-adjusting cross-part checks
     geometry/kernel.ts             Kernel = ManifoldToplevel; scoped() memory helper
     geometry/{quality,profile,surface,primitives}.ts
-    geometry/joints/{thread,bayonet,snap,screw}.ts      male(iface) / femaleCutters(iface)
-    geometry/parts/{hub,lightInserts,stem,base,baseLid,wallPlate,wallArm,canopy,cordGrip,spacer}.ts
+    geometry/joints/{thread,bayonet,snap,screw,index,types}.ts   male(k, iface, ctx) / femaleCutters(k, iface, ctx); screwPattern
+    geometry/parts/{hub,lightInserts,mountFaces,shade,classicShade,stem,base,baseLid,wallPlate,wallArm,canopy,cordGrip,spacer}.ts
     geometry/parts/shades/{collar,revolved,tiered,slatted,geometric}.ts
     geometry/build.ts              registry PartKind → builder; buildPart(kernel, spec, quality)
     geometry/cache.ts              PartCache (LRU by triangle budget, calls .delete())
@@ -140,8 +147,8 @@ interface JointInterface {                    // resolved once in assemble(), co
   male: string; female: string;               // part ids
 }
 
-type PartKind = 'classicShade' /* M1 only */ | 'hub' | 'shade' | 'tier' | 'spacer' | 'stem' | 'base' | 'baseLid'
-  | 'wallPlate' | 'wallArm' | 'canopy' | 'cordGrip';
+type PartKind = 'hub' | 'shade' | 'tier' | 'spacer' | 'stem' | 'base' | 'baseLid'
+  | 'wallPlate' | 'wallArm' | 'canopy' | 'cordGrip';   // built so far: hub, shade
 interface PartSpec {
   id: string; kind: PartKind; displayName: string;
   params: object;                             // self-contained resolved params incl. JointInterface copies + quality
@@ -157,24 +164,29 @@ interface Assembly { parts: PartSpec[]; interfaces: Record<string, JointInterfac
 
 The schema is zod 4 (`z.discriminatedUnion('kind', …)`). `PROJECT_VERSION` bumps whenever the shape changes; `migrate(raw)` runs `MIGRATIONS[v]` in a loop until current, then `ProjectSchema.parse`. Version 0 is today's flat `?bottomDiameter=…` query string, so existing shared links keep opening. M1 already ships v1 in the `light / mount / hub / shades` structure (only `puck` + `ceilingStrap` + `revolved` + `fused: true`), so the M2 migration stays small.
 
+**As built (v2, M2.1).** The puck light carries `bossWall` and `pocketExtraDepth` (they describe its pocket; v1 had them on the hub). `hub.wallThickness` defaults to 2 mm (v1 only mirrored the shade wall, so the migration resets it). The 1 → 2 migration also copies `hub.shoulderAngle` into the revolved style, adds the hub's `collarWall` / `radialGap` / `ventCount`, the `joints` defaults and `colours.hub` (`#d9d4cb`), and turns a `classicShade` colour into the `shade` colour; v0 migrates straight to the current version. Still at most one outer shade. The fused shade is part kind `shade` with `params.variant: 'fused'` (the classic flat parameters); the split shade has `variant: 'revolved'`. In a `JointInterface` of a collar joint, `nominalDiameter` is the diameter of the male collar's cylindrical body (the thread root, the surface the bayonet lugs and snap ribs stand on), and the ring's bore is `tolerance` larger in radius. `Assembly` also carries the bed `layout`, and its `derived` holds world-frame numbers for the viewport: `ceilingZ` (the hub's mount face), `ceilingGap`, `bottomZ`, `puckZ` / `puckDiameter` / `puckHeight` and the strap's dimensions.
+
 ## 4. Assembly algorithm (`src/core/assembly/`, pure, no WASM)
 
 1. **Normalise** every variant against its `ParamDef[]` (clamp + warning). Hard error: `ceilingStrap` with a non-puck light.
 2. **Light envelope** → `{ rCore, insertDepth, cableDiameter, cablePath: 'side' | 'axial', heatZone }`. Puck: `rCore = Ø/2 + clearance + bossWall` (today's `rBoss`). Bulb: `rCore = skirtDiameter/2`, heat zone = bulb envelope + `heatClearance`. Strip: `rCore = ringDiameter/2 + stripWidth + 2·wall` (the hub is a wide disc).
 3. **Collars**: inner collar nominal `D_in = 2·(rCore + 1.5)`; outer `D_out = D_in + 2·(collarWall + lugDepth + radialGap)`. Each becomes a `JointInterface` of type `joints.shadeToHub` (female = hub, male = shade). A shade whose top is too narrow for its collar is widened with a warning.
+   **As built (M2.1, one shade):** the outer shade uses `D = 2·(rCore + 1.5)` (68.2 mm for the kit), or its larger `collarDiameter`. The hub ring's bore is `D/2 + tolerance`, its outer (seat) radius `D/2 + tolerance + depth + collarWall` (depth = lug depth, thread depth, 0 for snap); the shade's top must be at least `2·seat + 2` (78 mm for the default bayonet), so the rule includes the tolerance. Per type: bayonet 3 lugs 6 × 2 × 1.6 mm, travel 35°, tolerance = `joints.tolerance`; snap clearance = `joints.tolerance − 0.1` (0.2 mm by default) with 3 ribs 0.1 mm proud of it (0.3 mm); thread pitch / depth from `joints`, 45° flanks, right hand. All 8 mm long. `resolveShadeJoint` returns non-adjusting warnings (thread Ø < 10, pitch < 4 × nozzle, length < 2 × pitch; bayonet collar wall < 1.6).
 4. **Mount joint**:
    - `ceilingStrap` → belt-loop tunnels on the hub, no extra parts.
    - `ceilingCord` → hub mount face = cord boss with knot cavity; parts: canopy (+ cord grip for `collet`, canopy↔grip thread Ø16).
    - `wallArm` → hub mount face = male hollow thread stub, female in the arm end boss; arm↔plate screw joint (4×M3, inserts in the plate).
    - `standing` → hub mount face = female thread; stem top male; stem↔stem thread (same Ø); bottom segment flange ↔ base screws (4×M3 inserts in the base).
 5. **Stem segments**: `n = ceil(totalHeight / segmentLength)`, equal lengths; all non-flange segments share one `buildKey` (`instances = n − 1`).
-6. **Transforms** (world z up): hanging mounts → hub print frame = world (light face at z 0 facing −z), shades translated by −H so their collar plane is z 0, canopy at `hubHeight + dropLength`. Standing → hub rotated 180° about X and lifted to the stem top; shades flipped likewise. Wall → wall plane y 0, arm along +y, hub below the arm end.
+6. **Transforms** (world z up): hanging mounts → hub print frame = world (light face at z 0 facing −z), shades translated by −H so their collar plane is z 0, canopy at `hubHeight + dropLength`. **As built:** the shade's translation is −`zCollar` (the height of its seat in its print frame); the fused shade keeps identity transforms. The viewport lifts the scene by −`derived.bottomZ` so the lamp's lowest point stands on the grid. Standing → hub rotated 180° about X and lifted to the stem top; shades flipped likewise. Wall → wall plane y 0, arm along +y, hub below the arm end.
 7. **Layout**: greedy shelf packing of footprints (10 mm gap, rotate 90° when that fits a shelf better) → `printTransform`; parts that overflow the bed get a warning and are still exported.
 8. **Validate** (§8) and return. Interfaces flow one way (light → hub core → collars → shades; mount → hub mount face → mount parts), so there is no iteration.
 
 ## 5. Part builders (`src/core/geometry/parts/`)
 
 Every builder is `build(k: Kernel, params, q: Quality) → { manifold, stats: { status, maxOverhangDeg, volumeMm3, bbox, triangles, notes } }` and runs inside `scoped()`.
+
+**As built (M2.1).** The hub's and the revolved shade's profiles are built as `CrossSection` booleans (outer envelope minus the cavity) and then revolved, which removes the special cases of hand-intersected polylines. The puck cutters live in `parts/lightInserts.ts` and the belt loops in `parts/mountFaces.ts`; both are shared with the fused classic builder (same arithmetic and creation order, so its meshes stay byte-identical). The hub's ring is 8 mm tall with 0.5 mm headroom above the shade collar; the mount face's features are trimmed by the hub's whole cavity, and a strap mount keeps the housing at least `loopLength + strapThickness + loopWall + 1` above the point where the cone meets it (the ledge grows thicker on short hubs), so the tunnels always open above the cone. Its `ventCount` is stored but not cut yet (vents come with the bulb inserts). The revolved shade's shoulder cone ends at the seat radius (the hub ring's outer radius) in a short vertical **neck** whose top is a flat **seat** the hub ring stands on, flush on the outside; the solid crown under the seat has a 45° underside down from just inside the shell, so it prints without support, and its height is chosen so the crown is 1 mm thick at the collar bore. `collar.ts` then stands the collar tube (`collarWall` thick) on the seat and unions the joint's male side.
 
 | Part | Algorithm (manifold terms) | Print orientation |
 | --- | --- | --- |
@@ -203,9 +215,15 @@ where `tooth(u)` is a trapezoid with flank fraction `depth/pitch` on each side (
 
 **Bayonet** (default shade↔hub): hub ring inner radius = shade collar outer radius + tol (0.3). Per lug, the female cutters are an axial entry box (`lugWidth + 2·tol`) from the ring edge to `lugZ + lugHeight + tol` plus a circumferential groove `Manifold.revolve(rect, segs, travel)` rotated to the slot angle. The male lug on the shade collar is `Manifold.hull(6 pts)` with a flat top and a 45° underside, so it prints collar-up without support. Defaults: 3 lugs, 6 × 2 × 1.6 mm, travel 35°, collar wall locally thickened to 2.0.
 
+**As built:** the lug is the hull of its 8 corners (6 when its outer face vanishes), centred in the 8 mm joint. Its 45° underside is also its bearing face (the shade hangs on it), so the groove is the revolve of a profile whose floor is that line offset by the tolerance (full contact, not a line on a flat floor) and whose ceiling rises 45° outward (no flat overhang in the hub printed ring-down); the groove reaches out to the lug's corners plus the tolerance and spans `travel` plus the lug's angular width. Locking turns the shade by +travel about z (clockwise seen from below). The whole collar tube is `hub.collarWall` thick (2 mm by default), not just locally.
+
 **Snap / press**: collar radius = ring inner radius − 0.2 with 3 crush ribs 0.3 mm proud. **Screws**: M3 through Ø3.4, counterbore Ø6 × 3, heat-set pocket Ø4.0 × 6.0; one `screwPattern(iface)` yields the cutters for either side.
 
-**Fused single piece** (`hub.fused`; only revolved outer shade + puck + strap/cord, no inner shade): union hub and shade in the shade's print frame (hub translated up by the shade height), with the collar joint replaced by a solid ring. This reproduces today's one-print output.
+**As built:** the ribs are thin boxes turned 45° about their long axis (V ribs, so only the tip crushes: about 0.2 mm³ of overlap with the ring in total), 6 mm long; the clearance follows `joints.tolerance − 0.1`. `screwPattern(k, iface, side, { z, face, segs })` places `count` screws on the bolt circle `nominalDiameter`; without heat-set inserts the female side gets Ø2.5 tapping holes. `screwJoint()` in `interfaces.ts` makes the interface for the mounts of M2.2.
+
+**Threads, as built:** right hand = **positive** `twistDegrees` (manifold turns the top counter-clockwise seen from +z), settled by `tests/unit/core/thread.test.ts`. 96 / 128 / 192 cam vertices and 15° / 10° / 6° of twist per division (draft / normal / fine); the cam's vertices include the tooth corners. The male thread ring and the female cutter are extruded with aligned divisions (the cutter two divisions longer at each end, pre-rotated to the same phase), so both sides match vertex for vertex and the clearance stays `tolerance` even where the twisted facets sag. The collar tube and the ring's bore sit 0.3 mm inside the thread root (the teeth form the mating surfaces, no nearly coincident faces). Lead-in: the male ring is intersected with a 45° frustum that meets the root at the top; the female mouth has a 45° countersink. The default tolerance is `joints.tolerance` (0.3 mm), not 0.25.
+
+**Fused single piece** (`hub.fused`; only revolved outer shade + puck + strap/cord, no inner shade): union hub and shade in the shade's print frame (hub translated up by the shade height), with the collar joint replaced by a solid ring. This reproduces today's one-print output. **As built:** the fused part is built by the classic shade's builder (`parts/classicShade.ts`) unchanged rather than by a union of the hub and the shade, so the default project and every example keep their exact meshes (the STL header now names the part "Shade (fused)").
 
 ## 6. Shade families (`parts/shades/`)
 
@@ -232,6 +250,8 @@ Shared contract: body in print frame, open end on the bed, terminating in an ann
 2. **Interface resolution** (`assembly/interfaces.ts`, auto-adjust + warning): shade top raised to clear the collar; inner collar shrunk / outer raised to honour `radialGap`; strip channel = strip + 0.4.
 3. **Project validation** (`assembly/validate.ts`, non-adjusting): strap + non-puck → error; inner shade inside the bulb heat zone; bulb light → recommend PETG and LED bulbs; any part bbox > bed per axis (warning only; stem `len + thread ≤ bedZ`, base Ø ≤ min(bedX, bedY)); bayonet ring wall ≥ 1.6 and `lugDepth ≤ wall − 0.4`; thread `pitch ≥ 4×nozzle`, `depth ≥ 3×layer`, `length ≥ 2×pitch`, Ø ≥ 10; cable bores ≥ cable + 1; slat lean/gap; tier overlap; pattern period `2πr/n ≥ 2×nozzle`.
 4. **Geometry stats** (post-build): `status !== 'NoError'` → error; `maxOverhangDeg > 50` → warning. Test-only: `intersection(male, femaleSolid).volume() ≈ 0` per joint; `innerShade.minGap(bulbEnvelope) ≥ heatClearance`.
+
+**As built (M2.1):** layer 2 clamps the hub & joint parameters (`normalizeHubJoint`: ranges, thread depth ≤ 0.4 × pitch) and widens the shade top; `resolveShadeJoint` emits the thread / bayonet warnings listed in §4.3. The joint tests (`tests/unit/core/parts.test.ts`) build the default split lamp per joint type and check `NoError`, an assembled intersection volume of 0 (bayonet, thread) or < 1 mm³ (snap, the crush ribs), the ring bore minus the collar radius = tolerance (± 0.005 mm, sliced halfway up the collar) and zero leaks.
 
 ## 9. Worker protocol (`src/worker/protocol.ts`, hand-rolled and typed, no comlink)
 
@@ -274,7 +294,7 @@ type FromWorker =
 - One `<PartMesh>` per `PartSpec`, placed by `assembledTransform` (or `printTransform` + layout in bed view) plus the explode offset (`useExplode`: rank parts by assembled bbox centre z, offset `factor · 60 mm · (rank − median)`). Geometry swaps in `useLayoutEffect` keyed on `buildStore.parts[id].revision`; the old mesh stays while rebuilding. Materials are cached per (colour, mode).
 - Selection via `onClick` + drei `<Outlines>` on the selected mesh; `onPointerMissed` clears it.
 - Section view = one shared `THREE.Plane` always in `clippingPlanes`, with `constant = 1e6` when off (avoids shader recompiles).
-- `<ContextPlanes>` per mount (ceiling at hub top + cord/strap, wall plane at the plate back, floor + drei `<Grid rotation={[π/2, 0, 0]}>` for standing, printer bed rectangle in bed view); `<Ghosts>` for puck / bulb / cord / strap / screws (today's translucent look).
+- `<ContextPlanes>` per mount (ceiling at hub top + cord/strap, wall plane at the plate back, floor + drei `<Grid rotation={[π/2, 0, 0]}>` for standing, printer bed rectangle in bed view); `<Ghosts>` for puck / bulb / cord / strap / screws (today's translucent look). **As built (M2.1):** both read `Assembly.derived` of the latest *finished* build (`buildStore.shownDerived`), and each `<PartMesh>` is placed by the transform of the spec its geometry was built from, so nothing moves ahead of a rebuild; the parts and ghosts sit in a group lifted by −`bottomZ`. The `StatusPanel` shows one row per part (footprint, grams, triangles, overhang, bed-fit badge) with the totals when there are several parts, and the selected part's details below.
 - `<LightOn>` = point light + emissive source and `MeshPhysicalMaterial` with transmission for shades (metalness/roughness for a reflective inner shade), lit by a synthetic drei `<Environment>` with `<Lightformer>`s (no CDN HDR); falls back to `transparent, opacity 0.6 + emissive` when `navigator.hardwareConcurrency <= 4`.
 - `<CameraRig>` = `OrbitControls` + drei `<Bounds>`, refit only on mount change, example load or the "F" key.
 
@@ -338,13 +358,13 @@ All profiles default to a 0.4 mm nozzle. Profile shape: `{ id, vendor, name, bed
 
 | Today (`src/`) | New home | Change |
 | --- | --- | --- |
-| `geometry.ts` `derive` | `assembly/interfaces.ts` (puck envelope) + `parts/shades/revolved.ts` (cone maths) | hub core replaces `rBoss` |
+| `geometry.ts` `derive` | `assembly/lights/puck.ts` (puck envelope) + `parts/hub.ts` / `parts/shades/revolved.ts` (cone maths) | hub core replaces `rBoss` |
 | `wallRadius`, `wallProfiles` | `geometry/profile.ts` `sampleProfile(rFn, zSamples)` + `offsetProfile` | explicit z samples (pleat bands); returns overhang |
 | `buildProfile` | `parts/shades/revolved.ts` | ends at the collar annulus; flat-shade fallback kept |
 | `makeWarp`, `smoothstep` | `geometry/surface.ts` `radialWarp({ style, n, depth, twist, zRange, fade })` | z-range so stems/threads stay untouched |
 | `circularSegments`, `QUALITY` | `geometry/quality.ts` | per-part budgets |
-| `beltLoop` | `parts/hub.ts` (strap mount face) | takes hub dims |
-| `buildShade` | M1: `classicShade` builder as-is; M2: dissolved into hub + revolved shade, kept via `hub.fused` | — |
+| `beltLoop` | `parts/mountFaces.ts` (strap mount face, shared with the fused builder) | takes housing dims |
+| `buildShade` | M1: `classicShade` builder as-is; M2: the `shade` part of a fused lamp (`parts/classicShade.ts`, unchanged), split lamps get `parts/hub.ts` + `parts/shades/revolved.ts` | puck cutters → `parts/lightInserts.ts` |
 | `params.ts` `PARAM_GROUPS` / `normalizeParams` | `schema/defs.ts` / `schema/normalize.ts` | typed `ParamDef` union, `visibleWhen`; cross-constraints move to `assemble` |
 | `params.ts` `PRESETS` | `src/examples/*.lamp.json` | validated by tests |
 | `stl.ts` `meshToBinaryStl` | `core/export/stl.ts` | unchanged |
@@ -379,7 +399,7 @@ Done when the live site offers the 7 examples, slider edits rebuild, undo works,
 
 ### M2 — Multi-part assembly, mounts, lights
 
-1. **Light envelopes + hub** (`assembly/interfaces.ts`, `parts/hub.ts`, `parts/lightInserts.ts`, puck first), `parts/shades/collar.ts`, joints `bayonet.ts` / `snap.ts` / `thread.ts` (+ handedness test) / `screw.ts`; replace `classicShade` by `hub` + revolved `shade`; `hub.fused` reproduces the one-piece print. Schema v2 + migration; "Reflector classic" example.
+1. **Light envelopes + hub** (`assembly/interfaces.ts`, `parts/hub.ts`, `parts/lightInserts.ts`, puck first), `parts/shades/collar.ts`, joints `bayonet.ts` / `snap.ts` / `thread.ts` (+ handedness test) / `screw.ts`; replace `classicShade` by `hub` + revolved `shade`; `hub.fused` reproduces the one-piece print. Schema v2 + migration; "Reflector classic" example. **Landed**, without the extra example (the seven examples were re-saved as v2, all still fused); the app gained the minimal two-part UI (fused toggle and joint fields, per-part status rows).
 2. **Mounts**: `ceilingStrap` (tunnels on the hub), `ceilingCord` (`canopy.ts`, `cordGrip.ts`), `standing` (`stem.ts` with threads and cable bore, `base.ts`, `baseLid.ts`), `wallArm` (`wallPlate.ts`, `wallArm.ts`). Assembled transforms and context planes per mount.
 3. **Lights**: E27/E14 inserts (shadeRing / m10Nipple), strip channel; heat-zone validation; print-sheet BOM items.
 4. **Inner shade**: second collar, `radialGap`, inner-shade validation; per-part colours.

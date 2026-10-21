@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { ZodError } from 'zod';
 import {
   CLASSIC_PARAM_PATHS,
+  DEFAULT_HUB_COLOUR,
+  HUB_PARAM_PATHS,
   PROJECT_VERSION,
   classicParamsToProject,
   createDefaultProject,
@@ -10,6 +12,7 @@ import {
   migrate,
   parseProject,
   projectToClassicParams,
+  projectToHubParams,
   serializeProject,
   type Project,
 } from '@core/model/project.ts';
@@ -17,10 +20,14 @@ import {
   CLASSIC_SHADE_DEFAULTS,
   CLASSIC_SHADE_DEFS,
   CLASSIC_SHADE_GROUPS,
+  HUB_JOINT_DEFAULTS,
+  HUB_JOINT_DEFS,
+  HUB_JOINT_GROUPS,
   isParamVisible,
   type ClassicShadeKey,
+  type HubJointKey,
 } from '@core/schema/defs.ts';
-import { clampToSchema, normalizeClassicShade } from '@core/schema/normalize.ts';
+import { clampToSchema, normalizeClassicShade, normalizeHubJoint } from '@core/schema/normalize.ts';
 import { CUSTOM_PRINTER_ID, PRINTERS, findPrinter } from '@core/schema/printers.ts';
 
 const fixture = (name: string) =>
@@ -29,8 +36,11 @@ const fixture = (name: string) =>
 const get = (obj: unknown, path: string): unknown =>
   path.split('.').reduce<unknown>((o, key) => (o as Record<string, unknown>)[key], obj);
 
+const V1_FIXTURES = ['v1-minimal.lamp.json', 'v1-full.lamp.json'];
+const V2_FIXTURES = ['v2-minimal.lamp.json', 'v2-full.lamp.json'];
+
 describe('parseProject / serializeProject', () => {
-  it.each(['v1-minimal.lamp.json', 'v1-full.lamp.json'])('round-trips %s', (name) => {
+  it.each([...V2_FIXTURES, ...V1_FIXTURES])('round-trips %s', (name) => {
     const project = parseProject(fixture(name));
     const text = serializeProject(project);
     expect(parseProject(text)).toEqual(project);
@@ -38,7 +48,7 @@ describe('parseProject / serializeProject', () => {
   });
 
   it('writes keys in schema order with sorted colour overrides', () => {
-    const text = serializeProject(parseProject(fixture('v1-full.lamp.json')));
+    const text = serializeProject(parseProject(fixture('v2-full.lamp.json')));
     expect(Object.keys(JSON.parse(text))).toEqual([
       'version',
       'id',
@@ -51,15 +61,16 @@ describe('parseProject / serializeProject', () => {
       'mount',
       'hub',
       'shades',
+      'joints',
       'colours',
       'fitTest',
     ]);
-    expect(Object.keys(parseProject(text).colours)).toEqual(['classicShade', 'shade']);
+    expect(Object.keys(parseProject(text).colours)).toEqual(['hub', 'shade']);
     expect(text).toContain('"bed": [300, 280, 320]');
     expect(text.endsWith('}\n')).toBe(true);
   });
 
-  it('migrates v0 (flat legacy params) to v1 with the right shade dimensions', () => {
+  it('migrates v0 (flat legacy params) to the current version with the right shade dimensions', () => {
     const raw = JSON.parse(fixture('v0-legacy-params.json')) as Record<string, unknown>;
     const project = parseProject(fixture('v0-legacy-params.json'));
     expect(project.version).toBe(PROJECT_VERSION);
@@ -71,6 +82,7 @@ describe('parseProject / serializeProject', () => {
       topDiameter: CLASSIC_SHADE_DEFAULTS.topDiameter,
       height: 150,
       curve: -0.4,
+      shoulderAngle: CLASSIC_SHADE_DEFAULTS.shoulderAngle,
       surface: {
         style: 'faceted',
         patternCount: 8,
@@ -83,6 +95,7 @@ describe('parseProject / serializeProject', () => {
     expect(project.quality).toEqual({ preview: 'fine', export: 'fine' });
     expect(project.printer.id).toBe('bambu-a1');
     expect(project.fitTest).toBe(false);
+    expect(project.hub.fused).toBe(true);
     expect(projectToClassicParams(project)).toEqual(normalizeClassicShade(raw).values);
   });
 
@@ -91,8 +104,10 @@ describe('parseProject / serializeProject', () => {
   });
 
   it('leaves current and unknown versions to the schema', () => {
-    const v1 = JSON.parse(fixture('v1-minimal.lamp.json')) as unknown;
-    expect(migrate(v1)).toBe(v1);
+    const v2 = JSON.parse(fixture('v2-minimal.lamp.json')) as unknown;
+    expect(migrate(v2)).toBe(v2);
+    const future = { version: 99 };
+    expect(migrate(future)).toBe(future);
     expect(migrate('nope')).toBe('nope');
   });
 
@@ -112,6 +127,74 @@ describe('parseProject / serializeProject', () => {
   });
 });
 
+describe('migration v1 → v2', () => {
+  /** The flat classic-shade params of a raw v1 project (its own paths). */
+  const v1Params = (raw: Record<string, Record<string, unknown>>) => {
+    const v2Paths = Object.fromEntries(
+      Object.entries(CLASSIC_PARAM_PATHS).map(([key, path]) => [
+        key,
+        path
+          .replace('shades.0.style.shoulderAngle', 'hub.shoulderAngle')
+          .replace('light.bossWall', 'hub.bossWall')
+          .replace('light.pocketExtraDepth', 'hub.pocketExtraDepth'),
+      ]),
+    );
+    return Object.fromEntries(Object.entries(v2Paths).map(([key, path]) => [key, get(raw, path)]));
+  };
+
+  it.each(V1_FIXTURES)('keeps the geometry of %s and moves the puck pocket fields', (name) => {
+    const raw = JSON.parse(fixture(name)) as Record<string, Record<string, unknown>>;
+    const v1Hub = raw.hub!;
+    const project = parseProject(fixture(name));
+    expect(project.version).toBe(2);
+    const flat = projectToClassicParams(project);
+    const expected = v1Params(raw);
+    for (const def of CLASSIC_SHADE_DEFS) {
+      if (def.key === 'quality' || def.key === 'fitTest') continue;
+      expect(flat[def.key], def.key).toEqual(expected[def.key]);
+    }
+    // Moved: the pocket's boss wall and extra depth live on the light now.
+    expect(project.light.bossWall).toBe(v1Hub.bossWall);
+    expect(project.light.pocketExtraDepth).toBe(v1Hub.pocketExtraDepth);
+    expect('bossWall' in project.hub).toBe(false);
+    // Copied: the shade gets the shoulder angle, the hub keeps its own.
+    expect(project.shades[0].style.shoulderAngle).toBe(v1Hub.shoulderAngle);
+    expect(project.hub.shoulderAngle).toBe(v1Hub.shoulderAngle);
+    // Added with their defaults; still one print.
+    expect(project.hub).toMatchObject({
+      wallThickness: 2,
+      collarWall: 2,
+      radialGap: 8,
+      ventCount: 0,
+      fused: true,
+    });
+    expect(project.joints).toEqual({
+      shadeToHub: 'bayonet',
+      tolerance: 0.3,
+      threadPitch: 2.5,
+      threadDepth: 0.8,
+      screw: 'M3',
+      heatSet: true,
+    });
+    expect(project.colours.hub).toBe(DEFAULT_HUB_COLOUR);
+    expect(project.shades[0].collarDiameter).toBeUndefined();
+  });
+
+  it('turns the dropped classicShade part-kind colour into the shade colour', () => {
+    const full = parseProject(fixture('v1-full.lamp.json'));
+    expect(full.colours).toEqual({ hub: DEFAULT_HUB_COLOUR, shade: '#ffcc00' });
+    const raw = JSON.parse(fixture('v1-minimal.lamp.json')) as Record<string, unknown>;
+    raw.colours = { classicShade: '#aabbcc' };
+    expect(loadProject(raw).colours).toEqual({ hub: DEFAULT_HUB_COLOUR, shade: '#aabbcc' });
+  });
+
+  it('re-saved v1 fixtures equal the v2 fixtures', () => {
+    expect(serializeProject(parseProject(fixture('v1-minimal.lamp.json')))).toBe(
+      fixture('v2-minimal.lamp.json'),
+    );
+  });
+});
+
 describe('project ↔ classic shade params', () => {
   it('the default project holds the default shade on a Bambu Lab A1', () => {
     const project = createDefaultProject({ id: 'p', updatedAt: '2026-10-21T00:00:00.000Z' });
@@ -119,7 +202,10 @@ describe('project ↔ classic shade params', () => {
     expect(project.printer.id).toBe('bambu-a1');
     expect(project.shades[0].colour).toBe('#f4efe6');
     expect(project.light.preset).toBe('bambu-kit-001');
+    expect(project.hub.fused).toBe(true);
+    expect(project.colours).toEqual({ hub: '#d9d4cb' });
     expect(projectToClassicParams(project)).toEqual({ ...CLASSIC_SHADE_DEFAULTS });
+    expect(projectToHubParams(project)).toEqual({ ...HUB_JOINT_DEFAULTS });
   });
 
   it('new projects get distinct ids', () => {
@@ -127,20 +213,29 @@ describe('project ↔ classic shade params', () => {
   });
 
   it('round-trips the flat params and keeps what they do not describe', () => {
-    const base = parseProject(fixture('v1-full.lamp.json'));
+    const base = parseProject(fixture('v2-full.lamp.json'));
     const params = projectToClassicParams(base);
     const again = classicParamsToProject(params, base);
-    expect(again).toEqual({ ...base, hub: { ...base.hub, wallThickness: params.wallThickness } });
+    expect(again).toEqual(base);
     expect(projectToClassicParams(again)).toEqual(params);
   });
 
   it('CLASSIC_PARAM_PATHS point at the values projectToClassicParams reads', () => {
-    const project: Project = parseProject(fixture('v1-full.lamp.json'));
+    const project: Project = parseProject(fixture('v2-full.lamp.json'));
     const params = projectToClassicParams(project);
     for (const def of CLASSIC_SHADE_DEFS) {
       const key: ClassicShadeKey = def.key;
       const value = get(project, CLASSIC_PARAM_PATHS[key]);
       expect(key === 'fitTest' ? (value ? 'yes' : 'no') : value, key).toEqual(params[key]);
+    }
+  });
+
+  it('HUB_PARAM_PATHS point at the values projectToHubParams reads', () => {
+    const project: Project = parseProject(fixture('v2-full.lamp.json'));
+    const params = projectToHubParams(project);
+    for (const def of HUB_JOINT_DEFS) {
+      const key: HubJointKey = def.key;
+      expect(get(project, HUB_PARAM_PATHS[key]), key).toEqual(params[key]);
     }
   });
 });
@@ -181,6 +276,33 @@ describe('clampToSchema / normalizeClassicShade', () => {
       'lightHoleDiameter',
       'strapWidth',
     ]);
+  });
+});
+
+describe('normalizeHubJoint', () => {
+  it('clamps and keeps a thread depth of at most 0.4 × the pitch', () => {
+    const { values, warnings } = normalizeHubJoint({
+      ...HUB_JOINT_DEFAULTS,
+      shadeToHub: 'thread',
+      threadPitch: 2,
+      threadDepth: 1.2,
+      jointTolerance: 5,
+    });
+    expect(values.jointTolerance).toBe(0.8);
+    expect(values.threadDepth).toBe(0.8);
+    expect(warnings.map((w) => [w.code, w.paramPath])).toEqual([
+      ['clamped', 'jointTolerance'],
+      ['adjusted', 'threadDepth'],
+    ]);
+  });
+
+  it('shows the joint rows only while the lamp is split, the thread rows only for threads', () => {
+    const defs = HUB_JOINT_GROUPS.flatMap((g) => g.params);
+    const shown = (values: Record<string, unknown>) =>
+      defs.filter((d) => isParamVisible(d, values)).map((d) => d.key);
+    expect(shown({ fused: true, shadeToHub: 'thread' })).toEqual([]);
+    expect(shown({ fused: false, shadeToHub: 'bayonet' })).not.toContain('threadPitch');
+    expect(shown({ fused: false, shadeToHub: 'thread' })).toContain('threadDepth');
   });
 });
 

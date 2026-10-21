@@ -7,6 +7,7 @@
 
 import { QUALITIES } from '../geometry/quality.ts';
 import { SURFACE_STYLES } from '../geometry/surface.ts';
+import { SHADE_JOINT_TYPES } from '../model/assembly.ts';
 
 /** Current values of the parameters a definition belongs to, for `visibleWhen`. */
 export type ParamValues = Readonly<Record<string, unknown>>;
@@ -307,7 +308,7 @@ const CLASSIC_SHADE_SCHEMA = [
         type: 'select',
         options: ['no', 'yes'],
         default: 'no',
-        help: 'Export just the puck housing ring (≈ 10 min print) to check the puck fit and strap tunnels before printing the whole shade.',
+        help: 'Export just the puck housing ring of the single-piece shade (≈ 10 min print), or just the hub of a two-part lamp, to check the puck fit and strap tunnels before printing the whole lamp.',
       },
     ],
   },
@@ -336,6 +337,143 @@ export const CLASSIC_SHADE_DEFS: readonly ClassicShadeParamDef[] = CLASSIC_SHADE
 /** Built from the schema at runtime; the schema guarantees one entry per key. */
 export const CLASSIC_SHADE_DEFAULTS: Readonly<ClassicShadeParams> = Object.freeze(
   Object.fromEntries(CLASSIC_SHADE_DEFS.map((p) => [p.key, p.default])) as ClassicShadeParams,
+);
+
+// ---------------------------------------------------------------- hub & joint
+
+const split = (v: ParamValues) => v.fused !== true;
+const splitThread = (v: ParamValues) => split(v) && v.shadeToHub === 'thread';
+
+// The hub and the shade joint of a two-part lamp (`hub.fused: false`). Keys are
+// flat; `HUB_PARAM_PATHS` (project.ts) says where each one lives. The form shows
+// them only while the lamp is split (`fused` is a value of the form, not a
+// definition: it is a toggle).
+const HUB_JOINT_SCHEMA = [
+  {
+    id: 'hubJoint',
+    label: 'Hub & joint',
+    params: [
+      {
+        key: 'shadeToHub',
+        label: 'Shade joint',
+        type: 'select',
+        options: SHADE_JOINT_TYPES,
+        default: 'bayonet',
+        help: 'How the shade hangs from the hub: a bayonet (push in, twist 35° to lock), a press fit with crush ribs, or a printed thread.',
+        visibleWhen: split,
+      },
+      {
+        key: 'jointTolerance',
+        label: 'Joint clearance',
+        unit: 'mm',
+        min: 0.1,
+        max: 0.8,
+        step: 0.05,
+        default: 0.3,
+        help: 'Radial gap between the shade collar and the hub ring (the press fit uses 0.1 mm less). Raise it if the parts print too tight.',
+        visibleWhen: split,
+      },
+      {
+        key: 'threadPitch',
+        label: 'Thread pitch',
+        unit: 'mm',
+        min: 1.6,
+        max: 5,
+        step: 0.1,
+        default: 2.5,
+        visibleWhen: splitThread,
+      },
+      {
+        key: 'threadDepth',
+        label: 'Thread depth',
+        unit: 'mm',
+        min: 0.4,
+        max: 2,
+        step: 0.05,
+        default: 0.8,
+        help: 'At most 0.4 × the pitch, so the teeth keep a crest and a root.',
+        visibleWhen: splitThread,
+      },
+      {
+        key: 'collarWall',
+        label: 'Collar wall',
+        unit: 'mm',
+        min: 1.2,
+        max: 5,
+        step: 0.1,
+        default: 2,
+        help: 'Wall of the shade collar and of the hub ring around it.',
+        visibleWhen: split,
+      },
+      {
+        key: 'radialGap',
+        label: 'Radial gap',
+        unit: 'mm',
+        min: 2,
+        max: 30,
+        step: 0.5,
+        default: 8,
+        help: 'Gap between the outer and an inner shade collar (inner shades arrive in a later version).',
+        visibleWhen: split,
+      },
+      {
+        key: 'hubShoulderAngle',
+        label: 'Hub shoulder angle',
+        unit: '°',
+        min: 40,
+        max: 70,
+        step: 1,
+        default: 50,
+        help: "Slope of the hub's roof from its collar ring up to the puck housing. Keep ≥ 45° for support-free printing.",
+        visibleWhen: split,
+      },
+    ],
+  },
+] as const satisfies readonly ParamGroup[];
+
+/** Hub parameters that are clamped like the form's but not shown in it. */
+const HUB_EXTRA_DEFS = [
+  {
+    key: 'hubWallThickness',
+    label: 'Hub wall',
+    unit: 'mm',
+    min: 1,
+    max: 5,
+    step: 0.1,
+    default: 2,
+  },
+  {
+    key: 'ventCount',
+    label: 'Vents',
+    unit: '',
+    min: 0,
+    max: 12,
+    step: 1,
+    default: 0,
+  },
+] as const satisfies readonly ParamDef[];
+
+type HubSchemaParam =
+  (typeof HUB_JOINT_SCHEMA)[number]['params'][number] | (typeof HUB_EXTRA_DEFS)[number];
+
+/** The hub and shade-joint parameters as flat values. */
+export type HubJointParams = {
+  [P in HubSchemaParam as P['key']]: P extends { readonly options: readonly (infer O)[] }
+    ? O
+    : number;
+};
+
+export type HubJointKey = keyof HubJointParams;
+
+export const HUB_JOINT_GROUPS: readonly ParamGroup[] = HUB_JOINT_SCHEMA;
+
+export const HUB_JOINT_DEFS: readonly ParamDef<HubJointKey>[] = [
+  ...HUB_JOINT_SCHEMA.flatMap((g) => g.params),
+  ...HUB_EXTRA_DEFS,
+];
+
+export const HUB_JOINT_DEFAULTS: Readonly<HubJointParams> = Object.freeze(
+  Object.fromEntries(HUB_JOINT_DEFS.map((p) => [p.key, p.default])) as HubJointParams,
 );
 
 /** Whether a parameter is shown for the given values (see `ParamDefBase.visibleWhen`). */

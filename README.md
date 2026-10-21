@@ -1,10 +1,11 @@
 # openlamp
 
 **openlamp** is a parametric, 3D-printable lamp generator that runs in the browser. Today it
-designs one part: a ceiling lamp shade for the **Bambu Lab LED Lamp Kit-001**, hung from the
-ceiling with a velcro (hook-and-loop) strap. You shape it with sliders, watch a live 3D preview,
-check that it fits your printer's bed and download a watertight STL. The same core also runs
-from the command line.
+designs a ceiling lamp for the **Bambu Lab LED Lamp Kit-001**, hung from the ceiling with a
+velcro (hook-and-loop) strap: either one single-piece shade (the default) or a two-part lamp, a
+hub that holds the puck and a shade that hangs from it on a bayonet, press fit or printed
+thread. You shape it with sliders, watch a live 3D preview, check that every part fits your
+printer's bed and download watertight STLs. The same core also runs from the command line.
 
 Try it at **https://jahoefne.github.io/openlamp/**.
 
@@ -31,19 +32,23 @@ Requires Node.js 24 (the version CI uses).
   the LED puck and the velcro mount. Each number has a slider and a text field; values out of
   range are clamped and explained under the field. Rows that do not apply are hidden (a
   smooth shade has no rib count). While you drag a slider the preview builds at draft
-  quality; releasing it builds the full mesh. **Output** sets the preview and export mesh
-  quality, the fit-test mode and the shade colour.
+  quality; releasing it builds the full mesh. **Hub & joint** switches between the
+  single-piece print and the two-part lamp (_Single-piece print (fused)_ off) and, for the
+  two-part lamp, picks the joint (bayonet, press fit, thread), its clearance, the thread pitch
+  and depth, the collar wall and the hub's own shoulder angle. **Output** sets the preview and
+  export mesh quality, the fit-test mode and the shade colour.
 - **Undo / redo**: ⌘Z / Ctrl+Z and ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y, or the arrows in the top
   bar. A whole slider drag is one step.
 - **Printer**: the chip next to the project name opens the printer list (Bambu Lab, Prusa,
   Creality, Elegoo, Voron, Anycubic) or a custom build volume. The badge under the stats says
   whether the shade fits the bed, or by how many millimetres it is too large.
-- **The viewport** shows the shade with its build stats (footprint, housing, material, max
-  overhang, triangles). Drag to orbit, **F** frames the lamp. The **View** options cut the
+- **The viewport** shows the lamp with its build stats (footprint, housing, material, max
+  overhang, triangles); a two-part lamp gets one row per part (footprint, grams, triangles,
+  overhang, bed fit) plus the totals, and clicking a row or a part selects it. Drag to orbit, **F** frames the lamp. The **View** options cut the
   shade in half (section view, **X**, across X or Y), show the LED puck and strap as ghosts
   and show the shade mounted on the ceiling.
-- **Export → Download STL** writes one binary STL per part (today: the shade) at the export
-  quality, named `openlamp-<project>-<part>.stl`.
+- **Export → Download STL** writes one binary STL per part (the shade, or the hub and the
+  shade) at the export quality, named `openlamp-<project>-<part>.stl`.
 - **Projects**: **Save** downloads the lamp as a `.lamp.json` file named after the project and
   **Open** loads one back. **Share** copies a link that carries the whole project in the URL hash (`#p=…`);
   the address bar follows your edits, so any URL of the app reopens what you see. The app
@@ -80,7 +85,22 @@ The shade's parameters, as shown in the inspector and accepted by the CLI
 |        | loopLength        | 10 mm   | vertical tunnel length                                                           |
 |        | loopWall          | 2.4 mm  |                                                                                  |
 | Output | quality           | normal  | draft / normal / fine                                                            |
-|        | fitTest           | no      | `yes` exports only the housing ring for a quick fit check                        |
+|        | fitTest           | no      | `yes` exports only the housing ring (or the hub of a two-part lamp)              |
+
+The two-part lamp's hub and joint live in the project file (`hub`, `joints`) and in the
+inspector's **Hub & joint** group:
+
+| Parameter                 | Default        | Notes                                                                     |
+| ------------------------- | -------------- | ------------------------------------------------------------------------- |
+| `hub.fused`               | true           | `false` splits the lamp into a hub and a shade                            |
+| `joints.shadeToHub`       | bayonet        | bayonet (3 lugs, twist 35° to lock), snap (press fit, crush ribs), thread |
+| `joints.tolerance`        | 0.3 mm         | radial clearance of the collar in the hub ring (press fit: 0.1 mm less)   |
+| `joints.threadPitch`      | 2.5 mm         | thread only; right-hand                                                   |
+| `joints.threadDepth`      | 0.8 mm         | thread only; at most 0.4 × the pitch                                      |
+| `hub.collarWall`          | 2 mm           | wall of the shade collar and of the hub ring                              |
+| `hub.shoulderAngle`       | 50°            | the hub's own roof slope (the shade keeps its own `shoulderAngle`)        |
+| `hub.wallThickness`       | 2 mm           | the hub's cone wall                                                       |
+| `shades.0.collarDiameter` | auto (68.2 mm) | collar Ø = 2 · (housing radius + 1.5); a larger value enlarges it         |
 
 ## Printing notes
 
@@ -108,6 +128,16 @@ ceiling  ═════════════════════  self�
 The puck is not screwed or glued; the ledge carries it and the strap stops it from rattling,
 so it can be swapped at any time.
 
+### Two-part lamp (hub + shade)
+
+With _Single-piece print (fused)_ off, the housing becomes a separate **hub** (the puck pocket,
+the strap tunnels and, below them, a ring 8 mm tall) and the **shade** ends in a collar that
+slides up into that ring: push the shade's lugs into the slots and turn it clockwise (seen from
+below) to lock the bayonet, press it home (press fit) or screw it in (thread). Both print
+without supports: the hub collar ring down, the shade open end down. The shade's top is
+widened automatically if it would not clear the hub ring (Ø76 mm for the default bayonet, so
+the top must be at least 78 mm).
+
 ### Printing
 
 - Print **as exported**: open end on the bed, housing on top. Every overhang is ≤ 45° from
@@ -132,19 +162,23 @@ The default shade was additionally cross-checked by slicing the STL numerically:
 The CLI builds STLs with the same core as the app (Node runs the TypeScript directly):
 
 ```bash
-node cli/openlamp.ts list                      # printers, examples and all parameters
-node cli/openlamp.ts part classicShade         # default shade → samples/openlamp-classicShade.stl
-node cli/openlamp.ts part classicShade --bottomDiameter 200 --height 150 --style ribbed \
+node cli/openlamp.ts list                      # part kinds, printers, examples and all parameters
+node cli/openlamp.ts part shade                # default single-piece shade → samples/openlamp-shade.stl
+node cli/openlamp.ts part shade --bottomDiameter 200 --height 150 --style ribbed \
   --patternCount 48 --twist 60 --quality fine -o big.stl
-node cli/openlamp.ts part classicShade --fitTest yes -o samples/fit-test-ring.stl
-node cli/openlamp.ts part classicShade --json  # stats as JSON
+node cli/openlamp.ts part shade --fitTest yes -o samples/fit-test-ring.stl
+node cli/openlamp.ts part hub --joint thread   # hub of a two-part lamp → samples/openlamp-hub.stl
+node cli/openlamp.ts part shade --joint snap   # its shade, with a press-fit collar
+node cli/openlamp.ts part shade --json         # stats as JSON
 node cli/openlamp.ts project src/examples/faceted.lamp.json --out prints/
 node cli/openlamp.ts samples                   # every example → samples/ (same as npm run samples)
 ```
 
-- `part <kind>` builds one part from parameters; every parameter from `list` can be passed as
-  `--<param> <value>`. Values are clamped to their range and cross-checked (for example the top
-  of the shade is widened automatically if it would not clear the puck housing).
+- `part <kind>` builds one part from parameters; every classic-shade parameter from `list` can
+  be passed as `--<param> <value>`. Values are clamped to their range and cross-checked (for
+  example the top of the shade is widened automatically if it would not clear the puck
+  housing). Kinds: `shade` (the single-piece shade, or with `--joint bayonet|snap|thread` the
+  shade of a two-part lamp) and `hub` (the hub of a two-part lamp, bayonet by default).
 - `project <file.lamp.json>` builds every part of a project at its export quality into
   `--out <dir>` as `openlamp-<project>-<part>.stl`.
 - `samples` builds every `src/examples/*.lamp.json` into `samples/` (git-ignored).
@@ -159,17 +193,18 @@ The package also exposes the CLI as an `openlamp` binary (`npm link`, then `open
 A project is one versioned JSON document, the same for saved files, autosave, share links,
 the examples and the CLI. Its top-level fields:
 
-| Field                                 | Contents                                                                          |
-| ------------------------------------- | --------------------------------------------------------------------------------- |
-| `version`                             | format version (currently `1`); older versions are migrated on load               |
-| `id`, `name`, `revision`, `updatedAt` | identity, display name, edit counter, ISO timestamp                               |
-| `printer`                             | `{ id, vendor, name, bed: [x, y, z], nozzle, multiColour, notes? }`               |
-| `quality`                             | `{ preview, export }`, each `draft`, `normal` or `fine`                           |
-| `light`                               | the light source; v1: `{ kind: "puck", diameter, height, clearance, … }`          |
-| `mount`                               | how the lamp is hung; v1: `{ kind: "ceilingStrap", strapWidth, … }`               |
-| `hub`                                 | the light holder (housing, shoulder); v1 is always `fused` to the shade           |
-| `shades`                              | v1: one outer shade `{ colour, wallThickness, style: { family: "revolved", … } }` |
-| `colours`, `fitTest`                  | colour overrides by part id or kind; export only the fit-test ring                |
+| Field                                 | Contents                                                                                                      |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `version`                             | format version (currently `2`); older versions are migrated on load                                           |
+| `id`, `name`, `revision`, `updatedAt` | identity, display name, edit counter, ISO timestamp                                                           |
+| `printer`                             | `{ id, vendor, name, bed: [x, y, z], nozzle, multiColour, notes? }`                                           |
+| `quality`                             | `{ preview, export }`, each `draft`, `normal` or `fine`                                                       |
+| `light`                               | the light source: `{ kind: "puck", diameter, height, clearance, bossWall, … }`                                |
+| `mount`                               | how the lamp is hung: `{ kind: "ceilingStrap", strapWidth, … }`                                               |
+| `hub`                                 | `{ wallThickness, shoulderAngle, collarWall, radialGap, ventCount, fused }`                                   |
+| `shades`                              | one outer shade `{ colour, wallThickness, collarDiameter?, style: { family: "revolved", shoulderAngle, … } }` |
+| `joints`                              | `{ shadeToHub, tolerance, threadPitch, threadDepth, screw: "M3", heatSet }`                                   |
+| `colours`, `fitTest`                  | colours by part id or kind (`hub` defaults to `#d9d4cb`); export only the fit-test pieces                     |
 
 The schema (zod) and the migrations are in
 [`src/core/model/project.ts`](src/core/model/project.ts); a complete example is

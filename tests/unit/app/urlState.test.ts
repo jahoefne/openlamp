@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { compressToEncodedURIComponent } from 'lz-string';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createDefaultProject, parseProject, type Project } from '@core/model/project.ts';
+import {
+  PROJECT_VERSION,
+  createDefaultProject,
+  parseProject,
+  type Project,
+} from '@core/model/project.ts';
 import {
   HASH_PREFIX,
   URL_SOFT_LIMIT,
@@ -81,7 +86,7 @@ describe('legacy ?key=value links', () => {
     expect(shade.style.bottomDiameter).toBe(200);
     expect(shade.style.surface.style).toBe('smooth');
     expect(project!.quality.preview).toBe('draft');
-    expect(project!.version).toBe(1);
+    expect(project!.version).toBe(PROJECT_VERSION);
   });
 
   it('clamps out-of-range values and ignores unknown keys', () => {

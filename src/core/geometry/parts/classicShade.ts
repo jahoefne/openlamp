@@ -1,5 +1,5 @@
 /**
- * The classic shade: today's one-piece lamp shade for the Bambu Lab LED Lamp
+ * The classic shade: the one-piece lamp shade for the Bambu Lab LED Lamp
  * Kit-001, hub and shade fused into a single print, printed open end down:
  *
  *   ceiling  ═══════════════ velcro strip stuck to the ceiling
@@ -13,17 +13,20 @@
  *      ╱                       ╲
  *     ╵─────────────────────────╵ open bottom (on the print bed)
  *
- * Part kind `classicShade`. In M2 it is dissolved into a hub and a revolved
- * shade, and `hub.fused` reproduces this print.
+ * This is the `shade` part of a fused lamp (`hub.fused`, the default): the
+ * builder is kept exactly as it was (byte-identical STLs), while a split lamp
+ * gets a `hub` (hub.ts) and a revolved `shade` with a collar (shades/revolved.ts).
  */
 
-import type { Kernel, Manifold, Vec3 } from '../kernel.ts';
+import type { Kernel, Manifold } from '../kernel.ts';
 import { scoped } from '../kernel.ts';
 import type { Footprint, GeometryStats } from '../../model/assembly.ts';
 import type { ClassicShadeParams } from '../../schema/defs.ts';
 import { offsetProfile, profileSteps, sampleProfile, uniformSamples, type RZ } from '../profile.ts';
 import { circularSegments, QUALITY, type Quality } from '../quality.ts';
 import { radialWarp } from '../surface.ts';
+import { puckInsertCutters } from './lightInserts.ts';
+import { beltLoop } from './mountFaces.ts';
 
 export type { ClassicShadeParams } from '../../schema/defs.ts';
 
@@ -109,6 +112,11 @@ function fitTestCut(p: ClassicShadeParams, d: Derived): number {
   return d.zFloor - p.ledgeThickness - 3;
 }
 
+/** The z shift the builder applies to the result (`derived.zOffset`): non-zero in fit-test mode. Pure. */
+export function classicShadeZOffset(p: ClassicShadeParams, d: Derived = derive(p)): number {
+  return p.fitTest === 'yes' ? -fitTestCut(p, d) : 0;
+}
+
 /**
  * Bed footprint of the printed part (an upper bound of its bounding box), without
  * building it: the widest point of the wall including the bulge and the surface
@@ -191,50 +199,6 @@ function buildProfile(
 }
 
 /**
- * Build one belt-loop tunnel bracket on the ±Y side of the housing, with its
- * strap channel already cut, ready to be unioned onto the body.
- */
-function beltLoop(
-  k: Kernel,
-  p: ClassicShadeParams,
-  d: Derived,
-  segs: number,
-  sign: 1 | -1,
-): Manifold {
-  return scoped(k, (s) => {
-    const { Manifold } = k;
-    const { rBoss, zTop, kInner, m } = d;
-    const wx = p.strapWidth / 2 + p.loopWall;
-    const crescent = rBoss - Math.sqrt(Math.max(0, rBoss * rBoss - wx * wx)) + 0.6;
-    const yIn = rBoss - crescent;
-    const yOut = rBoss + p.strapThickness + p.loopWall;
-    const zLoopBottom = zTop - p.loopLength;
-    const zChamfer = zLoopBottom - (yOut - yIn); // 45° chamfer under the loop
-    const pts: Vec3[] = [];
-    for (const x of [-wx, wx]) {
-      pts.push([x, yIn, zTop], [x, yOut, zTop], [x, yOut, zLoopBottom], [x, yIn, zChamfer]);
-    }
-    const bracket = s.add(Manifold.hull(pts));
-    // Remove anything that would poke through the roof into the shade cavity.
-    const rc = rBoss + 40;
-    const cavity = s.add(
-      s.add(Manifold.cylinder(m * rc, rc, 0, segs)).translate([0, 0, kInner - m * rc]),
-    );
-    // The strap channel is cut from the bracket only, so it can never nick the
-    // thin shoulder shell below the tunnel.
-    const slot = s.add(
-      s
-        .add(
-          Manifold.cube([p.strapWidth, p.strapThickness, p.loopLength + (yOut - yIn) + 2], false),
-        )
-        .translate([-p.strapWidth / 2, rBoss, zChamfer - 1]),
-    );
-    const cut = s.add(Manifold.difference([bracket, cavity, slot]));
-    return s.keep(sign < 0 ? s.add(cut.mirror([0, 1, 0])) : cut);
-  });
-}
-
-/**
  * Build the complete shade.
  * @param k  manifold-3d toplevel (after `setup()`)
  * @param params  normalised parameters (see `normalizeClassicShade`)
@@ -269,25 +233,11 @@ export function buildClassicShade(
     const loops = [s.add(beltLoop(k, p, d, segs, +1)), s.add(beltLoop(k, p, d, segs, -1))];
     const solid = s.add(Manifold.union([body, ...loops]));
 
-    // Puck pocket (open to the ceiling side) and the light opening through the ledge.
-    const pocket = s.add(
-      s
-        .add(Manifold.cylinder(d.pocketDepth + 1, d.rPocket, d.rPocket, segs))
-        .translate([0, 0, d.zFloor]),
-    );
-    const hole = s.add(
-      s
-        .add(Manifold.cylinder(d.zTop - d.zHoleBottom + 2, d.rHole, d.rHole, segs))
-        .translate([0, 0, d.zHoleBottom - 1]),
-    );
-    // Cable slot through the housing wall on +X, from the pocket floor to the top.
-    const cable = s.add(
-      s
-        .add(Manifold.cube([d.rBoss - d.rPocket + 4, p.cableSlotWidth, d.pocketDepth + 1], false))
-        .translate([d.rPocket - 2, -p.cableSlotWidth / 2, d.zFloor]),
-    );
+    // Puck pocket (open to the ceiling side), the light opening through the
+    // ledge and the cable slot through the housing wall on +X.
+    const cutters = puckInsertCutters(k, d, p.cableSlotWidth, segs).map((c) => s.add(c));
 
-    let result = s.add(Manifold.difference([solid, pocket, hole, cable]));
+    let result = s.add(Manifold.difference([solid, ...cutters]));
 
     // Fit-test mode: keep only the housing ring, cut where the ledge has grown into
     // a solid annulus so it stands on the bed by itself, and drop it to z = 0.

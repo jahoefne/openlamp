@@ -3,28 +3,37 @@
  * links, examples, the CLI). Versioned; `migrate()` upgrades old versions and
  * `ProjectSchema` (zod) validates the result.
  *
- * Version 1 already has the light / mount / hub / shades structure of the full
- * lamp, but only the variants M1 can build: a puck light, the velcro ceiling
- * strap, one revolved outer shade fused to its hub (the classic shade).
+ * Version 2 (M2) splits the lamp into a hub and a shade joined by a collar
+ * joint (`joints`), unless `hub.fused` keeps them one print (the classic
+ * shade, still the default). Only the variants built so far are allowed: a
+ * puck light, the velcro ceiling strap, one revolved outer shade.
  *
- * Version 0 is the flat classic-shade parameter object of the first app (its
- * `?bottomDiameter=…` links and presets); it has no `version` field.
+ * Version 1 had the same structure with the puck pocket's `bossWall` and
+ * `pocketExtraDepth` on the hub, the shade's shoulder angle on the hub and
+ * `fused` always true. Version 0 is the flat classic-shade parameter object of
+ * the first app (its `?bottomDiameter=…` links and presets); it has no
+ * `version` field.
  */
 import { z } from 'zod';
 import { QUALITIES, type Quality } from '../geometry/quality.ts';
 import { SURFACE_STYLES } from '../geometry/surface.ts';
 import {
   CLASSIC_SHADE_DEFAULTS,
+  HUB_JOINT_DEFAULTS,
   type ClassicShadeKey,
   type ClassicShadeParams,
+  type HubJointKey,
+  type HubJointParams,
 } from '../schema/defs.ts';
 import { normalizeClassicShade } from '../schema/normalize.ts';
 import { DEFAULT_PRINTER_ID, PRINTERS, findPrinter, type PrinterSpec } from '../schema/printers.ts';
-import type { Hex } from './assembly.ts';
+import { SHADE_JOINT_TYPES, type Hex } from './assembly.ts';
 
-export const PROJECT_VERSION = 1;
+export const PROJECT_VERSION = 2;
 
 export const DEFAULT_SHADE_COLOUR: Hex = '#f4efe6';
+/** The hub's colour in new and migrated projects (`colours.hub`). */
+export const DEFAULT_HUB_COLOUR: Hex = '#d9d4cb';
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
@@ -53,6 +62,10 @@ export const PuckLightSchema = z.object({
   lightHoleDiameter: Mm,
   ledgeThickness: Mm,
   cableWidth: Mm,
+  /** Wall of the housing around the pocket. */
+  bossWall: Mm,
+  /** The pocket is this much deeper than the puck, so the strap lies flat. */
+  pocketExtraDepth: Mm,
 });
 
 export const LightSchema = z.discriminatedUnion('kind', [PuckLightSchema]);
@@ -68,13 +81,18 @@ export const CeilingStrapMountSchema = z.object({
 export const MountSchema = z.discriminatedUnion('kind', [CeilingStrapMountSchema]);
 
 export const HubSchema = z.object({
-  /** Wall of the hub. Unused while the hub is fused to the shade (the shade's wall is used). */
+  /** Wall of the hub's shoulder cone (unused while fused: the shade's wall is used). */
   wallThickness: Mm,
+  /** The hub's own shoulder, from its collar ring up to the light housing. */
   shoulderAngle: Mm,
-  bossWall: Mm,
-  pocketExtraDepth: Mm,
-  /** Hub and outer shade printed as one part (the classic shade). Always true in v1. */
-  fused: z.literal(true),
+  /** Wall of the shade collar and of the hub ring around it. */
+  collarWall: Mm,
+  /** Gap between the outer and an inner shade collar (inner shades: M2.4). */
+  radialGap: Mm,
+  /** Vents in the hub's cone (bulb lights, M2.3). */
+  ventCount: z.number().int().nonnegative(),
+  /** Hub and outer shade printed as one part (the classic shade). */
+  fused: z.boolean(),
 });
 
 export const SurfaceSchema = z.object({
@@ -90,6 +108,8 @@ export const RevolvedStyleSchema = z.object({
   topDiameter: Mm,
   height: Mm,
   curve: z.number(),
+  /** The shade's own shoulder, from the wall up to the collar (or the housing when fused). */
+  shoulderAngle: Mm,
   surface: SurfaceSchema,
 });
 
@@ -100,7 +120,22 @@ export const ShadeSchema = z.object({
   role: z.literal('outer'),
   colour: HexSchema,
   wallThickness: Mm,
+  /** Collar diameter; automatic (from the light) unless set, and it may only enlarge it. */
+  collarDiameter: Mm.optional(),
   style: ShadeStyleSchema,
+});
+
+export const JointsSchema = z.object({
+  /** How the shade hangs from the hub. */
+  shadeToHub: z.enum(SHADE_JOINT_TYPES),
+  /** Radial clearance of the collar joints. */
+  tolerance: Mm,
+  threadPitch: Mm,
+  threadDepth: Mm,
+  /** Screws of the mounts' screw joints. */
+  screw: z.literal('M3'),
+  /** Heat-set inserts (else the screws tap into plain holes). */
+  heatSet: z.boolean(),
 });
 
 export const ProjectSchema = z.object({
@@ -114,11 +149,12 @@ export const ProjectSchema = z.object({
   light: LightSchema,
   mount: MountSchema,
   hub: HubSchema,
-  /** Exactly one outer shade in v1. */
+  /** Exactly one outer shade so far. */
   shades: z.tuple([ShadeSchema]),
-  /** Colour overrides by part id or part kind. */
+  joints: JointsSchema,
+  /** Colours by part id or part kind (the shade falls back to its own colour). */
   colours: z.record(z.string(), HexSchema),
-  /** Export only the puck housing ring to test the fit. */
+  /** Export only the fit-test pieces (the housing ring when fused, else the hub). */
   fitTest: z.boolean(),
 });
 
@@ -129,6 +165,7 @@ export type Hub = z.infer<typeof HubSchema>;
 export type ShadeSpec = z.infer<typeof ShadeSchema>;
 export type ShadeStyle = z.infer<typeof ShadeStyleSchema>;
 export type SurfaceStyle = z.infer<typeof SurfaceSchema>;
+export type Joints = z.infer<typeof JointsSchema>;
 
 // ---------------------------------------------------------------- defaults
 
@@ -151,6 +188,31 @@ export interface NewProjectInit {
   updatedAt?: string;
 }
 
+/** The hub of a new project: fused (one print), the split hub's defaults ready. */
+function defaultHub(): Hub {
+  const d = HUB_JOINT_DEFAULTS;
+  return {
+    wallThickness: d.hubWallThickness,
+    shoulderAngle: d.hubShoulderAngle,
+    collarWall: d.collarWall,
+    radialGap: d.radialGap,
+    ventCount: d.ventCount,
+    fused: true,
+  };
+}
+
+function defaultJoints(): Joints {
+  const d = HUB_JOINT_DEFAULTS;
+  return {
+    shadeToHub: d.shadeToHub,
+    tolerance: d.jointTolerance,
+    threadPitch: d.threadPitch,
+    threadDepth: d.threadDepth,
+    screw: 'M3',
+    heatSet: true,
+  };
+}
+
 /** A new project with today's default shade on a Bambu Lab A1. */
 export function createDefaultProject(init: NewProjectInit = {}): Project {
   return classicParamsToProject({ ...CLASSIC_SHADE_DEFAULTS }, undefined, init);
@@ -168,7 +230,7 @@ export const CLASSIC_PARAM_PATHS: Readonly<Record<ClassicShadeKey, string>> = {
   height: 'shades.0.style.height',
   curve: 'shades.0.style.curve',
   wallThickness: 'shades.0.wallThickness',
-  shoulderAngle: 'hub.shoulderAngle',
+  shoulderAngle: 'shades.0.style.shoulderAngle',
   style: 'shades.0.style.surface.style',
   patternCount: 'shades.0.style.surface.patternCount',
   ribDepth: 'shades.0.style.surface.ribDepth',
@@ -176,10 +238,10 @@ export const CLASSIC_PARAM_PATHS: Readonly<Record<ClassicShadeKey, string>> = {
   puckDiameter: 'light.diameter',
   puckHeight: 'light.height',
   puckClearance: 'light.clearance',
-  pocketExtraDepth: 'hub.pocketExtraDepth',
+  pocketExtraDepth: 'light.pocketExtraDepth',
   lightHoleDiameter: 'light.lightHoleDiameter',
   ledgeThickness: 'light.ledgeThickness',
-  bossWall: 'hub.bossWall',
+  bossWall: 'light.bossWall',
   cableSlotWidth: 'light.cableWidth',
   strapWidth: 'mount.strapWidth',
   strapThickness: 'mount.strapThickness',
@@ -197,7 +259,7 @@ export function projectToClassicParams(
   project: Project,
   quality: Quality = project.quality.preview,
 ): ClassicShadeParams {
-  const { light, mount, hub } = project;
+  const { light, mount } = project;
   const shade = project.shades[0];
   const { style } = shade;
   return {
@@ -206,7 +268,7 @@ export function projectToClassicParams(
     height: style.height,
     curve: style.curve,
     wallThickness: shade.wallThickness,
-    shoulderAngle: hub.shoulderAngle,
+    shoulderAngle: style.shoulderAngle,
     style: style.surface.style,
     patternCount: style.surface.patternCount,
     ribDepth: style.surface.ribDepth,
@@ -214,10 +276,10 @@ export function projectToClassicParams(
     puckDiameter: light.diameter,
     puckHeight: light.height,
     puckClearance: light.clearance,
-    pocketExtraDepth: hub.pocketExtraDepth,
+    pocketExtraDepth: light.pocketExtraDepth,
     lightHoleDiameter: light.lightHoleDiameter,
     ledgeThickness: light.ledgeThickness,
-    bossWall: hub.bossWall,
+    bossWall: light.bossWall,
     cableSlotWidth: light.cableWidth,
     strapWidth: mount.strapWidth,
     strapThickness: mount.strapThickness,
@@ -230,10 +292,10 @@ export function projectToClassicParams(
 
 /**
  * A project holding these flat classic-shade parameters. Everything the flat
- * parameters do not describe (id, name, printer, colours, shade id and colour,
- * export quality) comes from `base`, or from a new default project. Without a
- * base, `params.quality` is used for both preview and export, as in the first
- * app.
+ * parameters do not describe (id, name, printer, colours, shade id, colour and
+ * collar, the hub and the joints, export quality) comes from `base`, or from a
+ * new default project. Without a base, `params.quality` is used for both
+ * preview and export, as in the first app.
  */
 export function classicParamsToProject(
   params: ClassicShadeParams,
@@ -263,6 +325,8 @@ export function classicParamsToProject(
       lightHoleDiameter: p.lightHoleDiameter,
       ledgeThickness: p.ledgeThickness,
       cableWidth: p.cableSlotWidth,
+      bossWall: p.bossWall,
+      pocketExtraDepth: p.pocketExtraDepth,
     },
     mount: {
       kind: 'ceilingStrap',
@@ -271,25 +335,23 @@ export function classicParamsToProject(
       loopLength: p.loopLength,
       loopWall: p.loopWall,
     },
-    hub: {
-      wallThickness: p.wallThickness,
-      shoulderAngle: p.shoulderAngle,
-      bossWall: p.bossWall,
-      pocketExtraDepth: p.pocketExtraDepth,
-      fused: true,
-    },
+    hub: base ? { ...base.hub } : defaultHub(),
     shades: [
       {
         id: baseShade?.id ?? 'outer',
         role: 'outer',
         colour: baseShade?.colour ?? DEFAULT_SHADE_COLOUR,
         wallThickness: p.wallThickness,
+        ...(baseShade?.collarDiameter !== undefined
+          ? { collarDiameter: baseShade.collarDiameter }
+          : {}),
         style: {
           family: 'revolved',
           bottomDiameter: p.bottomDiameter,
           topDiameter: p.topDiameter,
           height: p.height,
           curve: p.curve,
+          shoulderAngle: p.shoulderAngle,
           surface: {
             style: p.style,
             patternCount: p.patternCount,
@@ -299,8 +361,40 @@ export function classicParamsToProject(
         },
       },
     ],
-    colours: { ...base?.colours },
+    joints: base ? { ...base.joints } : defaultJoints(),
+    colours: base ? { ...base.colours } : { hub: DEFAULT_HUB_COLOUR },
     fitTest: p.fitTest === 'yes',
+  };
+}
+
+// ---------------------------------------------------------------- hub & joint bridge
+
+/** Where each flat hub / joint parameter (`HUB_JOINT_DEFS`) lives in the project. */
+export const HUB_PARAM_PATHS: Readonly<Record<HubJointKey, string>> = {
+  shadeToHub: 'joints.shadeToHub',
+  jointTolerance: 'joints.tolerance',
+  threadPitch: 'joints.threadPitch',
+  threadDepth: 'joints.threadDepth',
+  collarWall: 'hub.collarWall',
+  radialGap: 'hub.radialGap',
+  hubShoulderAngle: 'hub.shoulderAngle',
+  hubWallThickness: 'hub.wallThickness',
+  ventCount: 'hub.ventCount',
+};
+
+/** The flat hub / joint parameters of a project. Not normalised (see `normalizeHubJoint`). */
+export function projectToHubParams(project: Project): HubJointParams {
+  const { hub, joints } = project;
+  return {
+    shadeToHub: joints.shadeToHub,
+    jointTolerance: joints.tolerance,
+    threadPitch: joints.threadPitch,
+    threadDepth: joints.threadDepth,
+    collarWall: hub.collarWall,
+    radialGap: hub.radialGap,
+    hubShoulderAngle: hub.shoulderAngle,
+    hubWallThickness: hub.wallThickness,
+    ventCount: hub.ventCount,
   };
 }
 
@@ -308,20 +402,74 @@ export function classicParamsToProject(
 
 type RawProject = Record<string, unknown>;
 
-/** v0 (flat classic-shade params, values possibly strings from a URL) → v1. */
+function isRecord(v: unknown): v is RawProject {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/**
+ * v0 (flat classic-shade params, values possibly strings from a URL) → the
+ * current version directly (the classic-shade bridge builds current projects).
+ */
 function migrateV0(raw: RawProject): RawProject {
   const { values } = normalizeClassicShade(raw);
   return classicParamsToProject(values);
 }
 
-/** `MIGRATIONS[v]` turns a version-v project into a version-(v+1) one. */
+/**
+ * v1 → v2, same geometry: the puck pocket's `bossWall` and `pocketExtraDepth`
+ * move from the hub to the light, the hub's shoulder angle is copied into the
+ * shade's style (the hub keeps its own for the split hub), the hub gains its
+ * collar, gap and vent fields (its wall, which v1 only mirrored from the
+ * shade, gets the split hub's default), `joints` and `colours.hub` get their
+ * defaults and a `classicShade` colour becomes the `shade` colour (the part
+ * kind is gone). Whatever is missing or malformed is left for the schema to
+ * reject.
+ */
+function migrateV1(raw: RawProject): RawProject {
+  const hub = isRecord(raw.hub) ? raw.hub : {};
+  const light = isRecord(raw.light)
+    ? { ...raw.light, bossWall: hub.bossWall, pocketExtraDepth: hub.pocketExtraDepth }
+    : raw.light;
+  const shades = Array.isArray(raw.shades)
+    ? raw.shades.map((shade: unknown) =>
+        isRecord(shade) && isRecord(shade.style)
+          ? { ...shade, style: { ...shade.style, shoulderAngle: hub.shoulderAngle } }
+          : shade,
+      )
+    : raw.shades;
+  let colours = raw.colours;
+  if (isRecord(colours)) {
+    const { classicShade, ...rest } = colours;
+    colours = {
+      hub: DEFAULT_HUB_COLOUR,
+      ...(classicShade !== undefined && !('shade' in rest) ? { shade: classicShade } : {}),
+      ...rest,
+    };
+  }
+  const defaults = defaultHub();
+  return {
+    ...raw,
+    version: 2,
+    light,
+    hub: {
+      wallThickness: defaults.wallThickness,
+      shoulderAngle: hub.shoulderAngle,
+      collarWall: defaults.collarWall,
+      radialGap: defaults.radialGap,
+      ventCount: defaults.ventCount,
+      fused: hub.fused,
+    },
+    shades,
+    joints: defaultJoints(),
+    colours,
+  };
+}
+
+/** `MIGRATIONS[v]` turns a version-v project into a later version (v + 1, or the current one). */
 const MIGRATIONS: Readonly<Record<number, (raw: RawProject) => RawProject>> = {
   0: migrateV0,
+  1: migrateV1,
 };
-
-function isRecord(v: unknown): v is RawProject {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
 
 function versionOf(raw: RawProject): unknown {
   return 'version' in raw ? raw.version : 0;

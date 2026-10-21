@@ -3,7 +3,8 @@
  * openlamp command line: builds STLs with the same core as the web app. Node
  * runs this file directly (type stripping), so it uses erasable syntax only.
  *
- *   node cli/openlamp.ts part classicShade --bottomDiameter 200 --quality fine -o big.stl
+ *   node cli/openlamp.ts part shade --bottomDiameter 200 --quality fine -o big.stl
+ *   node cli/openlamp.ts part hub --joint thread -o hub.stl
  *   node cli/openlamp.ts project my.lamp.json --out prints/
  *   node cli/openlamp.ts samples            # every src/examples/*.lamp.json → samples/
  *   node cli/openlamp.ts list               # printers, examples, parameters
@@ -16,19 +17,24 @@ import Module from 'manifold-3d';
 import { ZodError, prettifyError } from 'zod';
 import {
   CLASSIC_SHADE_DEFS,
+  HUB_JOINT_DEFS,
   PART_BUILDERS,
+  PART_KIND_DESCRIPTIONS,
   PRINTERS,
   QUALITIES,
+  SHADE_JOINT_TYPES,
   assemble,
   buildPart,
+  classicParamsToProject,
   dispose,
   meshToBinaryStl,
   normalizeClassicShade,
   parseProject,
   partFileName,
   printerLabel,
+  type BuildableSpec,
   type Kernel,
-  type PartSpec,
+  type PartKind,
   type PartStats,
   type Project,
   type Quality,
@@ -51,9 +57,10 @@ Usage:
 
 Commands:
   part      Build one part from parameters. Kinds: ${Object.keys(PART_BUILDERS).join(', ')}.
-            Every parameter from \`list\` can be passed as --<param> <value>; values are
-            clamped to their range and cross-checked. Default output
-            samples/openlamp-<kind>.stl.
+            Every classic-shade parameter from \`list\` can be passed as --<param> <value>;
+            values are clamped to their range and cross-checked. \`part shade\` is the
+            single-piece (fused) shade unless --joint is given; \`part hub\` is the hub of
+            a two-part lamp. Default output samples/openlamp-<kind>.stl.
   project   Build every part of a .lamp.json project at its export quality into
             <dir> (default: the current directory) as openlamp-<project>-<part>.stl.
   samples   Build every example in src/examples into samples/ (git-ignored).
@@ -61,6 +68,8 @@ Commands:
 
 Options:
   -o, --out <path>     Output file (part) or directory (project, samples)
+  --joint <type>       part: split the lamp into hub + shade with this shade joint
+                       (${SHADE_JOINT_TYPES.join(', ')}; hub default bayonet)
   --quality <q>        Mesh quality: ${QUALITIES.join(', ')} (overrides the project's export quality)
   --json               Print the stats as JSON
   -h, --help           This help
@@ -107,7 +116,7 @@ interface Built {
 /** Build a part, write its STL (only if the mesh is valid) and dispose it. */
 async function buildToFile(
   k: Kernel,
-  spec: Pick<PartSpec, 'kind' | 'params'>,
+  spec: BuildableSpec,
   quality: Quality,
   file: string,
   header: string,
@@ -186,14 +195,23 @@ async function buildProject(
 
 // ---------------------------------------------------------------- commands
 
+function isPartKind(kind: string | undefined): kind is PartKind {
+  return kind !== undefined && Object.hasOwn(PART_BUILDERS, kind);
+}
+
 async function cmdPart(
   kind: string | undefined,
   flags: Record<string, string | boolean | undefined>,
 ): Promise<number> {
-  if (kind !== 'classicShade') {
+  if (!isPartKind(kind)) {
     throw new UsageError(
-      kind ? `Unknown part kind "${kind}"` : 'Missing part kind (e.g. `part classicShade`)',
+      kind ? `Unknown part kind "${kind}"` : 'Missing part kind (e.g. `part shade`)',
     );
+  }
+  const joint = typeof flags.joint === 'string' ? flags.joint : undefined;
+  const jointType = SHADE_JOINT_TYPES.find((t) => t === joint);
+  if (joint !== undefined && !jointType) {
+    throw new UsageError(`Unknown joint "${joint}" (use ${SHADE_JOINT_TYPES.join(', ')})`);
   }
   const input: Record<string, unknown> = {};
   for (const def of CLASSIC_SHADE_DEFS) {
@@ -201,18 +219,27 @@ async function cmdPart(
     if (typeof v === 'string') input[def.key] = v;
   }
   parseQuality(typeof flags.quality === 'string' ? flags.quality : undefined);
-  const { values: params, warnings } = normalizeClassicShade(input);
+  const { values, warnings } = normalizeClassicShade(input);
   printWarnings(warnings);
+  // A project holding just these (normalised) parameters, so `assemble` only
+  // adds its own warnings; the hub is split off for a hub or a --joint.
+  const project = classicParamsToProject(values);
+  const split = kind === 'hub' || jointType !== undefined;
+  project.hub.fused = !split;
+  if (jointType) project.joints.shadeToHub = jointType;
+  const assembly = assemble(project, { quality: values.quality });
+  printWarnings(assembly.warnings);
+  const part = assembly.parts.find((p) => p.kind === kind);
+  if (!part)
+    throw new UsageError(`The project has no ${kind} part (fit-test mode keeps only the hub)`);
   const out = resolve(typeof flags.out === 'string' ? flags.out : `samples/openlamp-${kind}.stl`);
-  const built = await buildToFile(
-    await getKernel(),
-    { kind, params },
-    params.quality,
-    out,
-    CLASSIC_STL_HEADER,
-  );
-  if (flags.json) console.log(JSON.stringify(statsJson(built, { kind, params }), null, 2));
-  else console.log(summary(built));
+  const header = split ? `openlamp ${part.displayName}` : CLASSIC_STL_HEADER;
+  const built = await buildToFile(await getKernel(), part, values.quality, out, header);
+  if (flags.json) {
+    console.log(JSON.stringify(statsJson(built, { kind, params: part.params }), null, 2));
+  } else {
+    console.log(summary(built));
+  }
   return built.stats.status === 'NoError' ? 0 : 1;
 }
 
@@ -253,7 +280,11 @@ async function cmdSamples(flags: Record<string, string | boolean | undefined>): 
 }
 
 async function cmdList(): Promise<number> {
-  console.log('Printers (set in the project file):');
+  console.log('Part kinds (part <kind>):');
+  for (const [kind, text] of Object.entries(PART_KIND_DESCRIPTIONS)) {
+    console.log(`  ${kind.padEnd(24)} ${text}`);
+  }
+  console.log('\nPrinters (set in the project file):');
   for (const p of PRINTERS) {
     const bed = p.bed.join(' × ');
     const colour = p.multiColour
@@ -266,13 +297,21 @@ async function cmdList(): Promise<number> {
     const project = await loadProjectFile(file);
     console.log(`  ${relative(EXAMPLES_DIR, file).padEnd(28)} ${project.name}`);
   }
-  console.log('\nClassic-shade parameters (part classicShade --<param> <value>):');
+  console.log('\nClassic-shade parameters (part shade|hub --<param> <value>):');
   for (const p of CLASSIC_SHADE_DEFS) {
     const range =
       p.type === 'select' ? p.options.join('|') : `${p.min}..${p.max} ${p.unit ?? ''}`.trim();
     console.log(
       `  --${p.key.padEnd(20)} ${String(p.default).padEnd(8)} ${range}${p.help ? `   ${p.help}` : ''}`,
     );
+  }
+  console.log(
+    '\nHub & joint parameters of a two-part lamp (hub.fused: false; set in the project file):',
+  );
+  for (const p of HUB_JOINT_DEFS) {
+    const range =
+      p.type === 'select' ? p.options.join('|') : `${p.min}..${p.max} ${p.unit ?? ''}`.trim();
+    console.log(`  ${p.key.padEnd(22)} ${String(p.default).padEnd(8)} ${range}`);
   }
   return 0;
 }
@@ -282,6 +321,7 @@ async function cmdList(): Promise<number> {
 async function main(argv: string[]): Promise<number> {
   const options = {
     out: { type: 'string', short: 'o' },
+    joint: { type: 'string' },
     json: { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
     // One string flag per classic-shade parameter (this includes --quality).
@@ -300,7 +340,7 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
   if (command !== 'part') {
-    const misplaced = CLASSIC_SHADE_DEFS.map((d) => d.key).filter(
+    const misplaced = [...CLASSIC_SHADE_DEFS.map((d) => d.key), 'joint'].filter(
       (key) => key !== 'quality' && flags[key] !== undefined,
     );
     if (misplaced.length > 0) {

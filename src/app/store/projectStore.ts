@@ -23,12 +23,18 @@ import type { Quality } from '@core/geometry/quality.ts';
 import { canonicalJson } from '@core/hash.ts';
 import type { Hex } from '@core/model/assembly.ts';
 import {
+  HUB_PARAM_PATHS,
   classicParamsToProject,
   createDefaultProject,
   projectToClassicParams,
   type Project,
 } from '@core/model/project.ts';
-import type { ClassicShadeKey, ClassicShadeParams } from '@core/schema/defs.ts';
+import type {
+  ClassicShadeKey,
+  ClassicShadeParams,
+  HubJointKey,
+  HubJointParams,
+} from '@core/schema/defs.ts';
 import type { PrinterSpec } from '@core/schema/printers.ts';
 
 /** Minimum time between two undo steps; quicker commits merge into the open step. */
@@ -66,6 +72,10 @@ export interface ProjectState {
     value: ClassicShadeParams[K],
     options?: EditOptions,
   ): void;
+  /** Set one flat hub / joint parameter (see `HUB_PARAM_PATHS` for where it lives). */
+  setHubParam<K extends HubJointKey>(key: K, value: HubJointParams[K], options?: EditOptions): void;
+  /** Print hub and shade as one part (the classic shade) or as two parts joined by a collar. */
+  setFused(fused: boolean): void;
   /**
    * End a transient edit without a final value (a drag released where it
    * started): one undo step if the project changed, none if it did not.
@@ -94,6 +104,15 @@ function touch(project: Draft<Project>): void {
   project.updatedAt = new Date().toISOString();
 }
 
+/** Set the value at a dotted path such as `joints.tolerance` in a draft. */
+function setAtPath(target: Draft<Project>, path: string, value: unknown): void {
+  const keys = path.split('.');
+  const last = keys.pop()!;
+  let node = target as unknown as Record<string, unknown>;
+  for (const key of keys) node = node[key] as Record<string, unknown>;
+  node[last] = value;
+}
+
 // ---------------------------------------------------------------- store
 
 export const useProjectStore = create<ProjectState>()(
@@ -111,6 +130,32 @@ export const useProjectStore = create<ProjectState>()(
       /** Leave transient mode (if in it) so the next `set` is recorded against the drag origin. */
       const resumeHistory = (): void => {
         if (dragOrigin) useProjectStore.temporal.getState().resume();
+      };
+
+      /**
+       * A parameter edit that may be transient (a slider drag): the first
+       * transient edit remembers the project and pauses the history, a final
+       * one resumes it so its step goes back to the remembered project.
+       */
+      const editParam = (
+        options: EditOptions,
+        apply: (current: Project, draft: Draft<ProjectState>) => void,
+      ): void => {
+        const current = get().project;
+        if (options.transient) {
+          if (!dragOrigin) {
+            dragOrigin = current;
+            useProjectStore.temporal.getState().pause();
+          }
+        } else {
+          resumeHistory();
+        }
+        set((s) => {
+          apply(current, s);
+          touch(s.project);
+          s.dirty = true;
+        });
+        if (!options.transient) dragOrigin = null;
       };
 
       return {
@@ -165,23 +210,22 @@ export const useProjectStore = create<ProjectState>()(
         },
 
         setClassicParam(key, value, options = {}) {
-          const current = get().project;
-          if (options.transient) {
-            if (!dragOrigin) {
-              dragOrigin = current;
-              useProjectStore.temporal.getState().pause();
-            }
-          } else {
-            resumeHistory();
-          }
-          const flat: ClassicShadeParams = { ...projectToClassicParams(current), [key]: value };
-          const next = classicParamsToProject(flat, current);
-          set((s) => {
-            s.project = next;
-            touch(s.project);
-            s.dirty = true;
+          editParam(options, (current, draft) => {
+            const flat: ClassicShadeParams = { ...projectToClassicParams(current), [key]: value };
+            draft.project = classicParamsToProject(flat, current);
           });
-          if (!options.transient) dragOrigin = null;
+        },
+
+        setHubParam(key, value, options = {}) {
+          editParam(options, (_current, draft) => {
+            setAtPath(draft.project, HUB_PARAM_PATHS[key], value);
+          });
+        },
+
+        setFused(fused) {
+          edit((p) => {
+            p.hub.fused = fused;
+          });
         },
 
         endTransient() {

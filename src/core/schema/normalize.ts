@@ -6,8 +6,12 @@ import type { Warning } from '../model/assembly.ts';
 import {
   CLASSIC_SHADE_DEFAULTS,
   CLASSIC_SHADE_DEFS,
+  HUB_JOINT_DEFAULTS,
+  HUB_JOINT_DEFS,
   type ClassicShadeKey,
   type ClassicShadeParams,
+  type HubJointKey,
+  type HubJointParams,
   type ParamDef,
 } from './defs.ts';
 
@@ -103,6 +107,36 @@ export function normalizeClassicShade(
       adjusted('adjusted', 'strapWidth', `strapWidth reduced to ${w} mm to fit the puck housing`),
     );
     out.strapWidth = w;
+  }
+  return { values: out, warnings };
+}
+
+/** The largest thread depth per pitch that leaves a crest and a root (see joints/thread.ts). */
+const MAX_THREAD_DEPTH_PER_PITCH = 0.4;
+
+/**
+ * Normalise the hub and shade-joint parameters: `clampToSchema` plus the
+ * thread's depth ≤ 0.4 × pitch. `ventCount` is rounded to a whole number.
+ */
+export function normalizeHubJoint(input: Readonly<Partial<Record<HubJointKey, unknown>>> = {}): {
+  values: HubJointParams;
+  warnings: Warning[];
+} {
+  const clamped = clampToSchema(HUB_JOINT_DEFS, input);
+  // As in normalizeClassicShade: every key filled with a value of its definition's type.
+  const out = { ...HUB_JOINT_DEFAULTS, ...clamped.values } as HubJointParams;
+  const warnings = clamped.warnings;
+  out.ventCount = Math.round(out.ventCount);
+  const maxDepth = Math.round(MAX_THREAD_DEPTH_PER_PITCH * out.threadPitch * 100) / 100;
+  if (out.shadeToHub === 'thread' && out.threadDepth > maxDepth) {
+    warnings.push(
+      adjusted(
+        'adjusted',
+        'threadDepth',
+        `threadDepth reduced to ${maxDepth} mm (at most 0.4 × the ${out.threadPitch} mm pitch)`,
+      ),
+    );
+    out.threadDepth = maxDepth;
   }
   return { values: out, warnings };
 }

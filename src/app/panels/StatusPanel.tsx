@@ -1,9 +1,11 @@
 /**
  * Overlays on the viewport: the status line (top left: build status, plus a
- * short-lived notice such as "Link copied") and the stats of the selected
- * (else first) part, the bed-fit badge and every warning (bottom left).
+ * short-lived notice such as "Link copied") and, bottom left, the stats: of
+ * the one part, or for several parts a row per part (footprint, PLA,
+ * triangles, overhang, bed fit) with the totals plus the details of the
+ * selected part; then the bed-fit badge and every warning.
  */
-import type { PartStats, Warning } from '@core/model/assembly.ts';
+import type { PartSpec, PartStats, Warning } from '@core/model/assembly.ts';
 import { printerLabel } from '@core/schema/printers.ts';
 import { useBuildStore, type PartBuild } from '../store/buildStore.ts';
 import { useAssembly, useBedFit, useSelectedPart, useTotals } from '../store/selectors.ts';
@@ -72,6 +74,85 @@ function StatsRows({ stats }: { stats: PartStats }) {
   );
 }
 
+const footprintOf = (stats: PartStats | undefined, part: PartSpec): string => {
+  if (stats) {
+    const { min, max } = stats.bbox;
+    return `${fmt(max[0] - min[0], 0)} × ${fmt(max[1] - min[1], 0)} × ${fmt(max[2] - min[2], 0)}`;
+  }
+  const f = part.bedFootprint;
+  return f ? `${fmt(f.x, 0)} × ${fmt(f.y, 0)} × ${fmt(f.z, 0)}` : '–';
+};
+
+/** One row per part and the totals; each part's own bed-fit badge. */
+function PartRows({
+  parts,
+  warnings,
+}: {
+  parts: readonly PartSpec[];
+  warnings: readonly Warning[];
+}) {
+  const builds = useBuildStore((s) => s.parts);
+  const totals = useTotals();
+  const selection = useUiStore((s) => s.selection);
+  const select = useUiStore((s) => s.select);
+  return (
+    <table className={styles.parts} data-testid="part-rows">
+      <thead>
+        <tr>
+          <th scope="col">Part</th>
+          <th scope="col">Footprint mm</th>
+          <th scope="col">PLA</th>
+          <th scope="col">Triangles</th>
+          <th scope="col">Overhang</th>
+          <th scope="col">Bed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {parts.map((part) => {
+          const stats = builds[part.id]?.stats;
+          const fits = !warnings.some((w) => w.code === 'bed-fit' && w.partId === part.id);
+          const steep = stats ? stats.maxOverhangDeg > OVERHANG_LIMIT : false;
+          return (
+            <tr
+              key={part.id}
+              data-part={part.id}
+              aria-selected={selection === part.id}
+              className={selection === part.id ? styles.selectedRow : undefined}
+              onClick={() => select(selection === part.id ? null : part.id)}
+            >
+              <th scope="row">{part.displayName}</th>
+              <td>{footprintOf(stats, part)}</td>
+              <td>{stats ? `${fmt(stats.estGramsPla * part.instances, 0)} g` : '–'}</td>
+              <td>{stats ? (stats.triangles * part.instances).toLocaleString('en-US') : '–'}</td>
+              <td className={steep ? styles.warn : undefined}>
+                {stats ? `${fmt(stats.maxOverhangDeg, 0)}°` : '–'}
+              </td>
+              <td>
+                <span
+                  className={`${styles.miniBadge} ${fits ? styles.badgeOk : styles.badgeWarn}`}
+                  data-testid={`bed-fit-${part.id}`}
+                >
+                  {fits ? '✓ Fits' : '⚠ Too big'}
+                </span>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row">All parts</th>
+          <td />
+          <td>{fmt(totals.grams, 0)} g</td>
+          <td>{totals.triangles.toLocaleString('en-US')}</td>
+          <td />
+          <td />
+        </tr>
+      </tfoot>
+    </table>
+  );
+}
+
 function BedFitBadge() {
   const fit = useBedFit();
   const name = printerLabel(fit.printer);
@@ -104,12 +185,12 @@ export function StatusPanel() {
   const assembly = useAssembly();
   const selected = useSelectedPart();
   const builds = useBuildStore((s) => s.parts);
-  const totals = useTotals();
-  const part = selected ?? assembly.parts[0];
+  const several = assembly.parts.length > 1;
+  // Several parts: the rows give the overview, the details are the selected part's.
+  const part = several ? selected : (selected ?? assembly.parts[0]);
   const stats = part ? builds[part.id]?.stats : undefined;
   const partWarnings = assembly.parts.flatMap((p) => builds[p.id]?.warnings ?? []);
   const warnings = [...assembly.warnings, ...partWarnings];
-  const several = assembly.parts.length > 1;
   const notice = useUiStore((s) => s.notice);
 
   return (
@@ -135,14 +216,9 @@ export function StatusPanel() {
         ) : null}
       </div>
       <div id="stats" className={styles.stats}>
+        {several ? <PartRows parts={assembly.parts} warnings={assembly.warnings} /> : null}
         {several && part ? <div className={styles.partName}>{part.displayName}</div> : null}
         {stats ? <StatsRows stats={stats} /> : null}
-        {several ? (
-          <div className={styles.totals}>
-            All parts: {totals.triangles.toLocaleString('en-US')} triangles · {fmt(totals.grams, 0)}{' '}
-            g PLA
-          </div>
-        ) : null}
         <BedFitBadge />
         <Warnings warnings={warnings} />
       </div>

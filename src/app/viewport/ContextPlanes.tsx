@@ -2,42 +2,40 @@
  * What the lamp stands on or hangs from: the print bed (grid + dark plate)
  * by default, the ceiling in the mounted view. The print orientation already
  * is the mounted orientation (housing up, open end down), so the ceiling just
- * sits on the strap (strap + mating velcro ≈ 3 mm above the housing top).
+ * sits on the mount face plus the mount's gap (strap + mating velcro ≈ 3 mm),
+ * both from the assembly on screen. The grid stays at z 0, where the display
+ * lift puts the lamp's lowest point.
  */
 import { Grid } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useLayoutEffect } from 'react';
 import { DoubleSide } from 'three';
-import { useBuildStore } from '../store/buildStore.ts';
 import { useUiStore } from '../store/uiStore.ts';
 import { ceilingMaterial } from './materials.ts';
+import { useDisplayLift, useShownDerived } from './sceneDerived.ts';
 
 const BED = 256;
 /** Where the ceiling goes before anything is built. */
 const DEFAULT_TOP = 150;
-const STRAP_GAP = 3;
+const DEFAULT_GAP = 3;
 
-/** Top of the highest housing on screen (zTop + zOffset of the classic shade). */
-function useHousingTop(): number {
-  return useBuildStore((s) => {
-    let top = -Infinity;
-    for (const b of Object.values(s.parts)) {
-      const d = b.stats?.derived;
-      if (d?.zTop !== undefined) top = Math.max(top, d.zTop + (d.zOffset ?? 0));
-    }
-    return Number.isFinite(top) ? top : DEFAULT_TOP;
-  });
+/** The ceiling's height on screen (display lift included). */
+function useCeilingTop(): number {
+  const d = useShownDerived();
+  const lift = useDisplayLift();
+  if (d?.ceilingZ === undefined) return DEFAULT_TOP + DEFAULT_GAP;
+  return d.ceilingZ + (d.ceilingGap ?? DEFAULT_GAP) + lift;
 }
 
 export function ContextPlanes() {
   const mounted = useUiStore((s) => s.mounted);
-  const top = useHousingTop();
+  const top = useCeilingTop();
   const invalidate = useThree((s) => s.invalidate);
   useLayoutEffect(() => invalidate(), [mounted, top, invalidate]);
 
   if (mounted) {
     return (
-      <mesh material={ceilingMaterial} position={[0, 0, top + STRAP_GAP]}>
+      <mesh material={ceilingMaterial} position={[0, 0, top]}>
         <planeGeometry args={[400, 400]} />
       </mesh>
     );
