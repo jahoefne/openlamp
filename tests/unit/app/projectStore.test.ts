@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDefaultProject, parseProject } from '@core/model/project.ts';
+import { createDefaultProject, defaultMount, parseProject } from '@core/model/project.ts';
 import { findPrinter } from '@core/schema/printers.ts';
 import {
   HISTORY_THROTTLE_MS,
@@ -163,7 +163,7 @@ describe('mutations', () => {
     expect(p.shades[0].style.surface.style).toBe('faceted');
     expect(p.fitTest).toBe(true);
     expect(p.quality).toEqual({ preview: 'draft', export: 'normal' });
-    expect(p.mount.strapWidth).toBe(20);
+    expect(p.mount).toMatchObject({ kind: 'ceilingStrap', strapWidth: 20 });
   });
 
   it('sets quality, fit test and colour, each bumping the revision', () => {
@@ -175,5 +175,64 @@ describe('mutations', () => {
     expect(project().fitTest).toBe(true);
     expect(project().shades[0].colour).toBe('#7fa7c9');
     expect(project().revision).toBe(r + 3);
+  });
+});
+
+describe('mounts', () => {
+  it('setMount swaps in the new mount with its defaults, keeps the rest and is one undo step', () => {
+    store().setClassicParam('height', 150);
+    pause();
+    const before = project();
+    store().setMount('ceilingCord');
+    const p = project();
+    expect(p.mount).toEqual(defaultMount('ceilingCord'));
+    expect(p.shades).toEqual(before.shades);
+    expect(p.light).toEqual(before.light);
+    expect(p.hub).toEqual(before.hub);
+    expect(p.joints).toEqual(before.joints);
+    expect(steps()).toBe(2);
+    undo();
+    expect(project().mount).toEqual(before.mount);
+    expect(height()).toBe(150);
+  });
+
+  it('setMount to the current mount changes nothing', () => {
+    const revision = project().revision;
+    store().setMount('ceilingStrap');
+    expect(project().revision).toBe(revision);
+    expect(steps()).toBe(0);
+  });
+
+  it('setMountParam edits the current mount by its flat key, ignoring unknown keys', () => {
+    store().setMount('ceilingCord');
+    pause();
+    store().setMountParam('canopyDiameter', 110);
+    store().setMountParam('grip', 'collet');
+    expect(project().mount).toMatchObject({
+      kind: 'ceilingCord',
+      grip: 'collet',
+      canopy: { diameter: 110 },
+    });
+    const revision = project().revision;
+    store().setMountParam('strapWidth', 20); // not a cord parameter
+    expect(project().revision).toBe(revision);
+  });
+
+  it('setMountParam drags are one undo step', () => {
+    store().setMount('ceilingCord');
+    pause();
+    for (const d of [610, 650, 700]) store().setMountParam('dropLength', d, { transient: true });
+    store().setMountParam('dropLength', 720);
+    expect(project().mount).toMatchObject({ dropLength: 720 });
+    pause();
+    undo();
+    expect(project().mount).toMatchObject({ dropLength: 600 });
+  });
+
+  it('a shade edit keeps a mount other than the strap', () => {
+    store().setMount('wallArm');
+    store().setClassicParam('height', 140);
+    expect(project().mount.kind).toBe('wallArm');
+    expect(height()).toBe(140);
   });
 });

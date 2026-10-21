@@ -35,6 +35,8 @@ export interface SelectParamDef<K extends string = string> extends ParamDefBase<
   readonly type: 'select';
   readonly options: readonly string[];
   readonly default: string;
+  /** Display text per option (the form capitalises the option otherwise). */
+  readonly optionLabels?: Readonly<Record<string, string>>;
 }
 
 export type ParamDef<K extends string = string> = NumberParamDef<K> | SelectParamDef<K>;
@@ -475,6 +477,422 @@ export const HUB_JOINT_DEFS: readonly ParamDef<HubJointKey>[] = [
 export const HUB_JOINT_DEFAULTS: Readonly<HubJointParams> = Object.freeze(
   Object.fromEntries(HUB_JOINT_DEFS.map((p) => [p.key, p.default])) as HubJointParams,
 );
+
+// ---------------------------------------------------------------- mounts
+
+/** The mounts, in the order the form offers them (`project.mount.kind`). */
+export const MOUNT_KINDS = ['ceilingStrap', 'ceilingCord', 'wallArm', 'standing'] as const;
+export type MountKind = (typeof MOUNT_KINDS)[number];
+
+/** The mount select's labels. */
+export const MOUNT_LABELS: Readonly<Record<MountKind, string>> = {
+  ceilingStrap: 'Velcro strap',
+  ceilingCord: 'Pendant on a cord',
+  wallArm: 'Wall arm',
+  standing: 'Standing lamp',
+};
+
+/** One line per mount for the form and the CLI. */
+export const MOUNT_DESCRIPTIONS: Readonly<Record<MountKind, string>> = {
+  ceilingStrap:
+    'Flush on the ceiling: a velcro strap runs across the hub through two belt-loop tunnels (LED pucks only).',
+  ceilingCord:
+    'Hangs on a cord from a canopy screwed to the ceiling; the cord is knotted in the canopy or held by a collet and a screw-on grip.',
+  wallArm: 'A wall plate and an arm; the hub screws onto the end of the arm.',
+  standing: 'A weighted base and a segmented stem; the hub screws onto the top of the stem.',
+};
+
+export const CORD_GRIPS = ['knot', 'collet'] as const;
+export const ARM_SHAPES = ['straight', 'angled', 'curved'] as const;
+export const STANDING_VARIANTS = ['table', 'floor'] as const;
+export const BASE_LIDS = ['snap', 'screws'] as const;
+
+const bentArm = (v: ParamValues) => v.armShape !== 'straight';
+
+// The mounts' parameters as flat keys (unique across all forms, so they can be
+// element ids); `MOUNT_PARAM_PATHS` says where each lives inside `project.mount`.
+const CORD_MOUNT_SCHEMA = [
+  {
+    id: 'cord',
+    label: 'Cord',
+    params: [
+      {
+        key: 'cordDiameter',
+        label: 'Cord Ø',
+        unit: 'mm',
+        min: 2,
+        max: 10,
+        step: 0.1,
+        default: 4,
+        help: "Diameter of the cord the lamp hangs from. The hub's boss and the canopy get holes 1 mm wider.",
+      },
+      {
+        key: 'dropLength',
+        label: 'Drop length',
+        unit: 'mm',
+        min: 50,
+        max: 3000,
+        step: 10,
+        default: 600,
+        help: 'Cord between the top of the hub and the canopy.',
+      },
+      {
+        key: 'grip',
+        label: 'Cord grip',
+        type: 'select',
+        options: CORD_GRIPS,
+        default: 'knot',
+        optionLabels: { knot: 'Knot in the canopy', collet: 'Collet + screw-on grip' },
+        help: 'A knot inside the canopy fixes the drop when you tie it; a collet neck and a screw-on grip (print it in PETG) clamp the cord anywhere, so the drop stays adjustable.',
+      },
+    ],
+  },
+  {
+    id: 'canopy',
+    label: 'Ceiling canopy',
+    params: [
+      {
+        key: 'canopyDiameter',
+        label: 'Canopy Ø',
+        unit: 'mm',
+        min: 60,
+        max: 160,
+        step: 1,
+        default: 90,
+      },
+      {
+        key: 'canopyHeight',
+        label: 'Canopy height',
+        unit: 'mm',
+        min: 15,
+        max: 50,
+        step: 0.5,
+        default: 25,
+      },
+      {
+        key: 'canopyScrewSpacing',
+        label: 'Screw spacing',
+        unit: 'mm',
+        min: 30,
+        max: 140,
+        step: 1,
+        default: 60,
+        help: 'Distance between the two ceiling screws; the slots allow ±5 mm.',
+      },
+    ],
+  },
+] as const satisfies readonly ParamGroup[];
+
+const WALL_ARM_MOUNT_SCHEMA = [
+  {
+    id: 'wallPlate',
+    label: 'Wall plate',
+    params: [
+      {
+        key: 'plateWidth',
+        label: 'Plate width',
+        unit: 'mm',
+        min: 50,
+        max: 200,
+        step: 1,
+        default: 80,
+      },
+      {
+        key: 'plateHeight',
+        label: 'Plate height',
+        unit: 'mm',
+        min: 60,
+        max: 250,
+        step: 1,
+        default: 120,
+      },
+      {
+        key: 'plateThickness',
+        label: 'Plate thickness',
+        unit: 'mm',
+        min: 3,
+        max: 15,
+        step: 0.5,
+        default: 6,
+      },
+      {
+        key: 'keyholeSpacing',
+        label: 'Keyhole spacing',
+        unit: 'mm',
+        min: 20,
+        max: 200,
+        step: 1,
+        default: 60,
+        help: 'Vertical distance between the two keyhole slots the plate hangs on.',
+      },
+    ],
+  },
+  {
+    id: 'wallArm',
+    label: 'Arm',
+    params: [
+      {
+        key: 'armShape',
+        label: 'Arm shape',
+        type: 'select',
+        options: ARM_SHAPES,
+        default: 'straight',
+        help: 'Straight out from the wall, angled upward, or curved upward.',
+      },
+      {
+        key: 'armLength',
+        label: 'Arm length',
+        unit: 'mm',
+        min: 80,
+        max: 600,
+        step: 5,
+        default: 250,
+        help: 'From the wall plate to the axis of the hub.',
+      },
+      {
+        key: 'armRiseAngle',
+        label: 'Rise angle',
+        unit: '°',
+        min: 0,
+        max: 45,
+        step: 1,
+        default: 20,
+        help: 'How far an angled or curved arm rises from horizontal (at most 45° so it prints standing on its flange).',
+        visibleWhen: bentArm,
+      },
+      {
+        key: 'armTubeDiameter',
+        label: 'Tube Ø',
+        unit: 'mm',
+        min: 14,
+        max: 40,
+        step: 0.5,
+        default: 24,
+      },
+      {
+        key: 'armCableDiameter',
+        label: 'Cable Ø',
+        unit: 'mm',
+        min: 3,
+        max: 12,
+        step: 0.1,
+        default: 6,
+        help: 'The bore through the arm is 1 mm wider.',
+      },
+    ],
+  },
+] as const satisfies readonly ParamGroup[];
+
+const STANDING_MOUNT_SCHEMA = [
+  {
+    id: 'standing',
+    label: 'Standing lamp',
+    params: [
+      {
+        key: 'standingVariant',
+        label: 'Lamp',
+        type: 'select',
+        options: STANDING_VARIANTS,
+        default: 'table',
+        optionLabels: { table: 'Table lamp', floor: 'Floor lamp' },
+      },
+    ],
+  },
+  {
+    id: 'base',
+    label: 'Weighted base',
+    params: [
+      {
+        key: 'baseDiameter',
+        label: 'Base Ø',
+        unit: 'mm',
+        min: 100,
+        max: 320,
+        step: 1,
+        default: 180,
+      },
+      {
+        key: 'baseHeight',
+        label: 'Base height',
+        unit: 'mm',
+        min: 12,
+        max: 60,
+        step: 0.5,
+        default: 22,
+      },
+      {
+        key: 'basePocketDepth',
+        label: 'Weight pocket depth',
+        unit: 'mm',
+        min: 4,
+        max: 50,
+        step: 0.5,
+        default: 14,
+        help: 'The annular pocket under the base takes steel shot, washers or sand as a weight.',
+      },
+      {
+        key: 'baseLid',
+        label: 'Pocket lid',
+        type: 'select',
+        options: BASE_LIDS,
+        default: 'snap',
+        optionLabels: { snap: 'Snap ring', screws: 'Three screws' },
+      },
+    ],
+  },
+  {
+    id: 'stem',
+    label: 'Stem',
+    params: [
+      {
+        key: 'stemTotalHeight',
+        label: 'Stem height',
+        unit: 'mm',
+        min: 60,
+        max: 1800,
+        step: 5,
+        default: 400,
+        help: 'From the top of the base to the hub.',
+      },
+      {
+        key: 'stemSegmentLength',
+        label: 'Segment length',
+        unit: 'mm',
+        min: 60,
+        max: 320,
+        step: 5,
+        default: 200,
+        help: 'The stem is printed in equal segments no longer than this, screwed together.',
+      },
+      {
+        key: 'stemDiameter',
+        label: 'Stem Ø',
+        unit: 'mm',
+        min: 16,
+        max: 50,
+        step: 0.5,
+        default: 28,
+      },
+      {
+        key: 'stemCableDiameter',
+        label: 'Cable Ø',
+        unit: 'mm',
+        min: 3,
+        max: 12,
+        step: 0.1,
+        default: 6,
+        help: 'The bore through the stem is 1 mm wider.',
+      },
+    ],
+  },
+] as const satisfies readonly ParamGroup[];
+
+/** The flat parameter values of a schema (key → number, or the option union of a select). */
+type FlatParamsOf<S extends readonly ParamGroup[]> = {
+  [P in S[number]['params'][number] as P['key']]: P extends {
+    readonly options: readonly (infer O)[];
+  }
+    ? O
+    : number;
+};
+
+/** The velcro strap's parameters: the classic shade's `mount` group (the fused print needs them too). */
+export type StrapMountParams = Pick<
+  ClassicShadeParams,
+  'strapWidth' | 'strapThickness' | 'loopLength' | 'loopWall'
+>;
+export type CordMountParams = FlatParamsOf<typeof CORD_MOUNT_SCHEMA>;
+export type WallArmMountParams = FlatParamsOf<typeof WALL_ARM_MOUNT_SCHEMA>;
+export type StandingMountParams = FlatParamsOf<typeof STANDING_MOUNT_SCHEMA>;
+
+/** Every mount's parameters as flat values, by mount kind. */
+export interface MountParamsByKind {
+  ceilingStrap: StrapMountParams;
+  ceilingCord: CordMountParams;
+  wallArm: WallArmMountParams;
+  standing: StandingMountParams;
+}
+
+const STRAP_MOUNT_GROUPS: readonly ParamGroup[] = CLASSIC_SHADE_GROUPS.filter(
+  (g) => g.id === 'mount',
+);
+
+/** The form groups of each mount (the strap's is the classic shade's `mount` group). */
+export const MOUNT_GROUPS: Readonly<Record<MountKind, readonly ParamGroup[]>> = {
+  ceilingStrap: STRAP_MOUNT_GROUPS,
+  ceilingCord: CORD_MOUNT_SCHEMA,
+  wallArm: WALL_ARM_MOUNT_SCHEMA,
+  standing: STANDING_MOUNT_SCHEMA,
+};
+
+const defsOf = (groups: readonly ParamGroup[]): readonly ParamDef[] =>
+  groups.flatMap((g) => g.params);
+
+/** Every parameter definition of each mount. */
+export const MOUNT_DEFS: Readonly<Record<MountKind, readonly ParamDef[]>> = {
+  ceilingStrap: defsOf(STRAP_MOUNT_GROUPS),
+  ceilingCord: defsOf(CORD_MOUNT_SCHEMA),
+  wallArm: defsOf(WALL_ARM_MOUNT_SCHEMA),
+  standing: defsOf(STANDING_MOUNT_SCHEMA),
+};
+
+/**
+ * Where each flat mount parameter lives inside `project.mount` (dotted, without
+ * the `mount.` prefix): the project path is `mount.<path>`.
+ */
+export const MOUNT_PARAM_PATHS: {
+  readonly [K in MountKind]: Readonly<Record<keyof MountParamsByKind[K], string>>;
+} = {
+  ceilingStrap: {
+    strapWidth: 'strapWidth',
+    strapThickness: 'strapThickness',
+    loopLength: 'loopLength',
+    loopWall: 'loopWall',
+  },
+  ceilingCord: {
+    cordDiameter: 'cordDiameter',
+    dropLength: 'dropLength',
+    grip: 'grip',
+    canopyDiameter: 'canopy.diameter',
+    canopyHeight: 'canopy.height',
+    canopyScrewSpacing: 'canopy.screwSpacing',
+  },
+  wallArm: {
+    plateWidth: 'plate.width',
+    plateHeight: 'plate.height',
+    plateThickness: 'plate.thickness',
+    keyholeSpacing: 'plate.keyholeSpacing',
+    armShape: 'arm.shape',
+    armLength: 'arm.length',
+    armRiseAngle: 'arm.riseAngle',
+    armTubeDiameter: 'arm.tubeDiameter',
+    armCableDiameter: 'arm.cableDiameter',
+  },
+  standing: {
+    standingVariant: 'variant',
+    baseDiameter: 'base.diameter',
+    baseHeight: 'base.height',
+    basePocketDepth: 'base.pocketDepth',
+    baseLid: 'base.lid',
+    stemTotalHeight: 'stem.totalHeight',
+    stemSegmentLength: 'stem.segmentLength',
+    stemDiameter: 'stem.diameter',
+    stemCableDiameter: 'stem.cableDiameter',
+  },
+};
+
+/** The default flat parameters of each mount, from its definitions. */
+export const MOUNT_DEFAULTS: { readonly [K in MountKind]: Readonly<MountParamsByKind[K]> } = {
+  ceilingStrap: defaultsOf<StrapMountParams>(MOUNT_DEFS.ceilingStrap),
+  ceilingCord: defaultsOf<CordMountParams>(MOUNT_DEFS.ceilingCord),
+  wallArm: defaultsOf<WallArmMountParams>(MOUNT_DEFS.wallArm),
+  standing: defaultsOf<StandingMountParams>(MOUNT_DEFS.standing),
+};
+
+/** Built from the schema at runtime; the schema guarantees one entry per key. */
+function defaultsOf<T>(defs: readonly ParamDef[]): T {
+  return Object.freeze(Object.fromEntries(defs.map((p) => [p.key, p.default]))) as T;
+}
 
 /** Whether a parameter is shown for the given values (see `ParamDefBase.visibleWhen`). */
 export function isParamVisible(def: ParamDef, values: ParamValues): boolean {

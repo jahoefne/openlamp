@@ -1,16 +1,32 @@
 /**
- * Mounts by kind: each resolves the hub's mount face and its own parts. The
- * cord pendant, the wall arm and the standing lamp register here in M2.2.
+ * Mounts by kind: every mount is one `MountModule` (see types.ts), so
+ * `assemble()` stays generic. The standing lamp and the wall arm are stubs
+ * until M2.2b (their modules keep their names and this registration).
  */
-import type { Mount } from '../../model/project.ts';
-import { resolveCeilingStrap } from './ceilingStrap.ts';
-import type { MountResolution } from './types.ts';
+import type { MountKind } from '../../schema/defs.ts';
+import { ceilingCordMount } from './ceilingCord.ts';
+import { ceilingStrapMount } from './ceilingStrap.ts';
+import { standingMount } from './standing.ts';
+import type { MountModule } from './types.ts';
+import { wallArmMount } from './wallArm.ts';
 
-export type { MountResolution } from './types.ts';
+export type {
+  MountCtx,
+  MountHubCtx,
+  MountModule,
+  MountParts,
+  MountPlacement,
+  MountShade,
+} from './types.ts';
 
-export function resolveMount(mount: Mount): MountResolution {
-  switch (mount.kind) {
-    case 'ceilingStrap':
-      return resolveCeilingStrap(mount);
-  }
+export const MOUNT_MODULES: { readonly [K in MountKind]: MountModule<K> } = {
+  ceilingStrap: ceilingStrapMount,
+  ceilingCord: ceilingCordMount,
+  wallArm: wallArmMount,
+  standing: standingMount,
+};
+
+/** The module of a mount kind. */
+export function mountModule<K extends MountKind>(kind: K): MountModule<K> {
+  return MOUNT_MODULES[kind];
 }

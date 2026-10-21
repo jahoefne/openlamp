@@ -7,6 +7,7 @@ import { Dialog } from 'radix-ui';
 import { useMemo } from 'react';
 import { canonicalJson } from '@core/hash.ts';
 import type { Project } from '@core/model/project.ts';
+import { MOUNT_LABELS } from '@core/schema/defs.ts';
 import { asNewProject } from '../persistence/identity.ts';
 import { useProjectStore } from '../store/projectStore.ts';
 import styles from './dialog.module.css';
@@ -31,9 +32,11 @@ function describe(p: Project): { dims: string; style: string } {
       : `${surface.style} · ${surface.patternCount} ${surface.style === 'ribbed' ? 'ribs' : 'facets'}` +
         (surface.twist ? ` · ${surface.twist}° twist` : '');
   const curve = s.curve > 0 ? 'bell' : s.curve < 0 ? 'trumpet' : 'straight';
+  const mount =
+    p.mount.kind === 'ceilingStrap' ? '' : ` · ${MOUNT_LABELS[p.mount.kind].toLowerCase()}`;
   return {
     dims: `Ø${s.bottomDiameter} → Ø${s.topDiameter} mm · ${s.height} mm wall`,
-    style: `${curve} profile · ${pattern}`,
+    style: `${curve} profile · ${pattern}${mount}`,
   };
 }
 
@@ -60,7 +63,7 @@ export function ExamplesDialog({
             <div>
               <Dialog.Title className={styles.title}>Examples</Dialog.Title>
               <Dialog.Description className={styles.description}>
-                Start from one of these shades. Your current lamp stays one undo away.
+                Start from one of these lamps. Your current lamp stays one undo away.
               </Dialog.Description>
             </div>
             <Dialog.Close className={styles.close} aria-label="Close">

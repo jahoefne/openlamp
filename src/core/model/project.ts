@@ -3,10 +3,14 @@
  * links, examples, the CLI). Versioned; `migrate()` upgrades old versions and
  * `ProjectSchema` (zod) validates the result.
  *
- * Version 2 (M2) splits the lamp into a hub and a shade joined by a collar
- * joint (`joints`), unless `hub.fused` keeps them one print (the classic
- * shade, still the default). Only the variants built so far are allowed: a
- * puck light, the velcro ceiling strap, one revolved outer shade.
+ * Version 3 (M2.2) has every mount: the velcro ceiling strap, the pendant on
+ * a cord, the wall arm and the standing lamp (`Mount`, a discriminated union).
+ * `hub.fused` only applies to the strap; every other mount prints the hub and
+ * the shade separately. Still a puck light and one revolved outer shade.
+ *
+ * Version 2 (M2.1) split the lamp into a hub and a shade joined by a collar
+ * joint (`joints`), unless `hub.fused` kept them one print (the classic
+ * shade, still the default), with the strap as the only mount.
  *
  * Version 1 had the same structure with the puck pocket's `bossWall` and
  * `pocketExtraDepth` on the hub, the shade's shoulder angle on the hub and
@@ -18,18 +22,26 @@ import { z } from 'zod';
 import { QUALITIES, type Quality } from '../geometry/quality.ts';
 import { SURFACE_STYLES } from '../geometry/surface.ts';
 import {
+  ARM_SHAPES,
+  BASE_LIDS,
   CLASSIC_SHADE_DEFAULTS,
+  CORD_GRIPS,
   HUB_JOINT_DEFAULTS,
+  MOUNT_DEFAULTS,
+  MOUNT_PARAM_PATHS,
+  STANDING_VARIANTS,
   type ClassicShadeKey,
   type ClassicShadeParams,
   type HubJointKey,
   type HubJointParams,
+  type MountKind,
+  type MountParamsByKind,
 } from '../schema/defs.ts';
 import { normalizeClassicShade } from '../schema/normalize.ts';
 import { DEFAULT_PRINTER_ID, PRINTERS, findPrinter, type PrinterSpec } from '../schema/printers.ts';
 import { SHADE_JOINT_TYPES, type Hex } from './assembly.ts';
 
-export const PROJECT_VERSION = 2;
+export const PROJECT_VERSION = 3;
 
 export const DEFAULT_SHADE_COLOUR: Hex = '#f4efe6';
 /** The hub's colour in new and migrated projects (`colours.hub`). */
@@ -78,7 +90,44 @@ export const CeilingStrapMountSchema = z.object({
   loopWall: Mm,
 });
 
-export const MountSchema = z.discriminatedUnion('kind', [CeilingStrapMountSchema]);
+/** A pendant: the cord runs from the hub's cord boss up to a canopy screwed to the ceiling. */
+export const CeilingCordMountSchema = z.object({
+  kind: z.literal('ceilingCord'),
+  cordDiameter: Mm,
+  /** Cord between the top of the hub and the canopy. */
+  dropLength: Mm,
+  /** A knot inside the canopy, or a collet neck on the canopy with a screw-on grip. */
+  grip: z.enum(CORD_GRIPS),
+  canopy: z.object({ diameter: Mm, height: Mm, screwSpacing: Mm }),
+});
+
+/** A wall plate and an arm; the hub's threaded stub screws into the end of the arm. */
+export const WallArmMountSchema = z.object({
+  kind: z.literal('wallArm'),
+  plate: z.object({ width: Mm, height: Mm, thickness: Mm, keyholeSpacing: Mm }),
+  arm: z.object({
+    shape: z.enum(ARM_SHAPES),
+    length: Mm,
+    riseAngle: z.number(),
+    tubeDiameter: Mm,
+    cableDiameter: Mm,
+  }),
+});
+
+/** A weighted base and a segmented stem; the stem's top screws into the hub. */
+export const StandingMountSchema = z.object({
+  kind: z.literal('standing'),
+  variant: z.enum(STANDING_VARIANTS),
+  base: z.object({ diameter: Mm, height: Mm, pocketDepth: Mm, lid: z.enum(BASE_LIDS) }),
+  stem: z.object({ totalHeight: Mm, segmentLength: Mm, diameter: Mm, cableDiameter: Mm }),
+});
+
+export const MountSchema = z.discriminatedUnion('kind', [
+  CeilingStrapMountSchema,
+  CeilingCordMountSchema,
+  WallArmMountSchema,
+  StandingMountSchema,
+]);
 
 export const HubSchema = z.object({
   /** Wall of the hub's shoulder cone (unused while fused: the shade's wall is used). */
@@ -91,7 +140,7 @@ export const HubSchema = z.object({
   radialGap: Mm,
   /** Vents in the hub's cone (bulb lights, M2.3). */
   ventCount: z.number().int().nonnegative(),
-  /** Hub and outer shade printed as one part (the classic shade). */
+  /** Hub and outer shade printed as one part (the classic shade); velcro strap only. */
   fused: z.boolean(),
 });
 
@@ -161,6 +210,8 @@ export const ProjectSchema = z.object({
 export type Project = z.infer<typeof ProjectSchema>;
 export type LightSource = z.infer<typeof LightSchema>;
 export type Mount = z.infer<typeof MountSchema>;
+/** One mount variant. */
+export type MountOf<K extends MountKind> = Extract<Mount, { kind: K }>;
 export type Hub = z.infer<typeof HubSchema>;
 export type ShadeSpec = z.infer<typeof ShadeSchema>;
 export type ShadeStyle = z.infer<typeof ShadeStyleSchema>;
@@ -213,6 +264,69 @@ function defaultJoints(): Joints {
   };
 }
 
+/** Read a dotted path such as `canopy.diameter` from an object. */
+function getAtPath(obj: unknown, path: string): unknown {
+  let node = obj;
+  for (const key of path.split('.')) {
+    node =
+      typeof node === 'object' && node !== null
+        ? (node as Record<string, unknown>)[key]
+        : undefined;
+  }
+  return node;
+}
+
+/** Set a dotted path in a plain object tree (creating missing objects). */
+function setAtPath(obj: Record<string, unknown>, path: string, value: unknown): void {
+  const keys = path.split('.');
+  const last = keys.pop()!;
+  let node = obj;
+  for (const key of keys) {
+    const next = node[key];
+    if (typeof next !== 'object' || next === null) node[key] = {};
+    node = node[key] as Record<string, unknown>;
+  }
+  node[last] = value;
+}
+
+/** A mount of this kind with every parameter at its default. */
+export function defaultMount<K extends MountKind>(kind: K): MountOf<K> {
+  return mountFromParams(kind, MOUNT_DEFAULTS[kind]);
+}
+
+/** A mount of this kind holding these flat parameters (see `MOUNT_PARAM_PATHS`). Not normalised. */
+export function mountFromParams<K extends MountKind>(
+  kind: K,
+  params: Readonly<MountParamsByKind[K]>,
+): MountOf<K> {
+  const mount: Record<string, unknown> = { kind };
+  const paths: Readonly<Record<string, string>> = MOUNT_PARAM_PATHS[kind];
+  for (const [key, path] of Object.entries(paths)) {
+    setAtPath(mount, path, (params as Readonly<Record<string, unknown>>)[key]);
+  }
+  // The paths cover every field of the variant (the schema tests check it).
+  return mount as MountOf<K>;
+}
+
+/** The flat parameters of a mount (see `MOUNT_PARAM_PATHS`). Not normalised. */
+export function mountToParams<K extends MountKind>(mount: MountOf<K>): MountParamsByKind[K] {
+  const paths: Readonly<Record<string, string>> = MOUNT_PARAM_PATHS[mount.kind as K];
+  const out: Record<string, unknown> = {};
+  for (const [key, path] of Object.entries(paths)) out[key] = getAtPath(mount, path);
+  return out as MountParamsByKind[K];
+}
+
+/** The project path of a flat mount parameter of this kind, e.g. `mount.canopy.diameter`. */
+export function mountParamPath(kind: MountKind, key: string): string | undefined {
+  const paths: Readonly<Record<string, string>> = MOUNT_PARAM_PATHS[kind];
+  return Object.hasOwn(paths, key) ? `mount.${paths[key]}` : undefined;
+}
+
+/** A deep copy of a mount (plain JSON data; core has no `structuredClone`). */
+function copyMount(mount: Mount): Mount {
+  return JSON.parse(JSON.stringify(mount)) as Mount;
+}
+
 /** A new project with today's default shade on a Bambu Lab A1. */
 export function createDefaultProject(init: NewProjectInit = {}): Project {
   return classicParamsToProject({ ...CLASSIC_SHADE_DEFAULTS }, undefined, init);
@@ -253,13 +367,16 @@ export const CLASSIC_PARAM_PATHS: Readonly<Record<ClassicShadeKey, string>> = {
 
 /**
  * The flat parameters the classic-shade builder takes, read from the project.
- * Not normalised: `assemble()` (or `normalizeClassicShade`) does that.
+ * Not normalised: `assemble()` (or `normalizeClassicShade`) does that. With a
+ * mount other than the strap, the strap's parameters are its defaults.
  */
 export function projectToClassicParams(
   project: Project,
   quality: Quality = project.quality.preview,
 ): ClassicShadeParams {
-  const { light, mount } = project;
+  const { light } = project;
+  const mount =
+    project.mount.kind === 'ceilingStrap' ? project.mount : defaultMount('ceilingStrap');
   const shade = project.shades[0];
   const { style } = shade;
   return {
@@ -293,9 +410,9 @@ export function projectToClassicParams(
 /**
  * A project holding these flat classic-shade parameters. Everything the flat
  * parameters do not describe (id, name, printer, colours, shade id, colour and
- * collar, the hub and the joints, export quality) comes from `base`, or from a
- * new default project. Without a base, `params.quality` is used for both
- * preview and export, as in the first app.
+ * collar, the hub and the joints, export quality, a mount other than the
+ * strap) comes from `base`, or from a new default project. Without a base,
+ * `params.quality` is used for both preview and export, as in the first app.
  */
 export function classicParamsToProject(
   params: ClassicShadeParams,
@@ -328,13 +445,16 @@ export function classicParamsToProject(
       bossWall: p.bossWall,
       pocketExtraDepth: p.pocketExtraDepth,
     },
-    mount: {
-      kind: 'ceilingStrap',
-      strapWidth: p.strapWidth,
-      strapThickness: p.strapThickness,
-      loopLength: p.loopLength,
-      loopWall: p.loopWall,
-    },
+    mount:
+      base && base.mount.kind !== 'ceilingStrap'
+        ? copyMount(base.mount)
+        : {
+            kind: 'ceilingStrap',
+            strapWidth: p.strapWidth,
+            strapThickness: p.strapThickness,
+            loopLength: p.loopLength,
+            loopWall: p.loopWall,
+          },
     hub: base ? { ...base.hub } : defaultHub(),
     shades: [
       {
@@ -465,10 +585,19 @@ function migrateV1(raw: RawProject): RawProject {
   };
 }
 
+/**
+ * v2 → v3: the mount became a union of four variants; the velcro strap, the
+ * only mount of v2, keeps its shape, so only the version changes.
+ */
+function migrateV2(raw: RawProject): RawProject {
+  return { ...raw, version: 3 };
+}
+
 /** `MIGRATIONS[v]` turns a version-v project into a later version (v + 1, or the current one). */
 const MIGRATIONS: Readonly<Record<number, (raw: RawProject) => RawProject>> = {
   0: migrateV0,
   1: migrateV1,
+  2: migrateV2,
 };
 
 function versionOf(raw: RawProject): unknown {

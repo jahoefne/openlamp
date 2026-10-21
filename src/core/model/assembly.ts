@@ -4,7 +4,17 @@
  * ever serialised; only the project is (see project.ts).
  */
 import type { ErrorStatus, Vec3 } from 'manifold-3d';
-import type { HubParams, ShadeParams } from './parts.ts';
+import type {
+  BaseLidParams,
+  BaseParams,
+  CanopyParams,
+  CordGripParams,
+  HubParams,
+  ShadeParams,
+  StemParams,
+  WallArmParams,
+  WallPlateParams,
+} from './parts.ts';
 
 export type Mm = number;
 export type Deg = number;
@@ -28,8 +38,13 @@ export interface Warning {
   paramPath?: string;
 }
 
-/** Part kinds with a builder (more join with the mounts, lights and shade families of M2/M3). */
-export type PartKind = 'hub' | 'shade';
+/**
+ * Part kinds with a builder (tiers and spacers join with the shade families of
+ * M3). `stem`, `base`, `baseLid`, `wallPlate` and `wallArm` are registered but
+ * their builders arrive in M2.2b.
+ */
+export type PartKind =
+  'hub' | 'shade' | 'canopy' | 'cordGrip' | 'stem' | 'base' | 'baseLid' | 'wallPlate' | 'wallArm';
 
 /**
  * The resolved parameters each part kind's builder takes. A `shade` is either
@@ -39,6 +54,13 @@ export type PartKind = 'hub' | 'shade';
 export interface PartParamsByKind {
   hub: HubParams;
   shade: ShadeParams;
+  canopy: CanopyParams;
+  cordGrip: CordGripParams;
+  stem: StemParams;
+  base: BaseParams;
+  baseLid: BaseLidParams;
+  wallPlate: WallPlateParams;
+  wallArm: WallArmParams;
 }
 
 // ---------------------------------------------------------------- joints
@@ -167,6 +189,42 @@ export type PartSpec = {
   [K in PartKind]: PartSpecCommon & { kind: K; params: PartParamsByKind[K] };
 }[PartKind];
 
+/**
+ * A part as a mount (or the assembler) describes it, before `assemble()` adds
+ * its cache key, transforms and bed placement.
+ */
+export type PartDraft = {
+  [K in PartKind]: {
+    id: string;
+    kind: K;
+    displayName: string;
+    params: PartParamsByKind[K];
+    colour: Hex;
+    /** Bed footprint in print orientation (an upper bound of the bounding box), without WASM. */
+    footprint: Footprint;
+    printNotes: string[];
+    /** How many identical copies to print (identical stem segments are one part). */
+    instances?: number;
+  };
+}[PartKind];
+
+/**
+ * What the lamp is mounted on, in world coordinates, for the viewport's
+ * context planes and ghosts: the ceiling (strap, cord), a wall (wall arm) or
+ * the floor (standing lamp).
+ */
+export interface MountContext {
+  kind: 'ceiling' | 'wall' | 'floor';
+  /** The ceiling plane (ceiling mounts). */
+  ceilingZ?: Mm;
+  /** The wall plane y = wallY (wall arm); the lamp stands out toward +y. */
+  wallY?: Mm;
+  /** The floor or table top (standing lamp). */
+  floorZ?: Mm;
+  /** The cord of a pendant, a vertical cylinder on the axis from z0 up to z1. */
+  cord?: { z0: Mm; z1: Mm; diameter: Mm };
+}
+
 /** A part placed on the bed by `layoutParts`. */
 export interface Placement {
   id: string;
@@ -194,12 +252,16 @@ export interface Assembly {
   layout: Layout;
   /**
    * Derived dimensions in world coordinates for the viewport and the panels:
-   * `ceilingZ` (the mount face on top of the hub), `bottomZ` (the lowest point
-   * of the lamp), `puckZ` / `puckDiameter` / `puckHeight` (the light in its
-   * pocket) and the strap's `strapWidth` / `strapThickness` / `loopLength` /
-   * `rBoss`. The fused shade adds its `derive()` dimensions.
+   * `ceilingZ` + `ceilingGap` (the ceiling: for the strap the hub's mount face
+   * plus the strap's gap, for the cord the ceiling itself with a gap of 0),
+   * `bottomZ` (the lowest point of the lamp), `puckZ` / `puckDiameter` /
+   * `puckHeight` (the light in its pocket), the strap's `strapWidth` /
+   * `strapThickness` / `loopLength` / `rBoss`, the cord's `cordZ0` / `cordZ1` /
+   * `cordDiameter` / `canopyZ`. The fused shade adds its `derive()` dimensions.
    */
   derived: Record<string, number>;
+  /** What the lamp is mounted on (see `MountContext`). */
+  context: MountContext;
   /** Every warning of every part plus project-level ones. */
   warnings: Warning[];
 }

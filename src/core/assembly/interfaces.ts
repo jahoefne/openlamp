@@ -207,3 +207,63 @@ export function screwJoint(
     female: ids.female,
   };
 }
+
+/** The hub's male threaded stub of the wall arm: root Ø × thread length, mm. */
+export const HUB_THREAD_STUB = Object.freeze({ diameter: 16, length: 12 });
+/** The hub's female threaded bore of the standing lamp: (the stem's) root Ø × depth, mm. */
+export const HUB_THREAD_BORE = Object.freeze({ diameter: 20, length: 14 });
+/** The canopy's collet neck and the cord grip: root Ø × thread length, mm. */
+export const COLLET_THREAD = Object.freeze({ diameter: 16, length: 10 });
+
+/** The largest thread depth per pitch that leaves a crest and a root (see joints/thread.ts). */
+const MAX_THREAD_DEPTH_PER_PITCH = 0.4;
+
+/**
+ * A printed thread between two mount parts (or the hub and a mount part):
+ * pitch, depth and tolerance from `joints` (the depth capped at 0.4 × the
+ * pitch), 45° flanks, right hand. `nominalDiameter` is the male's root Ø.
+ * Checks that do not adjust anything come back as warnings on `ids.female`.
+ */
+export function mountThreadJoint(
+  id: string,
+  ids: { male: string; female: string },
+  size: { diameter: number; length: number },
+  joints: Pick<Joints, 'tolerance' | 'threadPitch' | 'threadDepth'>,
+  nozzle = 0.4,
+): { iface: JointInterface; warnings: Warning[] } {
+  const pitch = joints.threadPitch;
+  const depth = Math.min(
+    joints.threadDepth,
+    Math.round(MAX_THREAD_DEPTH_PER_PITCH * pitch * 100) / 100,
+  );
+  const iface: JointInterface = {
+    id,
+    type: 'thread',
+    nominalDiameter: size.diameter,
+    length: size.length,
+    tolerance: joints.tolerance,
+    thread: { pitch, depth, flank: 45, hand: 'right' },
+    male: ids.male,
+    female: ids.female,
+  };
+  const warnings: Warning[] = [];
+  const warn = (message: string) =>
+    warnings.push({
+      severity: 'warning',
+      code: 'joint',
+      partId: ids.female,
+      paramPath: 'joints.threadPitch',
+      message,
+    });
+  if (pitch < 4 * nozzle) {
+    warn(
+      `Thread pitch ${mm(pitch)} mm is under 4 × the ${mm(nozzle)} mm nozzle; the teeth will not print cleanly.`,
+    );
+  }
+  if (size.length < 2 * pitch) {
+    warn(
+      `A ${mm(size.length)} mm long thread has fewer than two turns at a ${mm(pitch)} mm pitch.`,
+    );
+  }
+  return { iface, warnings };
+}

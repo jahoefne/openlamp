@@ -6,7 +6,7 @@
  */
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { Assembly, PartSpec, PartStats, Warning } from '@core/model/assembly.ts';
+import type { Assembly, MountContext, PartSpec, PartStats, Warning } from '@core/model/assembly.ts';
 import type { ExportProgress, PartMessage } from '../worker/workerClient.ts';
 import type { PartsDiff } from '../worker/pipelineDiff.ts';
 
@@ -53,13 +53,20 @@ export interface BuildState {
    * Project-level warnings and derived dimensions of the dispatched assembly,
    * and the worker's total time once its build is done.
    */
-  assembly: { warnings: Warning[]; derived: Record<string, number>; totalMs: number | null } | null;
+  assembly: {
+    warnings: Warning[];
+    derived: Record<string, number>;
+    context: MountContext;
+    totalMs: number | null;
+  } | null;
   /**
    * `Assembly.derived` of the latest build that finished: what the meshes on
    * screen were built from, so the ghosts and context planes move with them
    * rather than ahead of them.
    */
   shownDerived: Record<string, number> | null;
+  /** `Assembly.context` of the same build (what the lamp is mounted on). */
+  shownContext: MountContext | null;
   lastBuild: BuildSummary | null;
   exporting: boolean;
   exportProgress: ExportProgress | null;
@@ -99,6 +106,7 @@ export const useBuildStore = create<BuildState>()(
     parts: {},
     assembly: null,
     shownDerived: null,
+    shownContext: null,
     lastBuild: null,
     exporting: false,
     exportProgress: null,
@@ -118,7 +126,12 @@ export const useBuildStore = create<BuildState>()(
     dispatch: (generation, assembly, diff) =>
       set((s) => {
         s.generation = generation;
-        s.assembly = { warnings: assembly.warnings, derived: assembly.derived, totalMs: null };
+        s.assembly = {
+          warnings: assembly.warnings,
+          derived: assembly.derived,
+          context: assembly.context,
+          totalMs: null,
+        };
         s.exportError = null;
         for (const id of diff.removed) delete s.parts[id];
         for (const part of diff.unchanged) {
@@ -177,7 +190,10 @@ export const useBuildStore = create<BuildState>()(
         s.doneGeneration = generation;
         if (s.assembly) {
           s.assembly.totalMs = totalMs;
-          if (generation === s.generation) s.shownDerived = s.assembly.derived;
+          if (generation === s.generation) {
+            s.shownDerived = s.assembly.derived;
+            s.shownContext = s.assembly.context;
+          }
         }
       }),
 

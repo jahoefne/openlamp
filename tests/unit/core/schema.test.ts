@@ -5,11 +5,16 @@ import {
   CLASSIC_PARAM_PATHS,
   DEFAULT_HUB_COLOUR,
   HUB_PARAM_PATHS,
+  MountSchema,
   PROJECT_VERSION,
   classicParamsToProject,
   createDefaultProject,
+  defaultMount,
   loadProject,
   migrate,
+  mountFromParams,
+  mountParamPath,
+  mountToParams,
   parseProject,
   projectToClassicParams,
   projectToHubParams,
@@ -23,11 +28,22 @@ import {
   HUB_JOINT_DEFAULTS,
   HUB_JOINT_DEFS,
   HUB_JOINT_GROUPS,
+  MOUNT_DEFAULTS,
+  MOUNT_DEFS,
+  MOUNT_GROUPS,
+  MOUNT_KINDS,
+  MOUNT_LABELS,
+  MOUNT_PARAM_PATHS,
   isParamVisible,
   type ClassicShadeKey,
   type HubJointKey,
 } from '@core/schema/defs.ts';
-import { clampToSchema, normalizeClassicShade, normalizeHubJoint } from '@core/schema/normalize.ts';
+import {
+  clampToSchema,
+  normalizeClassicShade,
+  normalizeHubJoint,
+  normalizeMountParams,
+} from '@core/schema/normalize.ts';
 import { CUSTOM_PRINTER_ID, PRINTERS, findPrinter } from '@core/schema/printers.ts';
 
 const fixture = (name: string) =>
@@ -38,9 +54,15 @@ const get = (obj: unknown, path: string): unknown =>
 
 const V1_FIXTURES = ['v1-minimal.lamp.json', 'v1-full.lamp.json'];
 const V2_FIXTURES = ['v2-minimal.lamp.json', 'v2-full.lamp.json'];
+const V3_FIXTURES = [
+  'v3-minimal.lamp.json',
+  'v3-full.lamp.json',
+  'v3-wall-arm.lamp.json',
+  'v3-standing.lamp.json',
+];
 
 describe('parseProject / serializeProject', () => {
-  it.each([...V2_FIXTURES, ...V1_FIXTURES])('round-trips %s', (name) => {
+  it.each([...V3_FIXTURES, ...V2_FIXTURES, ...V1_FIXTURES])('round-trips %s', (name) => {
     const project = parseProject(fixture(name));
     const text = serializeProject(project);
     expect(parseProject(text)).toEqual(project);
@@ -104,8 +126,8 @@ describe('parseProject / serializeProject', () => {
   });
 
   it('leaves current and unknown versions to the schema', () => {
-    const v2 = JSON.parse(fixture('v2-minimal.lamp.json')) as unknown;
-    expect(migrate(v2)).toBe(v2);
+    const v3 = JSON.parse(fixture('v3-minimal.lamp.json')) as unknown;
+    expect(migrate(v3)).toBe(v3);
     const future = { version: 99 };
     expect(migrate(future)).toBe(future);
     expect(migrate('nope')).toBe('nope');
@@ -118,6 +140,7 @@ describe('parseProject / serializeProject', () => {
     'invalid-missing-mount.json',
     'invalid-number.json',
     'invalid-two-shades.json',
+    'invalid-cord-mount.json',
   ])('rejects %s with a ZodError', (name) => {
     expect(() => parseProject(fixture(name))).toThrow(ZodError);
   });
@@ -146,7 +169,7 @@ describe('migration v1 → v2', () => {
     const raw = JSON.parse(fixture(name)) as Record<string, Record<string, unknown>>;
     const v1Hub = raw.hub!;
     const project = parseProject(fixture(name));
-    expect(project.version).toBe(2);
+    expect(project.version).toBe(PROJECT_VERSION);
     const flat = projectToClassicParams(project);
     const expected = v1Params(raw);
     for (const def of CLASSIC_SHADE_DEFS) {
@@ -188,10 +211,114 @@ describe('migration v1 → v2', () => {
     expect(loadProject(raw).colours).toEqual({ hub: DEFAULT_HUB_COLOUR, shade: '#aabbcc' });
   });
 
-  it('re-saved v1 fixtures equal the v2 fixtures', () => {
+  it('re-saved v1 fixtures equal the current fixtures', () => {
     expect(serializeProject(parseProject(fixture('v1-minimal.lamp.json')))).toBe(
-      fixture('v2-minimal.lamp.json'),
+      fixture('v3-minimal.lamp.json'),
     );
+  });
+});
+
+describe('migration v2 → v3', () => {
+  it.each(V2_FIXTURES)('only bumps the version of %s (the strap keeps its shape)', (name) => {
+    const raw = JSON.parse(fixture(name)) as Record<string, unknown>;
+    const migrated = migrate(raw) as Record<string, unknown>;
+    expect(migrated).toEqual({ ...raw, version: 3 });
+    const project = loadProject(raw);
+    expect(project.version).toBe(3);
+    expect(project.mount).toEqual(raw.mount);
+  });
+
+  it('re-saved v2 fixtures equal the v3 fixtures', () => {
+    expect(serializeProject(parseProject(fixture('v2-minimal.lamp.json')))).toBe(
+      fixture('v3-minimal.lamp.json'),
+    );
+  });
+
+  it('parses every mount variant', () => {
+    expect(parseProject(fixture('v3-full.lamp.json')).mount).toMatchObject({
+      kind: 'ceilingCord',
+      grip: 'collet',
+      canopy: { diameter: 100 },
+    });
+    expect(parseProject(fixture('v3-wall-arm.lamp.json')).mount).toMatchObject({
+      kind: 'wallArm',
+      arm: { shape: 'curved' },
+    });
+    expect(parseProject(fixture('v3-standing.lamp.json')).mount).toMatchObject({
+      kind: 'standing',
+      variant: 'floor',
+      base: { lid: 'screws' },
+    });
+  });
+});
+
+describe('mounts', () => {
+  it.each(MOUNT_KINDS)(
+    '%s: the defaults are a valid mount, its paths cover every field',
+    (kind) => {
+      const mount = defaultMount(kind);
+      expect(MountSchema.parse(mount)).toEqual(mount);
+      expect(mount.kind).toBe(kind);
+      expect(mountToParams(mount)).toEqual({ ...MOUNT_DEFAULTS[kind] });
+      expect(mountFromParams(kind, MOUNT_DEFAULTS[kind])).toEqual(mount);
+      // One definition per path, one path per leaf field.
+      const leaves = (o: object, prefix = ''): string[] =>
+        Object.entries(o).flatMap(([key, v]) =>
+          typeof v === 'object' && v !== null
+            ? leaves(v as object, `${prefix}${key}.`)
+            : [prefix + key],
+        );
+      const fields = leaves(mount).filter((path) => path !== 'kind');
+      expect(Object.values(MOUNT_PARAM_PATHS[kind]).sort()).toEqual(fields.sort());
+      expect(MOUNT_DEFS[kind].map((d) => d.key).sort()).toEqual(
+        Object.keys(MOUNT_PARAM_PATHS[kind]).sort(),
+      );
+      expect(MOUNT_GROUPS[kind].length).toBeGreaterThan(0);
+      expect(MOUNT_LABELS[kind]).toBeTruthy();
+    },
+  );
+
+  it('the strap defaults are the classic shade defaults', () => {
+    expect(defaultMount('ceilingStrap')).toEqual(createDefaultProject().mount);
+  });
+
+  it('gives every mount parameter a project path', () => {
+    expect(mountParamPath('ceilingCord', 'canopyDiameter')).toBe('mount.canopy.diameter');
+    expect(mountParamPath('ceilingStrap', 'strapWidth')).toBe(CLASSIC_PARAM_PATHS.strapWidth);
+    expect(mountParamPath('wallArm', 'canopyDiameter')).toBeUndefined();
+  });
+
+  it('clamps mount parameters with their project paths', () => {
+    const { values, warnings } = normalizeMountParams('ceilingCord', {
+      ...mountToParams(defaultMount('ceilingCord')),
+      canopyDiameter: 500,
+      grip: 'zip-tie',
+    });
+    expect(values.canopyDiameter).toBe(160);
+    expect(values.grip).toBe('knot');
+    expect(warnings.map((w) => [w.code, w.paramPath])).toEqual([
+      ['invalid-option', 'mount.grip'],
+      ['clamped', 'mount.canopy.diameter'],
+    ]);
+  });
+
+  it('shows the rise angle only for a bent arm', () => {
+    const defs = MOUNT_GROUPS.wallArm.flatMap((g) => g.params);
+    const shown = (armShape: string) =>
+      defs.filter((d) => isParamVisible(d, { armShape })).map((d) => d.key);
+    expect(shown('straight')).not.toContain('armRiseAngle');
+    expect(shown('angled')).toContain('armRiseAngle');
+    expect(shown('curved')).toContain('armRiseAngle');
+  });
+
+  it('keeps a mount other than the strap through the classic shade bridge', () => {
+    const base = parseProject(fixture('v3-full.lamp.json'));
+    const params = projectToClassicParams(base);
+    // The strap's flat parameters are its defaults; they do not touch the cord mount.
+    expect(params.strapWidth).toBe(CLASSIC_SHADE_DEFAULTS.strapWidth);
+    const again = classicParamsToProject({ ...params, strapWidth: 20 }, base);
+    expect(again).toEqual(base);
+    expect(again.mount).not.toBe(base.mount);
   });
 });
 

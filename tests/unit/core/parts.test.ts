@@ -24,7 +24,7 @@ import {
   type PartStats,
   type ShadeJointType,
 } from '@core/model/assembly.ts';
-import type { HubParams, RevolvedShadeParams } from '@core/model/parts.ts';
+import type { HubParams, RevolvedShadeParams, StrapMountFace } from '@core/model/parts.ts';
 import { createDefaultProject, type Project } from '@core/model/project.ts';
 import { getKernel, trackKernelObjects } from '../../helpers/kernel.ts';
 
@@ -68,6 +68,12 @@ function withParts(a: Assembly, quality: Quality, check: (built: Built[]) => voi
   }
   expect(liveObjects()).toBe(liveBefore);
   expect(tracker.live()).toBe(kernelBefore);
+}
+
+/** The strap's mount face of a hub (the default project's mount). */
+function strapFace(params: HubParams): StrapMountFace {
+  if (params.mountFace.kind !== 'strap') throw new Error('not a strap hub');
+  return params.mountFace;
 }
 
 const byId = (built: readonly Built[], id: string) => {
@@ -148,7 +154,7 @@ describe('the hub alone', () => {
         // Just below the mount face: the housing (Ø 2·rBoss along X) with the belt loops on ±Y.
         const top = s.add(manifold.slice(d.zTop - 1)).bounds();
         expect(top.max[0] - top.min[0]).toBeCloseTo(2 * d.rBoss, 0);
-        const mount = params.mountFace;
+        const mount = strapFace(params);
         expect(top.max[1] - top.min[1]).toBeCloseTo(
           2 * (d.rBoss + mount.strapThickness + mount.loopWall),
           3,
@@ -174,7 +180,7 @@ describe('a short hub (thick wall, shallow shoulder)', () => {
   const d = deriveHub(params);
 
   it('stands tall enough for the strap tunnels to open above its cone', () => {
-    const { loopLength, strapThickness, loopWall } = params.mountFace;
+    const { loopLength, strapThickness, loopWall } = strapFace(params);
     expect(d.zTop - loopLength - strapThickness - loopWall).toBeGreaterThanOrEqual(
       d.zBossStart + 1 - 1e-9,
     );

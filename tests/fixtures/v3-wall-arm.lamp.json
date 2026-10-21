@@ -1,0 +1,89 @@
+{
+  "version": 3,
+  "id": "wall-arm",
+  "name": "Wall arm",
+  "revision": 0,
+  "updatedAt": "2026-10-21T12:00:00.000Z",
+  "printer": {
+    "id": "prusa-mini",
+    "vendor": "Prusa Research",
+    "name": "MINI+",
+    "bed": [180, 180, 180],
+    "nozzle": 0.4,
+    "multiColour": false
+  },
+  "quality": {
+    "preview": "draft",
+    "export": "normal"
+  },
+  "light": {
+    "kind": "puck",
+    "preset": "bambu-kit-001",
+    "diameter": 59,
+    "height": 8,
+    "clearance": 0.7,
+    "lightHoleDiameter": 50,
+    "ledgeThickness": 2,
+    "cableWidth": 4.5,
+    "bossWall": 2.4,
+    "pocketExtraDepth": 0.3
+  },
+  "mount": {
+    "kind": "wallArm",
+    "plate": {
+      "width": 90,
+      "height": 130,
+      "thickness": 7,
+      "keyholeSpacing": 70
+    },
+    "arm": {
+      "shape": "curved",
+      "length": 220,
+      "riseAngle": 30,
+      "tubeDiameter": 26,
+      "cableDiameter": 5
+    }
+  },
+  "hub": {
+    "wallThickness": 2,
+    "shoulderAngle": 50,
+    "collarWall": 2,
+    "radialGap": 8,
+    "ventCount": 0,
+    "fused": false
+  },
+  "shades": [
+    {
+      "id": "outer",
+      "role": "outer",
+      "colour": "#f4efe6",
+      "wallThickness": 0.8,
+      "style": {
+        "family": "revolved",
+        "bottomDiameter": 140,
+        "topDiameter": 92,
+        "height": 100,
+        "curve": 0,
+        "shoulderAngle": 50,
+        "surface": {
+          "style": "smooth",
+          "patternCount": 40,
+          "ribDepth": 1.6,
+          "twist": 0
+        }
+      }
+    }
+  ],
+  "joints": {
+    "shadeToHub": "bayonet",
+    "tolerance": 0.3,
+    "threadPitch": 2.5,
+    "threadDepth": 0.8,
+    "screw": "M3",
+    "heatSet": true
+  },
+  "colours": {
+    "hub": "#d9d4cb"
+  },
+  "fitTest": false
+}

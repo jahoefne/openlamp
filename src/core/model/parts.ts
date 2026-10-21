@@ -8,7 +8,7 @@
  */
 import type { Quality } from '../geometry/quality.ts';
 import type { SurfaceStyleName } from '../geometry/surface.ts';
-import type { ClassicShadeParams } from '../schema/defs.ts';
+import type { ARM_SHAPES, BASE_LIDS, ClassicShadeParams } from '../schema/defs.ts';
 import type { Deg, JointInterface, Mm } from './assembly.ts';
 
 // ---------------------------------------------------------------- lights
@@ -47,7 +47,11 @@ export type LightInsert = PuckInsert;
 
 // ---------------------------------------------------------------- mounts
 
-/** Belt-loop tunnels for a velcro strap across the top of the hub. */
+/**
+ * Belt-loop tunnels for a velcro strap across the top of the hub. The only
+ * *open* mount face: the puck drops into its pocket from the top and the
+ * strap holds it in.
+ */
 export interface StrapMountFace {
   kind: 'strap';
   strapWidth: Mm;
@@ -56,8 +60,45 @@ export interface StrapMountFace {
   loopWall: Mm;
 }
 
-/** What a mount puts on the hub's mount face (cord bosses and threads join in M2.2). */
-export type MountFace = StrapMountFace;
+/**
+ * Every other mount face is *closed*: a 45° roof (dome) over the light pocket
+ * carries the mount's feature on its apex, and the puck is pressed into its
+ * pocket from the light face (crush ribs hold it).
+ *
+ * The cord boss: a cylinder on the apex with a hole Ø `cordDiameter + 1`; the
+ * cord is fed down through it and knotted inside the hub, where the knot sits
+ * in a cavity Ø 3.5 × cord, 1.5 × cord tall, under the hole (a 45° ceiling).
+ */
+export interface CordBossMountFace {
+  kind: 'cordBoss';
+  cordDiameter: Mm;
+}
+
+/** A hollow male threaded stub on the apex (the hub is the joint's male side), cable bore through. */
+export interface ThreadMaleMountFace {
+  kind: 'threadMale';
+  /** Thread joint: `nominalDiameter` = the stub's root Ø, `length` = the stub's thread length. */
+  joint: JointInterface;
+  cableDiameter: Mm;
+}
+
+/** A female threaded bore in a boss on the apex (the hub is the joint's female side), cable bore through. */
+export interface ThreadFemaleMountFace {
+  kind: 'threadFemale';
+  /** Thread joint: `nominalDiameter` = the mating male's root Ø, `length` = the bore's depth. */
+  joint: JointInterface;
+  cableDiameter: Mm;
+}
+
+/** What a mount puts on the hub's mount face. */
+export type HubMountFace =
+  StrapMountFace | CordBossMountFace | ThreadMaleMountFace | ThreadFemaleMountFace;
+export type HubMountFaceKind = HubMountFace['kind'];
+/** The closed mount faces (a roof over the light pocket). */
+export type ClosedMountFace = Exclude<HubMountFace, StrapMountFace>;
+
+/** The hub's mount face (alias of `HubMountFace`). */
+export type MountFace = HubMountFace;
 
 // ---------------------------------------------------------------- collar
 
@@ -84,7 +125,7 @@ export interface CollarDims {
 export interface HubParams {
   insert: LightInsert;
   envelope: LightEnvelope;
-  mountFace: MountFace;
+  mountFace: HubMountFace;
   /** Wall of the hub's shoulder cone. */
   wallThickness: Mm;
   /** Slope of the hub's shoulder cone from horizontal (≥ 45° prints without support). */
@@ -124,3 +165,155 @@ export interface RevolvedShadeParams {
 export type FusedShadeParams = ClassicShadeParams & { variant: 'fused' };
 
 export type ShadeParams = FusedShadeParams | RevolvedShadeParams;
+
+// ---------------------------------------------------------------- mount parts
+
+/**
+ * The ceiling canopy of a pendant (part kind `canopy`): a revolved shallow
+ * cone, printed ceiling-face-down, narrowing toward the room. A 45° recess on
+ * the ceiling side holds the cord's knot (grip `knot`) above the cord hole;
+ * two radial screw slots with head counterbores fix it to the ceiling. With a
+ * collet grip, a threaded neck with slits stands on the room side.
+ */
+export interface CanopyParams {
+  diameter: Mm;
+  height: Mm;
+  /** Distance between the two ceiling screws. */
+  screwSpacing: Mm;
+  /** Radial screw slots: width × length, a head counterbore Ø, and the material left under it. */
+  screwSlot: { width: Mm; length: Mm; headDiameter: Mm; floor: Mm };
+  /** Cord hole Ø (cord + 1). */
+  cordHole: Mm;
+  /** The collet neck (grip `collet`): its thread (the canopy is the male side) and its slits. */
+  collet?: { joint: JointInterface; slits: number; slitWidth: Mm };
+  quality: Quality;
+}
+
+/**
+ * The cord grip of a collet pendant (part kind `cordGrip`): a cap with an
+ * internal thread (the female side of the canopy's collet joint) and a 45°
+ * conical bore that presses the collet's slit tip onto the cord as the cap is
+ * screwed home. Printed open end down; PETG recommended.
+ */
+export interface CordGripParams {
+  joint: JointInterface;
+  /** Cord hole Ø through the top (cord + 1). */
+  cordHole: Mm;
+  /**
+   * The cone touches the collet's tip (with the joint's tolerance) while the
+   * cap's mouth is still this far from the canopy: the clamping travel.
+   */
+  travel: Mm;
+  /** Wall around the thread. */
+  wall: Mm;
+  quality: Quality;
+}
+
+// The parts of the wall arm and the standing lamp (builders: M2.2b). Fields
+// follow the plan's part table; the mount modules fill them in.
+
+/**
+ * A stem segment of the standing lamp (part kind `stem`): a tube with a cable
+ * bore, a male thread on top (into the next segment, or into the hub's female
+ * bore) and a female thread at the bottom, or, for the bottom segment, a screw
+ * flange to the base. Printed vertical, female end (or flange) down. All
+ * `segment` segments share one buildKey (one part, `instances` = their count).
+ */
+export interface StemParams {
+  /** `base`: the bottom segment with the screw flange; `segment`: every other one. */
+  variant: 'base' | 'segment';
+  /** Tube length, without the male thread on top. */
+  length: Mm;
+  diameter: Mm;
+  /** Cable bore Ø (cable + 1). */
+  boreDiameter: Mm;
+  /** Male thread on top (the stem is its male side). */
+  top: JointInterface;
+  /** Female thread at the bottom (variant `segment`). */
+  bottom?: JointInterface;
+  /** Screw flange at the bottom (variant `base`): Ø × thickness, screwed to the base (male side). */
+  flange?: { diameter: Mm; thickness: Mm; screws: JointInterface };
+  /** Surface pattern on the middle of the tube; smooth when absent. */
+  fluting?: SurfaceParams;
+  quality: Quality;
+}
+
+/**
+ * The weighted base (part kind `base`): a flat-topped revolved disc with a
+ * ≤ 45° chamfer, an annular weight pocket opening on the underside (minus a
+ * solid spoke with a cable groove from the central bore to a rim notch) and
+ * heat-set pockets on top for the stem's flange. Printed top-face-down.
+ */
+export interface BaseParams {
+  diameter: Mm;
+  height: Mm;
+  /** Depth of the weight pocket from the underside. */
+  pocketDepth: Mm;
+  /** Height of the 45° chamfer around the top edge. */
+  chamfer: Mm;
+  /** Central cable bore Ø. */
+  boreDiameter: Mm;
+  /** Underside cable groove (width × depth) in a solid spoke `spokeWidth` wide. */
+  cableGroove: { width: Mm; depth: Mm; spokeWidth: Mm };
+  /** The stem flange's screws (the base is the female side: inserts or tapping holes). */
+  stemScrews: JointInterface;
+  /** How the lid closes the weight pocket; `screws` uses `lidJoint` (the base is its female side). */
+  lid: (typeof BASE_LIDS)[number];
+  lidJoint?: JointInterface;
+  quality: Quality;
+}
+
+/** The lid of the base's weight pocket (part kind `baseLid`): a flat annulus. Printed flat. */
+export interface BaseLidParams {
+  outerDiameter: Mm;
+  innerDiameter: Mm;
+  thickness: Mm;
+  lid: (typeof BASE_LIDS)[number];
+  /** Screws (`lid: 'screws'`; the lid is the male side). */
+  joint?: JointInterface;
+  /** Radial clearance of a snap lid in the pocket. */
+  tolerance: Mm;
+  quality: Quality;
+}
+
+/**
+ * The wall plate (part kind `wallPlate`): an extruded rounded rectangle with
+ * two keyhole slots to hang it on screws, heat-set pockets for the arm's
+ * flange and a cable notch in its bottom edge. Printed back-face-down.
+ */
+export interface WallPlateParams {
+  width: Mm;
+  height: Mm;
+  thickness: Mm;
+  cornerRadius: Mm;
+  /** Keyholes on the vertical centre line: spacing, head Ø, slot width, slot length. */
+  keyholes: { spacing: Mm; headDiameter: Mm; slotWidth: Mm; length: Mm };
+  /** The arm flange's screws (the plate is the female side). */
+  armScrews: JointInterface;
+  /** Notch in the bottom edge for the cable: width × depth. */
+  cableNotch: { width: Mm; depth: Mm };
+  quality: Quality;
+}
+
+/**
+ * The wall arm (part kind `wallArm`): a tube from a flange on the wall plate
+ * to an end boss whose female thread takes the hub's stub from below; cable
+ * bore throughout. `straight` = horizontal, `angled` = rising `riseAngle`,
+ * `curved` = a torus sector sweeping `riseAngle`. Printed standing on its flange.
+ */
+export interface WallArmParams {
+  shape: (typeof ARM_SHAPES)[number];
+  /** From the wall plate to the hub's axis. */
+  length: Mm;
+  riseAngle: Deg;
+  tubeDiameter: Mm;
+  /** Cable bore Ø (cable + 1). */
+  boreDiameter: Mm;
+  /** Flange on the wall plate: Ø × thickness. */
+  flange: { diameter: Mm; thickness: Mm };
+  /** The flange's screws into the plate (the arm is the male side). */
+  plateScrews: JointInterface;
+  /** The hub's threaded stub (the arm's end boss is the female side). */
+  hubJoint: JointInterface;
+  quality: Quality;
+}

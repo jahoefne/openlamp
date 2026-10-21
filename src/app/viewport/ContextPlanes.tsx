@@ -1,45 +1,27 @@
 /**
  * What the lamp stands on or hangs from: the print bed (grid + dark plate)
- * by default, the ceiling in the mounted view. The print orientation already
- * is the mounted orientation (housing up, open end down), so the ceiling just
- * sits on the mount face plus the mount's gap (strap + mating velcro ≈ 3 mm),
- * both from the assembly on screen. The grid stays at z 0, where the display
- * lift puts the lamp's lowest point.
+ * by default; in the mounted view what the assembly on screen says it is
+ * mounted on (`Assembly.context`): the ceiling above the strap or the
+ * pendant's canopy, the wall behind a wall arm, the floor under a standing
+ * lamp. Positions are world coordinates plus the display lift, so the bed
+ * grid stays at z 0, where the lift puts the lamp's lowest point.
  */
 import { Grid } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useLayoutEffect } from 'react';
 import { DoubleSide } from 'three';
 import { useUiStore } from '../store/uiStore.ts';
-import { ceilingMaterial } from './materials.ts';
-import { useDisplayLift, useShownDerived } from './sceneDerived.ts';
+import { ceilingMaterial, wallMaterial } from './materials.ts';
+import { useDisplayLift, useShownContext } from './sceneDerived.ts';
 
 const BED = 256;
 /** Where the ceiling goes before anything is built. */
-const DEFAULT_TOP = 150;
-const DEFAULT_GAP = 3;
+const DEFAULT_CEILING = 153;
+/** Size of the ceiling, the wall and the floor planes, mm. */
+const PLANE = 400;
+const FLOOR = 800;
 
-/** The ceiling's height on screen (display lift included). */
-function useCeilingTop(): number {
-  const d = useShownDerived();
-  const lift = useDisplayLift();
-  if (d?.ceilingZ === undefined) return DEFAULT_TOP + DEFAULT_GAP;
-  return d.ceilingZ + (d.ceilingGap ?? DEFAULT_GAP) + lift;
-}
-
-export function ContextPlanes() {
-  const mounted = useUiStore((s) => s.mounted);
-  const top = useCeilingTop();
-  const invalidate = useThree((s) => s.invalidate);
-  useLayoutEffect(() => invalidate(), [mounted, top, invalidate]);
-
-  if (mounted) {
-    return (
-      <mesh material={ceilingMaterial} position={[0, 0, top]}>
-        <planeGeometry args={[400, 400]} />
-      </mesh>
-    );
-  }
+function BedGrid() {
   return (
     <>
       {/* drei's Grid lies in XZ; turned into the XY plane of the bed. */}
@@ -62,4 +44,61 @@ export function ContextPlanes() {
       </mesh>
     </>
   );
+}
+
+function Floor({ z }: { z: number }) {
+  return (
+    <group position={[0, 0, z]}>
+      <Grid
+        args={[FLOOR, FLOOR]}
+        rotation={[Math.PI / 2, 0, 0]}
+        cellSize={50}
+        cellThickness={1}
+        cellColor="#5b554c"
+        sectionSize={200}
+        sectionThickness={1.2}
+        sectionColor="#7a7266"
+        fadeDistance={10_000}
+        fadeStrength={0}
+        side={DoubleSide}
+      />
+      <mesh position={[0, 0, -0.3]} material={ceilingMaterial}>
+        <planeGeometry args={[FLOOR, FLOOR]} />
+      </mesh>
+    </group>
+  );
+}
+
+export function ContextPlanes() {
+  const mounted = useUiStore((s) => s.mounted);
+  const context = useShownContext();
+  const lift = useDisplayLift();
+  const invalidate = useThree((s) => s.invalidate);
+  useLayoutEffect(() => invalidate(), [mounted, context, lift, invalidate]);
+
+  if (!mounted) return <BedGrid />;
+  switch (context?.kind ?? 'ceiling') {
+    case 'ceiling':
+      return (
+        <mesh
+          material={ceilingMaterial}
+          position={[0, 0, (context?.ceilingZ ?? DEFAULT_CEILING) + lift]}
+        >
+          <planeGeometry args={[PLANE, PLANE]} />
+        </mesh>
+      );
+    case 'wall':
+      // A vertical plane y = wallY (planeGeometry lies in XY: turned about x).
+      return (
+        <mesh
+          material={wallMaterial}
+          position={[0, context?.wallY ?? -PLANE / 2, PLANE / 2]}
+          rotation={[Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[PLANE, PLANE]} />
+        </mesh>
+      );
+    case 'floor':
+      return <Floor z={(context?.floorZ ?? 0) + lift} />;
+  }
 }

@@ -5,6 +5,8 @@
  *
  *   node cli/openlamp.ts part shade --bottomDiameter 200 --quality fine -o big.stl
  *   node cli/openlamp.ts part hub --joint thread -o hub.stl
+ *   node cli/openlamp.ts part hub --mount ceilingCord -o hub.stl
+ *   node cli/openlamp.ts part canopy                # a part of a mount, with its defaults
  *   node cli/openlamp.ts project my.lamp.json --out prints/
  *   node cli/openlamp.ts samples            # every src/examples/*.lamp.json → samples/
  *   node cli/openlamp.ts list               # printers, examples, parameters
@@ -18,6 +20,11 @@ import { ZodError, prettifyError } from 'zod';
 import {
   CLASSIC_SHADE_DEFS,
   HUB_JOINT_DEFS,
+  MOUNT_DEFS,
+  MOUNT_DESCRIPTIONS,
+  MOUNT_KINDS,
+  MOUNT_LABELS,
+  MOUNT_MODULES,
   PART_BUILDERS,
   PART_KIND_DESCRIPTIONS,
   PRINTERS,
@@ -26,7 +33,9 @@ import {
   assemble,
   buildPart,
   classicParamsToProject,
+  defaultMount,
   dispose,
+  mountParamPath,
   meshToBinaryStl,
   normalizeClassicShade,
   parseProject,
@@ -34,6 +43,8 @@ import {
   printerLabel,
   type BuildableSpec,
   type Kernel,
+  type MountKind,
+  type ParamDef,
   type PartKind,
   type PartStats,
   type Project,
@@ -59,17 +70,20 @@ Commands:
   part      Build one part from parameters. Kinds: ${Object.keys(PART_BUILDERS).join(', ')}.
             Every classic-shade parameter from \`list\` can be passed as --<param> <value>;
             values are clamped to their range and cross-checked. \`part shade\` is the
-            single-piece (fused) shade unless --joint is given; \`part hub\` is the hub of
-            a two-part lamp. Default output samples/openlamp-<kind>.stl.
+            single-piece (fused) shade unless --joint or --mount is given; \`part hub\` is
+            the hub of a two-part lamp; a mount's own part (e.g. \`part canopy\`) comes with
+            that mount's defaults. Default output samples/openlamp-<kind>.stl.
   project   Build every part of a .lamp.json project at its export quality into
             <dir> (default: the current directory) as openlamp-<project>-<part>.stl.
   samples   Build every example in src/examples into samples/ (git-ignored).
-  list      Show the printers, the examples and the classic-shade parameters.
+  list      Show the part kinds, printers, examples, mounts and every parameter.
 
 Options:
   -o, --out <path>     Output file (part) or directory (project, samples)
   --joint <type>       part: split the lamp into hub + shade with this shade joint
                        (${SHADE_JOINT_TYPES.join(', ')}; hub default bayonet)
+  --mount <kind>       part: the mount, with its defaults (${MOUNT_KINDS.join(', ')});
+                       every mount but the strap splits the lamp
   --quality <q>        Mesh quality: ${QUALITIES.join(', ')} (overrides the project's export quality)
   --json               Print the stats as JSON
   -h, --help           This help
@@ -213,6 +227,17 @@ async function cmdPart(
   if (joint !== undefined && !jointType) {
     throw new UsageError(`Unknown joint "${joint}" (use ${SHADE_JOINT_TYPES.join(', ')})`);
   }
+  const mountFlag = typeof flags.mount === 'string' ? flags.mount : undefined;
+  let mountKind: MountKind | undefined = MOUNT_KINDS.find((m) => m === mountFlag);
+  if (mountFlag !== undefined && !mountKind) {
+    throw new UsageError(`Unknown mount "${mountFlag}" (use ${MOUNT_KINDS.join(', ')})`);
+  }
+  // A mount's own part comes with that mount.
+  const provider = MOUNT_KINDS.find((m) => MOUNT_MODULES[m].partKinds.includes(kind));
+  if (provider && mountKind && mountKind !== provider) {
+    throw new UsageError(`A ${kind} is a part of the ${provider} mount, not of ${mountKind}`);
+  }
+  mountKind ??= provider;
   const input: Record<string, unknown> = {};
   for (const def of CLASSIC_SHADE_DEFS) {
     const v = flags[def.key];
@@ -224,14 +249,23 @@ async function cmdPart(
   // A project holding just these (normalised) parameters, so `assemble` only
   // adds its own warnings; the hub is split off for a hub or a --joint.
   const project = classicParamsToProject(values);
-  const split = kind === 'hub' || jointType !== undefined;
+  if (mountKind && mountKind !== 'ceilingStrap') project.mount = mountWithPart(mountKind, kind);
+  const split =
+    kind !== 'shade' ||
+    jointType !== undefined ||
+    (mountKind !== undefined && mountKind !== 'ceilingStrap');
   project.hub.fused = !split;
   if (jointType) project.joints.shadeToHub = jointType;
   const assembly = assemble(project, { quality: values.quality });
   printWarnings(assembly.warnings);
   const part = assembly.parts.find((p) => p.kind === kind);
-  if (!part)
-    throw new UsageError(`The project has no ${kind} part (fit-test mode keeps only the hub)`);
+  if (!part) {
+    throw new UsageError(
+      provider === undefined && kind !== 'hub' && kind !== 'shade'
+        ? `No mount builds a ${kind} part yet (it arrives with its mount in a later step)`
+        : `The project has no ${kind} part (fit-test mode keeps only the hub)`,
+    );
+  }
   const out = resolve(typeof flags.out === 'string' ? flags.out : `samples/openlamp-${kind}.stl`);
   const header = split ? `openlamp ${part.displayName}` : CLASSIC_STL_HEADER;
   const built = await buildToFile(await getKernel(), part, values.quality, out, header);
@@ -241,6 +275,22 @@ async function cmdPart(
     console.log(summary(built));
   }
   return built.stats.status === 'NoError' ? 0 : 1;
+}
+
+/** A mount of this kind with its defaults, set up to have a part of `kind` (e.g. a collet for the cord grip). */
+function mountWithPart(mount: MountKind, kind: PartKind) {
+  const module = MOUNT_MODULES[mount] as (typeof MOUNT_MODULES)[MountKind];
+  const base = defaultMount(mount);
+  // `withPart` takes the module's own mount variant, which `base` is.
+  const withPart = module.withPart as ((k: PartKind, m: typeof base) => typeof base) | undefined;
+  return withPart ? withPart(kind, base) : base;
+}
+
+/** One `list` line per parameter: key (or project path), default, range, help. */
+function paramLine(p: ParamDef, name: string, help: boolean): string {
+  const range =
+    p.type === 'select' ? p.options.join('|') : `${p.min}..${p.max} ${p.unit ?? ''}`.trim();
+  return `  ${name.padEnd(28)} ${String(p.default).padEnd(8)} ${range}${help && p.help ? `   ${p.help}` : ''}`;
 }
 
 async function cmdProject(
@@ -298,20 +348,21 @@ async function cmdList(): Promise<number> {
     console.log(`  ${relative(EXAMPLES_DIR, file).padEnd(28)} ${project.name}`);
   }
   console.log('\nClassic-shade parameters (part shade|hub --<param> <value>):');
-  for (const p of CLASSIC_SHADE_DEFS) {
-    const range =
-      p.type === 'select' ? p.options.join('|') : `${p.min}..${p.max} ${p.unit ?? ''}`.trim();
-    console.log(
-      `  --${p.key.padEnd(20)} ${String(p.default).padEnd(8)} ${range}${p.help ? `   ${p.help}` : ''}`,
-    );
-  }
+  for (const p of CLASSIC_SHADE_DEFS) console.log(paramLine(p, `--${p.key}`, true));
   console.log(
     '\nHub & joint parameters of a two-part lamp (hub.fused: false; set in the project file):',
   );
-  for (const p of HUB_JOINT_DEFS) {
-    const range =
-      p.type === 'select' ? p.options.join('|') : `${p.min}..${p.max} ${p.unit ?? ''}`.trim();
-    console.log(`  ${p.key.padEnd(22)} ${String(p.default).padEnd(8)} ${range}`);
+  for (const p of HUB_JOINT_DEFS) console.log(paramLine(p, p.key, false));
+  console.log('\nMounts (project.mount.kind; part <kind> --mount <kind>):');
+  for (const kind of MOUNT_KINDS) {
+    const parts = MOUNT_MODULES[kind].partKinds;
+    console.log(
+      `\n  ${kind} – ${MOUNT_LABELS[kind]}${parts.length ? ` (parts: ${parts.join(', ')})` : ''}`,
+    );
+    console.log(`    ${MOUNT_DESCRIPTIONS[kind]}`);
+    for (const p of MOUNT_DEFS[kind]) {
+      console.log(`  ${paramLine(p, mountParamPath(kind, p.key) ?? p.key, false)}`);
+    }
   }
   return 0;
 }
@@ -322,6 +373,7 @@ async function main(argv: string[]): Promise<number> {
   const options = {
     out: { type: 'string', short: 'o' },
     joint: { type: 'string' },
+    mount: { type: 'string' },
     json: { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
     // One string flag per classic-shade parameter (this includes --quality).
@@ -340,7 +392,7 @@ async function main(argv: string[]): Promise<number> {
     return 0;
   }
   if (command !== 'part') {
-    const misplaced = [...CLASSIC_SHADE_DEFS.map((d) => d.key), 'joint'].filter(
+    const misplaced = [...CLASSIC_SHADE_DEFS.map((d) => d.key), 'joint', 'mount'].filter(
       (key) => key !== 'quality' && flags[key] !== undefined,
     );
     if (misplaced.length > 0) {
