@@ -1,11 +1,13 @@
 /**
- * Overlays on the viewport: the build status (top left) and the stats of the
- * selected (else first) part, the bed-fit badge and every warning (bottom left).
+ * Overlays on the viewport: the status line (top left: build status, plus a
+ * short-lived notice such as "Link copied") and the stats of the selected
+ * (else first) part, the bed-fit badge and every warning (bottom left).
  */
 import type { PartStats, Warning } from '@core/model/assembly.ts';
 import { printerLabel } from '@core/schema/printers.ts';
 import { useBuildStore, type PartBuild } from '../store/buildStore.ts';
 import { useAssembly, useBedFit, useSelectedPart, useTotals } from '../store/selectors.ts';
+import { useUiStore } from '../store/uiStore.ts';
 import styles from './StatusPanel.module.css';
 
 /** Overhangs steeper than this (degrees from vertical) may need support. */
@@ -108,16 +110,29 @@ export function StatusPanel() {
   const partWarnings = assembly.parts.flatMap((p) => builds[p.id]?.warnings ?? []);
   const warnings = [...assembly.warnings, ...partWarnings];
   const several = assembly.parts.length > 1;
+  const notice = useUiStore((s) => s.notice);
 
   return (
     <>
-      <div
-        id="status"
-        className={`${styles.status} ${styles[status.tone]}`}
-        role="status"
-        aria-live="polite"
-      >
-        {status.text}
+      <div className={styles.statusLine}>
+        <div
+          id="status"
+          className={`${styles.status} ${styles[status.tone]}`}
+          role="status"
+          aria-live="polite"
+        >
+          {status.text}
+        </div>
+        {notice ? (
+          <div
+            key={notice.id}
+            className={`${styles.notice} ${notice.tone === 'error' ? styles.noticeError : ''}`}
+            role={notice.tone === 'error' ? 'alert' : 'status'}
+            data-testid="notice"
+          >
+            {notice.text}
+          </div>
+        ) : null}
       </div>
       <div id="stats" className={styles.stats}>
         {several && part ? <div className={styles.partName}>{part.displayName}</div> : null}

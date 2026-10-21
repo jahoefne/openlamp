@@ -15,6 +15,16 @@ export interface FitRequest {
   afterBuild: boolean;
 }
 
+/** A short message in the status line ("Link copied"), cleared after a few seconds. */
+export interface Notice {
+  id: number;
+  text: string;
+  tone: 'info' | 'error';
+}
+
+/** How long a notice stays, by tone. */
+export const NOTICE_MS: Readonly<Record<Notice['tone'], number>> = { info: 2000, error: 6000 };
+
 export interface UiState {
   /** Selected part id. */
   selection: string | null;
@@ -37,6 +47,7 @@ export interface UiState {
   panels: Record<PanelId, boolean>;
   /** Ask the camera rig to frame the lamp. */
   fitRequest: FitRequest;
+  notice: Notice | null;
 
   select(id: string | null): void;
   setHover(id: string | null): void;
@@ -50,9 +61,14 @@ export interface UiState {
   setPreviewQuality(quality: Quality | null): void;
   setPanel(panel: PanelId, open: boolean): void;
   requestFit(afterBuild: boolean): void;
+  /** Show a notice in the status line for `NOTICE_MS[tone]`. */
+  notify(text: string, tone?: Notice['tone']): void;
+  dismissNotice(): void;
 }
 
-export const useUiStore = create<UiState>()((set) => ({
+let noticeSeq = 0;
+
+export const useUiStore = create<UiState>()((set, get) => ({
   selection: null,
   hover: null,
   explode: 0,
@@ -64,6 +80,7 @@ export const useUiStore = create<UiState>()((set) => ({
   previewQuality: null,
   panels: { inspector: true, status: true },
   fitRequest: { id: 0, afterBuild: false },
+  notice: null,
 
   select: (selection) => set({ selection }),
   setHover: (hover) => set({ hover }),
@@ -77,4 +94,12 @@ export const useUiStore = create<UiState>()((set) => ({
   setPreviewQuality: (previewQuality) => set({ previewQuality }),
   setPanel: (panel, open) => set((s) => ({ panels: { ...s.panels, [panel]: open } })),
   requestFit: (afterBuild) => set((s) => ({ fitRequest: { id: s.fitRequest.id + 1, afterBuild } })),
+  notify: (text, tone = 'info') => {
+    const id = ++noticeSeq;
+    set({ notice: { id, text, tone } });
+    setTimeout(() => {
+      if (get().notice?.id === id) set({ notice: null });
+    }, NOTICE_MS[tone]);
+  },
+  dismissNotice: () => set({ notice: null }),
 }));
