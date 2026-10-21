@@ -4,9 +4,9 @@ This is the **target architecture** of openlamp: a static (GitHub Pages) generat
 multi-part, 3D-printable lamps with pluggable light sources, several mount types, inner and outer
 shades in different styles, structural parts, printer-aware bed-fit warnings, project files and
 slicer-ready exports. The code is migrating toward it milestone by milestone (see
-[Milestones](#16-milestones)); until M1 lands, the repo is still the vanilla-JS single-shade
-generator described in the [README](../README.md), and the [reuse map](#15-reuse-map) shows where
-each of today's modules ends up. Keep this document in sync when the design changes.
+[Milestones](#16-milestones)). Milestone 1 has landed: the React app, the pure core, the worker
+protocol, project files and share links, tests and the Pages deploy are in place, and the
+[reuse map](#15-reuse-map) records where each of the original modules went. Keep this document in sync when the design changes.
 
 ## Scope
 

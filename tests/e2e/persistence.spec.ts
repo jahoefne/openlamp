@@ -14,8 +14,7 @@ import { expectReady, openApp } from './helpers.ts';
 
 const FULL_FIXTURE = fileURLToPath(new URL('../fixtures/v1-full.lamp.json', import.meta.url));
 
-// enable after M1.5
-test.fixme('an edit is mirrored to the #p= hash and survives a reload', async ({ page }) => {
+test('an edit is mirrored to the #p= hash and survives a reload', async ({ page }) => {
   await openApp(page);
   const hashBefore = new URL(page.url()).hash;
   const input = page.locator('#p-bottomDiameter');
@@ -30,8 +29,7 @@ test.fixme('an edit is mirrored to the #p= hash and survives a reload', async ({
   await expect(input).toHaveValue('200');
 });
 
-// enable after M1.5
-test.fixme('a legacy ?bottomDiameter= link loads and is rewritten to #p=', async ({ page }) => {
+test('a legacy ?bottomDiameter= link loads and is rewritten to #p=', async ({ page }) => {
   await openApp(page, './?bottomDiameter=200&style=smooth');
 
   await expect(page.locator('#p-bottomDiameter')).toHaveValue('200');
@@ -41,8 +39,7 @@ test.fixme('a legacy ?bottomDiameter= link loads and is rewritten to #p=', async
   expect(new URL(page.url()).pathname).toBe('/openlamp/');
 });
 
-// enable after M1.5
-test.fixme('Save downloads the project as a .lamp.json file', async ({ page }) => {
+test('Save downloads the project as a .lamp.json file', async ({ page }) => {
   // Chromium has the File System Access API, whose native save dialog a test
   // cannot drive: hide it so Save takes the download fallback.
   await page.addInitScript(
@@ -67,8 +64,7 @@ test.fixme('Save downloads the project as a .lamp.json file', async ({ page }) =
   expect(saved.shades).toHaveLength(1);
 });
 
-// enable after M1.5
-test.fixme('Open loads a .lamp.json file', async ({ page }) => {
+test('Open loads a .lamp.json file', async ({ page }) => {
   await openApp(page);
 
   await page.getByTestId('open-file').setInputFiles(FULL_FIXTURE);
@@ -81,8 +77,7 @@ test.fixme('Open loads a .lamp.json file', async ({ page }) => {
 test.describe(() => {
   test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
 
-  // enable after M1.5
-  test.fixme('Share copies a link that reopens the project', async ({ page, browser }) => {
+  test('Share copies a link that reopens the project', async ({ page, browser }) => {
     await openApp(page);
     const input = page.locator('#p-bottomDiameter');
     await input.fill('190');
