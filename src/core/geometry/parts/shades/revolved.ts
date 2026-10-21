@@ -26,7 +26,7 @@ import {
   type RZ,
 } from '../../profile.ts';
 import { circularSegments, QUALITY, type Quality } from '../../quality.ts';
-import { radialWarp } from '../../surface.ts';
+import { radialWarp, smoothstep } from '../../surface.ts';
 import { addCollar } from './collar.ts';
 
 const DEG = Math.PI / 180;
@@ -109,6 +109,83 @@ export function deriveRevolvedShade(p: RevolvedShadeParams): RevolvedShadeDerive
 function wallRadius(p: RevolvedShadeParams, d: RevolvedShadeDerived, u: number): number {
   const bulge = p.curve * 0.3 * d.rBot;
   return d.rBot + (d.rTop - d.rBot) * u + bulge * Math.sin(Math.PI * u);
+}
+
+/** How far the surface pattern fades out below the top of the wall, mm (as `buildRevolvedShade`). */
+const fadeTop = (d: RevolvedShadeDerived) => Math.min(15, d.H * 0.25);
+
+/**
+ * How far the surface pattern moves the wall at height `z` of the print
+ * frame: out (`out`, the ribs' crests, the facets' corners) and in (`in`, the
+ * ribs' troughs; facets keep their flats), for a wall of radius `r`.
+ */
+function warpExtent(
+  p: RevolvedShadeParams,
+  d: RevolvedShadeDerived,
+  z: number,
+  r: number,
+): { out: number; in: number } {
+  const { style, ribDepth, patternCount } = p.surface;
+  if (style === 'smooth' || z < 0 || z >= d.H) return { out: 0, in: 0 };
+  const f = fadeTop(d);
+  const a = z > d.H - f ? 1 - smoothstep(d.H - f, d.H, z) : 1;
+  if (style === 'ribbed') return { out: (a * ribDepth) / 2, in: (a * ribDepth) / 2 };
+  const n = Math.max(1, Math.round(patternCount));
+  return { out: a * r * (1 / Math.cos(Math.PI / n) - 1), in: 0 };
+}
+
+/**
+ * The shade's radii at a height of its print frame, for checks that need no
+ * mesh (the clearance between an inner and an outer shade, the bulb's heat
+ * zone). Pure, no WASM. Below the collar plane only (`0 ≤ z < zCollar`):
+ *
+ * - `outerAt(z)`: the outermost surface (the wall with its pattern's crests,
+ *   the shoulder cone, the neck under the seat);
+ * - `innerAt(z)`: where the material starts, seen from the axis (the inner
+ *   wall with its pattern's troughs, the inner cone, the crown's underside,
+ *   the collar's bore).
+ */
+export function revolvedShadeRadii(p: RevolvedShadeParams): {
+  derived: RevolvedShadeDerived;
+  outerAt(z: number): number;
+  innerAt(z: number): number;
+} {
+  const d = deriveRevolvedShade(p);
+  const us = uniformSamples(profileSteps(d.H, QUALITY[p.quality].wallStep));
+  const outerWall = sampleProfile((u) => wallRadius(p, d, u), d.H, us);
+  const { inner } = offsetProfile(outerWall, d.t);
+  /** Linear interpolation of a bottom → top profile at z (clamped to its ends). */
+  const at = (profile: readonly RZ[], z: number): number => {
+    const first = profile[0]!;
+    if (z <= first[1]) return first[0];
+    for (let i = 1; i < profile.length; i++) {
+      const b = profile[i]!;
+      if (z <= b[1]) {
+        const a = profile[i - 1]!;
+        const s = (z - a[1]) / (b[1] - a[1] || 1e-9);
+        return a[0] + (b[0] - a[0]) * s;
+      }
+    }
+    return profile[profile.length - 1]![0];
+  };
+  return {
+    derived: d,
+    outerAt(z) {
+      if (z <= d.H) {
+        const r = at(outerWall, z);
+        return r + warpExtent(p, d, z, r).out;
+      }
+      if (z <= d.zNeck) return (d.kOuter - z) / d.m;
+      return d.rSeat;
+    },
+    innerAt(z) {
+      let r = Math.min(at(inner, z), (d.kInner - z) / d.m);
+      const crown = d.crownK - z;
+      if (crown < d.rSeat) r = Math.min(r, crown);
+      r = Math.max(r, d.rCollarBore);
+      return r - warpExtent(p, d, z, r).in;
+    },
+  };
 }
 
 /** Bed footprint (an upper bound of the bounding box) without building it. Pure, no WASM. */
@@ -201,7 +278,7 @@ export function buildRevolvedShade(
       depth: p.surface.ribDepth,
       twistDeg: p.surface.twist,
       zRange: [0, d.H],
-      fade: { top: Math.min(15, d.H * 0.25) },
+      fade: { top: fadeTop(d) },
     });
     if (warp) body = s.swap(body, body.warp(warp));
 

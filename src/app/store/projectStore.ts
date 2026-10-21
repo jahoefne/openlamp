@@ -19,6 +19,7 @@ import { create, useStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { temporal, type TemporalState } from 'zundo';
 import type { Draft } from 'immer';
+import { withInnerShade, withoutInnerShade } from '@core/assembly/innerShade.ts';
 import { standingDefaults } from '@core/assembly/mounts/standing.ts';
 import type { Quality } from '@core/geometry/quality.ts';
 import { canonicalJson } from '@core/hash.ts';
@@ -34,9 +35,11 @@ import {
   mountParamPath,
   mountToParams,
   projectToClassicParams,
+  shadeParamPath,
   withBulbPreset,
   type MountOf,
   type Project,
+  type ShadeRole,
 } from '@core/model/project.ts';
 import {
   BULB_FITTINGS,
@@ -120,11 +123,26 @@ export interface ProjectState {
    */
   setLightParam(key: string, value: number | string, options?: EditOptions): void;
   /**
+   * Add an inner shade (the outer shade's style scaled to fit inside it,
+   * smooth, white; see `defaultInnerShade`) and turn the single-piece print
+   * off, as one undo step. Nothing happens if there already is one.
+   */
+  addInnerShade(): void;
+  /** Remove the inner shade (one undo step). Nothing happens if there is none. */
+  removeInnerShade(): void;
+  /**
+   * Set one flat parameter (see `SHADE_PARAM_PATHS`) of the outer or the
+   * inner shade; a key that is not a shade parameter, or the inner shade's
+   * when there is none, is ignored.
+   */
+  setShadeParam(role: ShadeRole, key: string, value: number | string, options?: EditOptions): void;
+  /**
    * End a transient edit without a final value (a drag released where it
    * started): one undo step if the project changed, none if it did not.
    */
   endTransient(): void;
-  setShadeColour(colour: Hex): void;
+  /** The colour of the outer shade (default) or of the inner shade (if there is one). */
+  setShadeColour(colour: Hex, role?: ShadeRole): void;
 }
 
 /** What the history stores: just the project. */
@@ -348,6 +366,35 @@ export const useProjectStore = create<ProjectState>()(
           });
         },
 
+        addInnerShade() {
+          const current = get().project;
+          if (current.shades[1]) return;
+          cancelTransient();
+          const next = withInnerShade(current);
+          edit((p) => {
+            p.hub.fused = next.hub.fused;
+            p.shades = next.shades;
+          });
+        },
+
+        removeInnerShade() {
+          const current = get().project;
+          if (!current.shades[1]) return;
+          cancelTransient();
+          const next = withoutInnerShade(current);
+          edit((p) => {
+            p.shades = next.shades;
+          });
+        },
+
+        setShadeParam(role, key, value, options = {}) {
+          const path = shadeParamPath(role, key);
+          if (path === undefined || (role === 'inner' && !get().project.shades[1])) return;
+          editParam(options, (_current, draft) => {
+            setAtPath(draft.project, path, value);
+          });
+        },
+
         endTransient() {
           if (!dragOrigin) return;
           resumeHistory();
@@ -356,9 +403,11 @@ export const useProjectStore = create<ProjectState>()(
           dragOrigin = null;
         },
 
-        setShadeColour(colour) {
+        setShadeColour(colour, role = 'outer') {
+          if (role === 'inner' && !get().project.shades[1]) return;
           edit((p) => {
-            p.shades[0].colour = colour;
+            const shade = role === 'inner' ? p.shades[1] : p.shades[0];
+            if (shade) shade.colour = colour;
           });
         },
       };

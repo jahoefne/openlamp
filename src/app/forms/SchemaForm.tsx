@@ -21,6 +21,8 @@ export interface SchemaFormProps {
   onEnd(): void;
   /** Hand-made rows at the top of a group's fieldset (a toggle, say); the group shows whenever it has some. */
   lead?: ((groupId: string) => ReactNode) | undefined;
+  /** Prefix of the fields' element ids (default `p-`), so two forms of the same keys can coexist. */
+  idPrefix?: string | undefined;
 }
 
 const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -38,6 +40,7 @@ export function SchemaForm({
   onCommit,
   onEnd,
   lead,
+  idPrefix = 'p-',
 }: SchemaFormProps) {
   return groups.map((group) => {
     const visible = group.params.filter((def) => isParamVisible(def, values));
@@ -51,7 +54,7 @@ export function SchemaForm({
           def.type === 'select' ? (
             <SelectField
               key={def.key}
-              id={`p-${def.key}`}
+              id={`${idPrefix}${def.key}`}
               label={def.label}
               value={String(values[def.key])}
               options={def.options}
@@ -64,6 +67,7 @@ export function SchemaForm({
             <NumberField
               key={def.key}
               def={def}
+              idPrefix={idPrefix}
               value={Number(values[def.key])}
               warnings={warningsFor?.(def.key)}
               onTransient={(v) => onTransient(def.key, v)}

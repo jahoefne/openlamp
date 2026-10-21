@@ -34,9 +34,10 @@ function describe(p: Project): { dims: string; style: string } {
   const curve = s.curve > 0 ? 'bell' : s.curve < 0 ? 'trumpet' : 'straight';
   const mount =
     p.mount.kind === 'ceilingStrap' ? '' : ` · ${MOUNT_LABELS[p.mount.kind].toLowerCase()}`;
+  const inner = p.shades[1] ? ' · inner shade' : '';
   return {
     dims: `Ø${s.bottomDiameter} → Ø${s.topDiameter} mm · ${s.height} mm wall`,
-    style: `${curve} profile · ${pattern}${mount}`,
+    style: `${curve} profile · ${pattern}${inner}${mount}`,
   };
 }
 

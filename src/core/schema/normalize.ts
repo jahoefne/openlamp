@@ -14,9 +14,11 @@ import {
   MOUNT_DEFAULTS,
   MOUNT_DEFS,
   MOUNT_PARAM_PATHS,
+  SHADE_DEFS,
   type ClassicShadeKey,
   type ClassicShadeParams,
   type FlatLightKind,
+  type FlatShadeParams,
   type HubJointKey,
   type HubJointParams,
   type LightParamsByKind,
@@ -130,6 +132,20 @@ export function normalizeClassicShade(
     out.strapWidth = w;
   }
   return { values: out, warnings };
+}
+
+/**
+ * Clamp one shade's flat parameters (shape and surface, see `SHADE_DEFS`) to
+ * their definitions: the inner shade's, whose cross-parameter rules (the top
+ * wide enough for its collar) are the assembler's. Warnings carry the flat key.
+ */
+export function normalizeShadeParams(input: Readonly<Partial<Record<string, unknown>>> = {}): {
+  values: FlatShadeParams;
+  warnings: Warning[];
+} {
+  const clamped = clampToSchema(SHADE_DEFS, input);
+  // As in normalizeClassicShade: every key filled with a value of its definition's type.
+  return { values: clamped.values as FlatShadeParams, warnings: clamped.warnings };
 }
 
 /** The largest thread depth per pitch that leaves a crest and a root (see joints/thread.ts). */

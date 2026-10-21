@@ -6,6 +6,13 @@
  *   light ──► envelope.rCore ──► collar Ø = 2·(rCore + 1.5) ──► JointInterface
  *                                     │                          ├─► hub ring
  *                                     └─► seat radius ───────────┴─► shade collar + seat
+ *
+ * With an inner shade the hub has two concentric collar rings: the inner
+ * shade takes the collar the light asks for (`D_in`), the outer shade's
+ * collar moves out to `D_out = D_in + 2·(collarWall + depth + radialGap)`, so
+ * `radialGap` is the air between the two rings (and between the inner
+ * shade's collar and the outer shade's collar bore). Each shade has its own
+ * joint (`shadeToHub`, `innerShadeToHub`), both copied into the hub's params.
  */
 import { M3 } from '../geometry/joints/screw.ts';
 import type { JointInterface, Warning } from '../model/assembly.ts';
@@ -33,6 +40,13 @@ export const SNAP_RIBS = 3;
 
 /** The id of the outer shade's joint in `Assembly.interfaces`. */
 export const SHADE_JOINT_ID = 'shadeToHub';
+/** The id of the inner shade's joint in `Assembly.interfaces`. */
+export const INNER_SHADE_JOINT_ID = 'innerShadeToHub';
+/**
+ * Least air between the hub's inner collar ring and the outer shade's collar
+ * bore, mm: `hub.radialGap` is raised to `collarWall + tolerance + this`.
+ */
+export const MIN_COLLAR_AIR = 2;
 
 const mm = (n: number) => (Math.round(n * 100) / 100).toString();
 
@@ -81,6 +95,17 @@ export interface ShadeJointResolution {
   warnings: Warning[];
 }
 
+export interface ShadeJointOptions {
+  /** The joint's id in `Assembly.interfaces` (default `shadeToHub`). */
+  id?: string;
+  /** The smallest collar Ø (default `2·(rCore + 1.5)`, what the light asks for). */
+  autoDiameter?: number;
+  /** Who asks for `autoDiameter`, for the warning about a smaller `collarDiameter`. */
+  reason?: string;
+  /** Project path of the shade's `collarDiameter` (default `shades.0.collarDiameter`). */
+  collarPath?: string;
+}
+
 /**
  * The shade ↔ hub joint of type `joints.shadeToHub`: male = the shade, female
  * = the hub, collar Ø from the light envelope (or the shade's larger
@@ -96,9 +121,10 @@ export function resolveShadeJoint(
   shade: Pick<ShadeSpec, 'collarDiameter'>,
   ids: { male: string; female: string },
   nozzle = 0.4,
+  options: ShadeJointOptions = {},
 ): ShadeJointResolution {
   const warnings: Warning[] = [];
-  const auto = autoCollarDiameter(envelope);
+  const auto = options.autoDiameter ?? autoCollarDiameter(envelope);
   let nominalDiameter = auto;
   if (shade.collarDiameter !== undefined) {
     if (shade.collarDiameter >= auto) {
@@ -107,14 +133,14 @@ export function resolveShadeJoint(
       warnings.push({
         severity: 'warning',
         code: 'adjusted',
-        paramPath: 'shades.0.collarDiameter',
+        paramPath: options.collarPath ?? 'shades.0.collarDiameter',
         partId: ids.male,
-        message: `collarDiameter ${mm(shade.collarDiameter)} mm is smaller than the ${mm(auto)} mm the light needs; using ${mm(auto)} mm`,
+        message: `collarDiameter ${mm(shade.collarDiameter)} mm is smaller than the ${mm(auto)} mm ${options.reason ?? 'the light needs'}; using ${mm(auto)} mm`,
       });
     }
   }
   const base = {
-    id: SHADE_JOINT_ID,
+    id: options.id ?? SHADE_JOINT_ID,
     nominalDiameter,
     length: COLLAR_JOINT_LENGTH,
     male: ids.male,
@@ -177,6 +203,91 @@ export function resolveShadeJoint(
     );
   }
   return { iface, collar, warnings };
+}
+
+export interface ShadeJointsResolution {
+  /** The outer shade's joint (`shadeToHub`). */
+  outer: ShadeJointResolution;
+  /** The inner shade's joint (`innerShadeToHub`), if there is an inner shade. */
+  inner?: ShadeJointResolution;
+  /** With an inner shade: the air between the two collar rings actually used (`radialGap`, raised if needed). */
+  radialGap?: number;
+  warnings: Warning[];
+}
+
+/**
+ * The shade joints of the lamp: the outer shade's alone (exactly
+ * `resolveShadeJoint`), or, with an inner shade, the inner one at the collar
+ * the light asks for and the outer one `radialGap` of air outside its ring:
+ * `D_out = D_in + 2·(collarWall + depth + radialGap)` (depth = lug or thread
+ * depth, 0 for the press fit). A `radialGap` that would bring the outer
+ * collar's bore closer than `MIN_COLLAR_AIR` to the inner ring is raised (a
+ * warning). Either shade's `collarDiameter` may only enlarge its collar.
+ */
+export function resolveShadeJoints(
+  joints: Joints,
+  hub: Pick<Hub, 'collarWall' | 'radialGap'>,
+  envelope: LightEnvelope,
+  shades: {
+    outer: Pick<ShadeSpec, 'collarDiameter'>;
+    inner?: Pick<ShadeSpec, 'collarDiameter'> | undefined;
+  },
+  ids: { outer: string; inner: string; female: string },
+  nozzle = 0.4,
+): ShadeJointsResolution {
+  if (!shades.inner) {
+    const outer = resolveShadeJoint(
+      joints,
+      hub,
+      envelope,
+      shades.outer,
+      { male: ids.outer, female: ids.female },
+      nozzle,
+    );
+    return { outer, warnings: [...outer.warnings] };
+  }
+  const inner = resolveShadeJoint(
+    joints,
+    hub,
+    envelope,
+    shades.inner,
+    { male: ids.inner, female: ids.female },
+    nozzle,
+    { id: INNER_SHADE_JOINT_ID, collarPath: 'shades.1.collarDiameter' },
+  );
+  const warnings = [...inner.warnings];
+  const depth = jointRadialDepth(inner.iface);
+  const minGap = Math.ceil((hub.collarWall + inner.iface.tolerance + MIN_COLLAR_AIR) * 10) / 10;
+  let radialGap = hub.radialGap;
+  if (radialGap < minGap) {
+    warnings.push({
+      severity: 'warning',
+      code: 'adjusted',
+      paramPath: 'hub.radialGap',
+      partId: ids.female,
+      message: `radialGap raised to ${mm(minGap)} mm so the outer shade's collar keeps ${MIN_COLLAR_AIR} mm away from the inner collar ring`,
+    });
+    radialGap = minGap;
+  }
+  const outer = resolveShadeJoint(
+    joints,
+    hub,
+    envelope,
+    shades.outer,
+    { male: ids.outer, female: ids.female },
+    nozzle,
+    {
+      autoDiameter: inner.iface.nominalDiameter + 2 * (hub.collarWall + depth + radialGap),
+      reason: "the inner shade's collar ring needs",
+    },
+  );
+  // Both joints share the type and its settings: report each joint check once.
+  for (const w of outer.warnings) {
+    if (!warnings.some((x) => x.message === w.message && x.paramPath === w.paramPath)) {
+      warnings.push(w);
+    }
+  }
+  return { outer, inner, radialGap, warnings };
 }
 
 /**

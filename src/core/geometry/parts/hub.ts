@@ -11,6 +11,11 @@
  *            ║ ring        ║   0 … L: the female ring of the shade joint
  *   z 0 ─────╨─────────────╨── collar plane: the shade's seat touches it
  *
+ * With an inner shade a second, concentric ring (`innerCollar`, the female
+ * side of `innerJoint`) stands inside the outer one, `radialGap` of air
+ * between them (the outer shade's collar sits in that gap); it rises from the
+ * light face until it meets the hub's shoulder (a strip hub's flange).
+ *
  * Revolve of the profile (2D booleans, so no special cases), union of the mount
  * face's features, difference of the light insert's cutters and of the joint's
  * female cutters. Part kind `hub`.
@@ -42,7 +47,14 @@ import type {
   StripInsert,
 } from '../../model/parts.ts';
 import { collarJoint } from '../joints/index.ts';
-import { scoped, type Kernel, type Manifold, type Vec2 } from '../kernel.ts';
+import {
+  scoped,
+  type CrossSection,
+  type Kernel,
+  type Manifold,
+  type Scope,
+  type Vec2,
+} from '../kernel.ts';
 import { QUALITY, type Quality } from '../quality.ts';
 import {
   M10_NUT_RECESS,
@@ -88,9 +100,12 @@ export type HubDerived = {
   /** The light opening (puck), the lampholder's hole (bulb), the pocket's opening (strip). */
   rHole: number;
   pocketDepth: number;
-  /** The ring's bore and outer radius. */
+  /** The (outer) ring's bore and outer radius. */
   collarInnerRadius: number;
   ringOuterRadius: number;
+  /** With an inner shade: the inner ring's bore and outer radius. */
+  innerCollarInnerRadius?: number;
+  innerRingOuterRadius?: number;
   /** Height of the ring (the joint length). */
   ringHeight: number;
   /** Shoulder cone slope dz/dr; outer cone z = kOuter − m·r, inner z = kInner − m·r. */
@@ -134,6 +149,19 @@ export type HubDerived = {
 
 export interface HubStats extends GeometryStats {
   derived: HubDerived;
+}
+
+/** The inner ring's bore and outer radius (an inner shade only). */
+function innerRing(
+  p: HubParams,
+): Pick<HubDerived, 'innerCollarInnerRadius' | 'innerRingOuterRadius'> {
+  const c = p.innerCollar;
+  return c ? { innerCollarInnerRadius: c.ringInnerRadius, innerRingOuterRadius: c.seatRadius } : {};
+}
+
+/** The bore of the innermost ring (the light's room: the inner ring's with an inner shade). */
+function innermostBore(p: HubParams): number {
+  return (p.innerCollar ?? p.collar).ringInnerRadius;
 }
 
 /** All derived dimensions. Pure, no WASM. */
@@ -194,6 +222,7 @@ function derivePuckHub(p: HubParams, insert: PuckInsert): HubDerived {
     pocketDepth,
     collarInnerRadius: p.collar.ringInnerRadius,
     ringOuterRadius: rRingOut,
+    ...innerRing(p),
     ringHeight: L,
     m,
     kOuter,
@@ -241,6 +270,7 @@ function deriveBulbHub(p: HubParams, insert: BulbInsert): HubDerived {
     pocketDepth: zTop - zFloor,
     collarInnerRadius,
     ringOuterRadius: rRingOut,
+    ...innerRing(p),
     ringHeight: L,
     m,
     kOuter,
@@ -255,8 +285,8 @@ function deriveBulbHub(p: HubParams, insert: BulbInsert): HubDerived {
     rSkirt: rBoss,
     // The skirt's inside rises at 45° to the hole; it starts at the bed when the hole is small.
     rSkirtInner: Math.min(rPocket, rHole + zPlate),
-    // Midway between the skirt and the ring's bore, inside the air annulus.
-    rVent: (rBoss + collarInnerRadius) / 2,
+    // Midway between the skirt and the (innermost) ring's bore, inside the air annulus.
+    rVent: (rBoss + innermostBore(p)) / 2,
     ventCount: insert.vents,
   };
 }
@@ -274,7 +304,8 @@ function deriveStripHub(p: HubParams, insert: StripInsert): HubDerived {
   const m = Math.tan(p.shoulderAngle * DEG);
   const kOuter = L + m * rRingOut;
   const kInner = kOuter - p.wallThickness * Math.sqrt(1 + m * m);
-  const rDisc = p.collar.radius - p.collar.wall - STRIP_DISC_GAP;
+  const innermost = p.innerCollar ?? p.collar;
+  const rDisc = innermost.radius - innermost.wall - STRIP_DISC_GAP;
   const rChannelInner = insert.ringDiameter / 2;
   const zChannel = insert.channelDepth;
   const discThickness = zChannel + t;
@@ -304,6 +335,7 @@ function deriveStripHub(p: HubParams, insert: StripInsert): HubDerived {
     pocketDepth: zTop,
     collarInnerRadius: p.collar.ringInnerRadius,
     ringOuterRadius: rRingOut,
+    ...innerRing(p),
     ringHeight: L,
     m,
     kOuter,
@@ -336,6 +368,40 @@ export function hubFootprint(p: HubParams): Footprint {
     y = Math.max(y, loops.y);
   }
   return { x: 2 * x, y: 2 * y, z: d.hubHeight };
+}
+
+/**
+ * The inner collar ring's section (an inner shade only, else null): from its
+ * bore (less the joint's inset) to its outer radius, from below the light face
+ * up past everything; the caller intersects it with the hub's envelope, so it
+ * rises until it meets the shoulder. Owned by `s`.
+ */
+function innerRingSection(k: Kernel, s: Scope, d: HubDerived, inset: number): CrossSection | null {
+  const rIn = d.innerCollarInnerRadius;
+  const rOut = d.innerRingOuterRadius;
+  if (rIn === undefined || rOut === undefined) return null;
+  const r0 = rIn - inset;
+  return s.add(s.add(k.CrossSection.square([rOut - r0, FAR + 1], false)).translate([r0, -1]));
+}
+
+/**
+ * `body` with the inner collar ring (`ring ∩ outer`, see `innerRingSection`)
+ * and `cavity` without it; both unchanged without an inner shade. Owned by `s`.
+ */
+function withInnerRing(
+  k: Kernel,
+  s: Scope,
+  ring: CrossSection | null,
+  outer: CrossSection,
+  body: CrossSection,
+  cavity: CrossSection,
+): { body: CrossSection; cavity: CrossSection } {
+  if (!ring) return { body, cavity };
+  const { CrossSection } = k;
+  return {
+    body: s.add(CrossSection.union(body, s.add(CrossSection.intersection(ring, outer)))),
+    cavity: s.add(CrossSection.difference(cavity, ring)),
+  };
 }
 
 /**
@@ -380,10 +446,15 @@ function hubProfile(
     const cavity = s.add(
       CrossSection.union(s.add(CrossSection.intersection(bore, underCone)), collarRoom),
     );
-    return {
-      body: s.add(CrossSection.difference(outer, cavity)).toPolygons(),
-      cavity: cavity.toPolygons(),
-    };
+    const out = withInnerRing(
+      k,
+      s,
+      innerRingSection(k, s, d, inset),
+      outer,
+      s.add(CrossSection.difference(outer, cavity)),
+      cavity,
+    );
+    return { body: out.body.toPolygons(), cavity: out.cavity.toPolygons() };
   });
 }
 
@@ -441,7 +512,36 @@ export function buildHub(
   });
 }
 
-/** The female cutters of the shade joint in the hub's ring. The caller owns the results. */
+/**
+ * The female cutters of one collar joint in its ring. A thread's cutters are
+ * solids from the axis out (the cam and the countersink); they are trimmed to
+ * an annulus 1.5 mm inside the ring's bore, so they cut only the ring (not an
+ * inner ring, a bulb's skirt or a strip's disc). The caller owns the results.
+ */
+function collarCutters(
+  k: Kernel,
+  joint: HubParams['joint'],
+  rCollar: number,
+  d: HubDerived,
+  segs: number,
+  quality: Quality,
+): Manifold[] {
+  const jointCtx = { rCollar, z: [0, d.ringHeight] as const, segs, quality };
+  const cutters = collarJoint(joint.type).femaleCutters(k, joint, jointCtx);
+  if (joint.type !== 'thread') return cutters;
+  return scoped(k, (s) => {
+    const owned = cutters.map((c) => s.add(c));
+    const r = rCollar + joint.tolerance - 1.5;
+    const h = d.ringHeight + 20;
+    const core = s.add(s.add(k.Manifold.cylinder(h, r, r, segs)).translate([0, 0, -10]));
+    return owned.map((c) => s.keep(s.add(k.Manifold.difference(c, core))));
+  });
+}
+
+/**
+ * The female cutters of the shade joints in the hub's rings: the (outer)
+ * shade's, and the inner shade's in the inner ring. The caller owns the results.
+ */
 function ringCutters(
   k: Kernel,
   p: HubParams,
@@ -449,13 +549,9 @@ function ringCutters(
   segs: number,
   quality: Quality,
 ): Manifold[] {
-  const jointCtx = {
-    rCollar: p.collar.radius,
-    z: [0, d.ringHeight] as const,
-    segs,
-    quality,
-  };
-  return collarJoint(p.joint.type).femaleCutters(k, p.joint, jointCtx);
+  const outer = collarCutters(k, p.joint, p.collar.radius, d, segs, quality);
+  if (!p.innerCollar || !p.innerJoint) return outer;
+  return [...outer, ...collarCutters(k, p.innerJoint, p.innerCollar.radius, d, segs, quality)];
 }
 
 /** The hub under the strap: flat top, belt loops, the puck drops in from the top. The caller owns the result. */
@@ -595,10 +691,15 @@ function bulbProfile(
       );
     }
     const cut = s.add(CrossSection.union([annulus, skirtInside, hole, chamber]));
-    return {
-      body: s.add(CrossSection.difference(outer, cut)).toPolygons(),
-      cavity: annulus.toPolygons(),
-    };
+    const out = withInnerRing(
+      k,
+      s,
+      innerRingSection(k, s, d, inset),
+      outer,
+      s.add(CrossSection.difference(outer, cut)),
+      annulus,
+    );
+    return { body: out.body.toPolygons(), cavity: out.cavity.toPolygons() };
   });
 }
 
@@ -698,10 +799,13 @@ function stripProfile(k: Kernel, d: HubDerived, inset: number, top: readonly Vec
         ],
       ]),
     );
+    // The collar's slot to the (outer) ring; an inner ring stands in it, hanging from the flange.
     const slot = rect(rDisc, d.collarInnerRadius - inset, -1, L + HUB_COLLAR_HEADROOM);
     const channel = rect(d.rChannelInner ?? 0, d.rChannelOuter ?? 0, -1, d.zChannel ?? 0);
     const cut = s.add(CrossSection.union(slot, channel));
-    return s.add(CrossSection.difference(outer, cut)).toPolygons();
+    const ring = innerRingSection(k, s, d, inset);
+    const out = withInnerRing(k, s, ring, outer, s.add(CrossSection.difference(outer, cut)), cut);
+    return out.body.toPolygons();
   });
 }
 

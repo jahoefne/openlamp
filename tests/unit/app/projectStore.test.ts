@@ -281,3 +281,61 @@ describe('mounts', () => {
     expect(height()).toBe(140);
   });
 });
+
+describe('the inner shade', () => {
+  const inner = () => project().shades[1];
+
+  it('is added with a separate hub and removed again, one undo step each', () => {
+    expect(project().hub.fused).toBe(true);
+    store().addInnerShade();
+    expect(inner()).toMatchObject({ role: 'inner', colour: '#ffffff' });
+    expect(inner()!.style.surface.style).toBe('smooth');
+    expect(project().hub.fused).toBe(false);
+    expect(steps()).toBe(1);
+    store().addInnerShade(); // already there: nothing happens
+    expect(steps()).toBe(1);
+
+    pause();
+    store().removeInnerShade();
+    expect(project().shades).toHaveLength(1);
+    expect(steps()).toBe(2);
+    undo();
+    expect(inner()).toBeDefined();
+    undo();
+    expect(inner()).toBeUndefined();
+    expect(project().hub.fused).toBe(true);
+  });
+
+  it('edits either shade by its flat keys and keeps the inner one through outer edits', () => {
+    const revision = project().revision;
+    store().setShadeParam('inner', 'height', 80); // no inner shade yet: ignored
+    expect(project().revision).toBe(revision);
+    store().addInnerShade();
+    pause();
+    store().setShadeParam('inner', 'height', 80);
+    store().setShadeParam('inner', 'style', 'faceted');
+    store().setShadeParam('inner', 'nope', 1); // not a shade key: ignored
+    expect(inner()!.style.height).toBe(80);
+    expect(inner()!.style.surface.style).toBe('faceted');
+    pause();
+    store().setShadeParam('outer', 'bottomDiameter', 200);
+    store().setClassicParam('height', 140);
+    expect(project().shades[0].style).toMatchObject({ bottomDiameter: 200, height: 140 });
+    expect(inner()!.style.height).toBe(80);
+    store().setShadeColour('#123456', 'inner');
+    expect(inner()!.colour).toBe('#123456');
+    expect(project().shades[0].colour).toBe('#f4efe6');
+  });
+
+  it('makes a drag of an inner shade slider one undo step', () => {
+    store().addInnerShade();
+    pause();
+    const before = inner()!.style.height;
+    for (const h of [100, 102, 104])
+      store().setShadeParam('inner', 'height', h, { transient: true });
+    store().setShadeParam('inner', 'height', 105);
+    expect(steps()).toBe(2);
+    undo();
+    expect(inner()!.style.height).toBe(before);
+  });
+});

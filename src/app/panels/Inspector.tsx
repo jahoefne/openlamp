@@ -1,9 +1,9 @@
 /**
- * The left sidebar: the shade's parameters (from the core schema), the light
- * (which one, and its parameters), the mount (which one, and its
- * parameters), the hub & joint of a two-part lamp, output and colour options,
- * view options and reset. (M2.5 adds the LampTree and one inspector per
- * selected part.)
+ * The left sidebar: the shade's parameters (from the core schema), the inner
+ * shade (add / remove, its own shape, surface and colour), the light (which
+ * one, and its parameters), the mount (which one, and its parameters), the
+ * hub & joint of a two-part lamp, output and colour options, view options and
+ * reset. (M2.5 adds the LampTree and one inspector per selected part.)
  */
 import { QUALITIES, type Quality } from '@core/geometry/quality.ts';
 import type { Warning } from '@core/model/assembly.ts';
@@ -18,11 +18,12 @@ import {
   mountToParams,
   projectToClassicParams,
   projectToHubParams,
+  shadeParamPath,
+  shadeToParams,
   type LightOf,
 } from '@core/model/project.ts';
 import {
   CLASSIC_SHADE_DEFS,
-  CLASSIC_SHADE_GROUPS,
   HUB_JOINT_GROUPS,
   LIGHT_CHOICES,
   LIGHT_CHOICE_DESCRIPTIONS,
@@ -32,6 +33,7 @@ import {
   MOUNT_GROUPS,
   MOUNT_KINDS,
   MOUNT_LABELS,
+  SHADE_GROUPS,
   type ClassicShadeKey,
   type ClassicShadeParams,
   type FlatLightKind,
@@ -50,6 +52,7 @@ import {
   editTransient,
   endEdit,
   hubEdits,
+  innerShadeEdits,
   lightEdits,
   mountEdits,
 } from '../forms/editSession.ts';
@@ -61,13 +64,21 @@ import { useUiStore, type SectionAxis } from '../store/uiStore.ts';
 import styles from './Inspector.module.css';
 
 /**
- * The "Output" group is rendered by hand (quality is per use, fit test is a
- * toggle), the puck's "kit" group with the other lights, the strap's "mount"
- * group with the other mounts.
+ * The shade's form is the classic shade's shape and surface groups
+ * (`SHADE_GROUPS`); its "Output" group is rendered by hand (quality is per
+ * use, fit test is a toggle), the puck's "kit" group with the other lights,
+ * the strap's "mount" group with the other mounts. The inner shade has the
+ * same groups under its own legends.
  */
-const SHADE_GROUPS = CLASSIC_SHADE_GROUPS.filter(
-  (g) => g.id !== 'output' && g.id !== 'mount' && g.id !== 'kit',
-);
+const INNER_GROUP_LABELS: Readonly<Record<string, string>> = {
+  shape: 'Inner shade shape',
+  style: 'Inner shade surface',
+};
+const INNER_SHADE_GROUPS: readonly ParamGroup[] = SHADE_GROUPS.map((g) => ({
+  ...g,
+  id: `inner-${g.id}`,
+  label: INNER_GROUP_LABELS[g.id] ?? `Inner shade · ${g.label}`,
+}));
 const isMountKind = (k: string): k is MountKind => (MOUNT_KINDS as readonly string[]).includes(k);
 const isLightChoice = (c: string): c is LightChoice =>
   (LIGHT_CHOICES as readonly string[]).includes(c);
@@ -112,6 +123,57 @@ function ClassicForm({ groups }: { groups: readonly ParamGroup[] }) {
 
 function ShadeForm() {
   return <ClassicForm groups={SHADE_GROUPS} />;
+}
+
+/**
+ * The inner shade: add or remove it (one undo step each; adding one turns
+ * the single-piece print off), and its own shape, surface and colour.
+ */
+function InnerShadeForm() {
+  const inner = useProjectStore((s) => s.project.shades[1]);
+  const values = useMemo(() => (inner ? shadeToParams(inner) : undefined), [inner]);
+  const byPath = useWarningsByPath();
+  const warningsFor = (key: string) => byPath.get(shadeParamPath('inner', key) ?? '') ?? [];
+  const toggle = () => {
+    const store = useProjectStore.getState();
+    if (inner) store.removeInnerShade();
+    else store.addInnerShade();
+    useUiStore.getState().requestFit(true); // the lamp changes shape: frame it once built
+  };
+  return (
+    <>
+      <fieldset>
+        <legend>Inner shade</legend>
+        <p className={styles.hint}>
+          {inner
+            ? 'A second shade hangs inside the outer one from its own collar ring on the hub.'
+            : 'Hang a second shade inside the outer one, in its own colour (the hub prints separately).'}
+        </p>
+        <button type="button" onClick={toggle}>
+          {inner ? 'Remove inner shade' : 'Add inner shade'}
+        </button>
+        {inner ? (
+          <ColourField
+            id="p-inner-colour"
+            label="Inner shade colour"
+            value={inner.colour}
+            onChange={(c) => useProjectStore.getState().setShadeColour(c, 'inner')}
+          />
+        ) : null}
+      </fieldset>
+      {values ? (
+        <SchemaForm
+          groups={INNER_SHADE_GROUPS}
+          values={values}
+          idPrefix="p-inner-"
+          warningsFor={warningsFor}
+          onTransient={(key, v) => innerShadeEdits.transient(key, v)}
+          onCommit={(key, v) => innerShadeEdits.commit(key, v)}
+          onEnd={innerShadeEdits.end}
+        />
+      ) : null}
+    </>
+  );
 }
 
 /** A bulb's or a strip's parameters (flat keys, see `LIGHT_PARAM_PATHS`). */
@@ -218,9 +280,10 @@ function HubJointForm() {
   const puck = project.light.kind === 'puck';
   const fused = strap && puck && project.hub.fused;
   const lightKind = project.light.kind;
+  const innerShade = project.shades.length > 1;
   const values = useMemo(
-    () => ({ ...projectToHubParams(project), fused, lightKind }),
-    [project, fused, lightKind],
+    () => ({ ...projectToHubParams(project), fused, lightKind, innerShade }),
+    [project, fused, lightKind, innerShade],
   );
   const byPath = useWarningsByPath();
   const warningsFor = (key: string) => byPath.get(HUB_PARAM_PATHS[asHubKey(key)]) ?? [];
@@ -260,6 +323,7 @@ function OutputOptions() {
   const quality = useProjectStore((s) => s.project.quality);
   const fitTest = useProjectStore((s) => s.project.fitTest);
   const colour = useProjectStore((s) => s.project.shades[0].colour);
+  const inner = useProjectStore((s) => s.project.shades.length > 1);
   const { setQuality, setFitTest, setShadeColour } = useProjectStore.getState();
   return (
     <fieldset>
@@ -287,7 +351,12 @@ function OutputOptions() {
         help={defOf('fitTest')?.help}
         onChange={setFitTest}
       />
-      <ColourField id="p-colour" label="Shade colour" value={colour} onChange={setShadeColour} />
+      <ColourField
+        id="p-colour"
+        label={inner ? 'Outer shade colour' : 'Shade colour'}
+        value={colour}
+        onChange={(c) => setShadeColour(c)}
+      />
     </fieldset>
   );
 }
@@ -358,6 +427,7 @@ export function Inspector() {
       </header>
       <form autoComplete="off" onSubmit={(e) => e.preventDefault()}>
         <ShadeForm />
+        <InnerShadeForm />
         <LightForm />
         <MountForm />
         <HubJointForm />

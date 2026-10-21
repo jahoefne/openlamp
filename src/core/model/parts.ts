@@ -198,9 +198,17 @@ export interface HubParams {
   wallThickness: Mm;
   /** Slope of the hub's shoulder cone from horizontal (≥ 45° prints without support). */
   shoulderAngle: Deg;
+  /** The (outer) shade's collar and the hub ring around it. */
   collar: CollarDims;
-  /** The shade joint; the hub is its female side. */
+  /** The (outer) shade's joint; the hub is its female side. */
   joint: JointInterface;
+  /**
+   * With an inner shade: its collar and the second hub ring around it,
+   * concentric inside the outer one (`hub.radialGap` of air between them).
+   */
+  innerCollar?: CollarDims;
+  /** With an inner shade: its joint (same type as `joint`); the hub is its female side. */
+  innerJoint?: JointInterface;
   quality: Quality;
 }
 

@@ -20,6 +20,8 @@ import styles from './fields.module.css';
 
 export interface NumberFieldProps {
   def: NumberParamDef;
+  /** Prefix of the input's element id (default `p-`). */
+  idPrefix?: string | undefined;
   value: number;
   warnings?: readonly Warning[] | undefined;
   onTransient(value: number): void;
@@ -30,13 +32,14 @@ export interface NumberFieldProps {
 
 export function NumberField({
   def,
+  idPrefix = 'p-',
   value,
   warnings,
   onTransient,
   onCommit,
   onEnd,
 }: NumberFieldProps) {
-  const id = `p-${def.key}`;
+  const id = `${idPrefix}${def.key}`;
   const [draft, setDraft] = useState<string | null>(null);
   const pointerDown = useRef(false);
   const dragging = useRef(false);
