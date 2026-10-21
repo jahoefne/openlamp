@@ -40,8 +40,8 @@ export interface Warning {
 
 /**
  * Part kinds with a builder (tiers and spacers join with the shade families of
- * M3). `stem`, `base`, `baseLid`, `wallPlate` and `wallArm` are registered but
- * their builders arrive in M2.2b.
+ * M3): the hub and the shade, the pendant's canopy and cord grip, the standing
+ * lamp's stem, base and base lid, the wall lamp's wall plate and arm.
  */
 export type PartKind =
   'hub' | 'shade' | 'canopy' | 'cordGrip' | 'stem' | 'base' | 'baseLid' | 'wallPlate' | 'wallArm';
@@ -255,7 +255,8 @@ export interface Assembly {
    * `ceilingZ` + `ceilingGap` (the ceiling: for the strap the hub's mount face
    * plus the strap's gap, for the cord the ceiling itself with a gap of 0),
    * `bottomZ` (the lowest point of the lamp), `puckZ` / `puckDiameter` /
-   * `puckHeight` (the light in its pocket), the strap's `strapWidth` /
+   * `puckHeight` (the light in its pocket; a bulb's or strip's numbers instead,
+   * see `lightDerived` in assembly/lights), the strap's `strapWidth` /
    * `strapThickness` / `loopLength` / `rBoss`, the cord's `cordZ0` / `cordZ1` /
    * `cordDiameter` / `canopyZ`. The fused shade adds its `derive()` dimensions.
    */

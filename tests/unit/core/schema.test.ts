@@ -177,8 +177,11 @@ describe('migration v1 → v2', () => {
       expect(flat[def.key], def.key).toEqual(expected[def.key]);
     }
     // Moved: the pocket's boss wall and extra depth live on the light now.
-    expect(project.light.bossWall).toBe(v1Hub.bossWall);
-    expect(project.light.pocketExtraDepth).toBe(v1Hub.pocketExtraDepth);
+    expect(project.light).toMatchObject({
+      kind: 'puck',
+      bossWall: v1Hub.bossWall,
+      pocketExtraDepth: v1Hub.pocketExtraDepth,
+    });
     expect('bossWall' in project.hub).toBe(false);
     // Copied: the shade gets the shoulder angle, the hub keeps its own.
     expect(project.shades[0].style.shoulderAngle).toBe(v1Hub.shoulderAngle);
@@ -328,7 +331,7 @@ describe('project ↔ classic shade params', () => {
     expect(() => serializeProject(project)).not.toThrow();
     expect(project.printer.id).toBe('bambu-a1');
     expect(project.shades[0].colour).toBe('#f4efe6');
-    expect(project.light.preset).toBe('bambu-kit-001');
+    expect(project.light).toMatchObject({ kind: 'puck', preset: 'bambu-kit-001' });
     expect(project.hub.fused).toBe(true);
     expect(project.colours).toEqual({ hub: '#d9d4cb' });
     expect(projectToClassicParams(project)).toEqual({ ...CLASSIC_SHADE_DEFAULTS });

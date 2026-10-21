@@ -1,8 +1,9 @@
 /**
- * The left sidebar: the shade's parameters (from the core schema), the mount
- * (which one, and its parameters), the hub & joint of a two-part lamp, output
- * and colour options, view options and reset. (M2.5 adds the LampTree and one
- * inspector per selected part.)
+ * The left sidebar: the shade's parameters (from the core schema), the light
+ * (which one, and its parameters), the mount (which one, and its
+ * parameters), the hub & joint of a two-part lamp, output and colour options,
+ * view options and reset. (M2.5 adds the LampTree and one inspector per
+ * selected part.)
  */
 import { QUALITIES, type Quality } from '@core/geometry/quality.ts';
 import type { Warning } from '@core/model/assembly.ts';
@@ -10,30 +11,48 @@ import {
   CLASSIC_PARAM_PATHS,
   HUB_PARAM_PATHS,
   createDefaultProject,
+  lightChoiceOf,
+  lightParamPath,
+  lightToParams,
   mountParamPath,
   mountToParams,
   projectToClassicParams,
   projectToHubParams,
+  type LightOf,
 } from '@core/model/project.ts';
 import {
   CLASSIC_SHADE_DEFS,
   CLASSIC_SHADE_GROUPS,
   HUB_JOINT_GROUPS,
+  LIGHT_CHOICES,
+  LIGHT_CHOICE_DESCRIPTIONS,
+  LIGHT_CHOICE_LABELS,
+  LIGHT_GROUPS,
   MOUNT_DESCRIPTIONS,
   MOUNT_GROUPS,
   MOUNT_KINDS,
   MOUNT_LABELS,
   type ClassicShadeKey,
   type ClassicShadeParams,
+  type FlatLightKind,
   type HubJointKey,
   type HubJointParams,
+  type LightChoice,
   type MountKind,
+  type ParamGroup,
 } from '@core/schema/defs.ts';
 import { useMemo } from 'react';
 import { ColourField } from '../forms/fields/ColourField.tsx';
 import { SelectField } from '../forms/fields/SelectField.tsx';
 import { ToggleField } from '../forms/fields/ToggleField.tsx';
-import { commitEdit, editTransient, endEdit, hubEdits, mountEdits } from '../forms/editSession.ts';
+import {
+  commitEdit,
+  editTransient,
+  endEdit,
+  hubEdits,
+  lightEdits,
+  mountEdits,
+} from '../forms/editSession.ts';
 import { SchemaForm } from '../forms/SchemaForm.tsx';
 import { newProjectId } from '../persistence/identity.ts';
 import { useProjectStore } from '../store/projectStore.ts';
@@ -43,10 +62,15 @@ import styles from './Inspector.module.css';
 
 /**
  * The "Output" group is rendered by hand (quality is per use, fit test is a
- * toggle), the strap's "mount" group with the other mounts.
+ * toggle), the puck's "kit" group with the other lights, the strap's "mount"
+ * group with the other mounts.
  */
-const SHADE_GROUPS = CLASSIC_SHADE_GROUPS.filter((g) => g.id !== 'output' && g.id !== 'mount');
+const SHADE_GROUPS = CLASSIC_SHADE_GROUPS.filter(
+  (g) => g.id !== 'output' && g.id !== 'mount' && g.id !== 'kit',
+);
 const isMountKind = (k: string): k is MountKind => (MOUNT_KINDS as readonly string[]).includes(k);
+const isLightChoice = (c: string): c is LightChoice =>
+  (LIGHT_CHOICES as readonly string[]).includes(c);
 const defOf = (key: ClassicShadeKey) => CLASSIC_SHADE_DEFS.find((d) => d.key === key);
 
 const asKey = (key: string) => key as ClassicShadeKey;
@@ -67,7 +91,8 @@ function useWarningsByPath(): ReadonlyMap<string, Warning[]> {
   }, [warnings]);
 }
 
-function ShadeForm() {
+/** Classic-shade parameter groups: the shade's own, or the puck's (`kit`). */
+function ClassicForm({ groups }: { groups: readonly ParamGroup[] }) {
   const project = useProjectStore((s) => s.project);
   const values = useMemo(() => projectToClassicParams(project), [project]);
   const byPath = useWarningsByPath();
@@ -75,13 +100,72 @@ function ShadeForm() {
 
   return (
     <SchemaForm
-      groups={SHADE_GROUPS}
+      groups={groups}
       values={values}
       warningsFor={warningsFor}
       onTransient={(key, v) => editTransient(asKey(key), v)}
       onCommit={(key, v) => commitEdit(asKey(key), asValue(v))}
       onEnd={endEdit}
     />
+  );
+}
+
+function ShadeForm() {
+  return <ClassicForm groups={SHADE_GROUPS} />;
+}
+
+/** A bulb's or a strip's parameters (flat keys, see `LIGHT_PARAM_PATHS`). */
+function FlatLightForm({ light }: { light: LightOf<FlatLightKind> }) {
+  const values = useMemo(() => lightToParams(light), [light]);
+  const byPath = useWarningsByPath();
+  const warningsFor = (key: string) => byPath.get(lightParamPath(light.kind, key) ?? '') ?? [];
+  return (
+    <SchemaForm
+      groups={LIGHT_GROUPS[light.kind]}
+      values={values}
+      warningsFor={warningsFor}
+      onTransient={(key, v) => lightEdits.transient(key, v)}
+      onCommit={(key, v) => lightEdits.commit(key, v)}
+      onEnd={lightEdits.end}
+    />
+  );
+}
+
+/**
+ * Which light (a USB puck, an E27 or E14 bulb, an LED strip), and its
+ * parameters. Switching keeps the shade, the mount and the joints; a new
+ * kind starts from its defaults, a new bulb size keeps what you changed.
+ */
+function LightForm() {
+  const light = useProjectStore((s) => s.project.light);
+  const choice = lightChoiceOf(light);
+  const byPath = useWarningsByPath();
+  const setLight = (c: string) => {
+    if (!isLightChoice(c)) return;
+    useProjectStore.getState().setLight(c);
+    useUiStore.getState().requestFit(true); // the hub changes shape: frame it once built
+  };
+  return (
+    <>
+      <fieldset>
+        <legend>Light</legend>
+        <SelectField
+          id="p-light"
+          label="Light"
+          value={choice}
+          options={LIGHT_CHOICES}
+          optionLabel={(c) => (isLightChoice(c) ? LIGHT_CHOICE_LABELS[c] : c)}
+          help={LIGHT_CHOICE_DESCRIPTIONS[choice]}
+          warnings={byPath.get('light.kind')}
+          onChange={setLight}
+        />
+      </fieldset>
+      {light.kind === 'puck' ? (
+        <ClassicForm groups={LIGHT_GROUPS.puck} />
+      ) : (
+        <FlatLightForm light={light} />
+      )}
+    </>
   );
 }
 
@@ -129,10 +213,15 @@ function MountForm() {
 /** Fused (one print) or split into a hub and a shade, and the split lamp's hub and joint. */
 function HubJointForm() {
   const project = useProjectStore((s) => s.project);
-  // Only the strap has a single-piece print; every other mount splits the lamp.
+  // Only the strap with a puck has a single-piece print; everything else splits the lamp.
   const strap = project.mount.kind === 'ceilingStrap';
-  const fused = strap && project.hub.fused;
-  const values = useMemo(() => ({ ...projectToHubParams(project), fused }), [project, fused]);
+  const puck = project.light.kind === 'puck';
+  const fused = strap && puck && project.hub.fused;
+  const lightKind = project.light.kind;
+  const values = useMemo(
+    () => ({ ...projectToHubParams(project), fused, lightKind }),
+    [project, fused, lightKind],
+  );
   const byPath = useWarningsByPath();
   const warningsFor = (key: string) => byPath.get(HUB_PARAM_PATHS[asHubKey(key)]) ?? [];
   const setFused = (on: boolean) => {
@@ -148,7 +237,7 @@ function HubJointForm() {
       onCommit={(key, v) => hubEdits.commit(asHubKey(key), asHubValue(v))}
       onEnd={hubEdits.end}
       lead={() =>
-        strap ? (
+        strap && puck ? (
           <ToggleField
             id="p-fused"
             label="Single-piece print (fused)"
@@ -158,8 +247,8 @@ function HubJointForm() {
           />
         ) : (
           <p className={styles.hint}>
-            With this mount the hub and the shade print separately; the shade hangs from the hub on
-            a bayonet, press fit or thread.
+            With this {puck ? 'mount' : 'light'} the hub and the shade print separately; the shade
+            hangs from the hub on a bayonet, press fit or thread.
           </p>
         )
       }
@@ -237,7 +326,7 @@ function ViewOptions() {
       )}
       <ToggleField
         id="v-ghosts"
-        label="Show LED puck, strap and cord"
+        label="Show the light, strap and cord"
         checked={ghosts}
         onChange={setGhosts}
       />
@@ -260,7 +349,8 @@ export function Inspector() {
     <div className={styles.inspector}>
       <header className={styles.header}>
         <p className={styles.sub}>
-          A lamp for the Bambu Lab LED Lamp Kit‑001: shape the shade, pick a mount.
+          A printable lamp: shape the shade, pick a light (USB puck, E27 / E14 bulb, LED strip) and
+          a mount.
         </p>
         <button type="button" title="Back to the default shade" onClick={reset}>
           Reset
@@ -268,6 +358,7 @@ export function Inspector() {
       </header>
       <form autoComplete="off" onSubmit={(e) => e.preventDefault()}>
         <ShadeForm />
+        <LightForm />
         <MountForm />
         <HubJointForm />
         <OutputOptions />

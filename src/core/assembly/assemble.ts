@@ -3,9 +3,9 @@
  * cache keys, transforms and bed footprints, the joints between them, plus
  * every warning. Pure, no WASM: it runs on the main thread for every edit.
  *
- * - `hub.fused` with the velcro strap (the default): one `shade` part, the
- *   classic shade's builder unchanged (hub and shade as one print), identity
- *   transforms. Every other mount ignores `fused`.
+ * - `hub.fused` with the velcro strap and a puck (the default): one `shade`
+ *   part, the classic shade's builder unchanged (hub and shade as one print),
+ *   identity transforms. Every other mount or light ignores `fused`.
  * - split: a `hub` and a revolved `shade` hanging from it on one shade joint
  *   (`joints.shadeToHub`, copied into both parts' params), plus whatever the
  *   mount adds. The mount is one `MountModule` (mounts/), which says what the
@@ -60,7 +60,15 @@ import {
 } from '../schema/normalize.ts';
 import { minShadeTopDiameter, resolveShadeJoint } from './interfaces.ts';
 import { layoutParts, placementTransform } from './layout.ts';
-import { lightEnvelope, lightInsert } from './lights/index.ts';
+import {
+  lightBottomZ,
+  lightDerived,
+  lightEnvelope,
+  lightInsert,
+  lightPrintNotes,
+  normalizeLight,
+  validateLight,
+} from './lights/index.ts';
 import { STRAP_CEILING_GAP, strapDerived } from './mounts/ceilingStrap.ts';
 import { mountModule } from './mounts/index.ts';
 import type { MountCtx, MountHubCtx, MountParts } from './mounts/types.ts';
@@ -85,7 +93,7 @@ const HUB_PRINT_NOTES = [
   'Print as exported: collar ring on the bed, mount face up. No supports needed.',
 ];
 
-/** The hub's print notes: how the puck goes in, and the mount face. */
+/** The hub's print notes about a puck: how it goes in, and the mount face. */
 function hubPrintNotes(face: HubParams['mountFace']['kind']): string[] {
   switch (face) {
     case 'strap':
@@ -99,7 +107,7 @@ function hubPrintNotes(face: HubParams['mountFace']['kind']): string[] {
     case 'threadFemale':
       return [
         ...HUB_PRINT_NOTES,
-        'Press the puck in from below until it stops (crush ribs hold it); the cable runs out through the slot in the housing.',
+        'Press the puck in from below until it stops (crush ribs hold it); its cable runs up through the bore in the mount face.',
       ];
   }
 }
@@ -110,6 +118,10 @@ const HUB_FIT_TEST_NOTES = [
 
 const CLOSED_HUB_FIT_TEST_NOTES = [
   'Fit test: press the puck into the hub and try the mount before printing the shade.',
+];
+
+const LIGHT_HUB_FIT_TEST_NOTES = [
+  'Fit test: fit the light (lampholder or strip) and try the mount before printing the shade.',
 ];
 
 const SHADE_PRINT_NOTES = [
@@ -244,7 +256,7 @@ interface SplitBase {
   /** The normalised light, mount and shade, in the project's structure. */
   norm: Project;
   joints: Joints;
-  hub: { wallThickness: number; shoulderAngle: number; collarWall: number };
+  hub: { wallThickness: number; shoulderAngle: number; collarWall: number; ventCount: number };
   warnings: Warning[];
 }
 
@@ -274,6 +286,7 @@ function assembleSplit(
       wallThickness: h.hubWallThickness,
       shoulderAngle: h.hubShoulderAngle,
       collarWall: h.collarWall,
+      ventCount: h.ventCount,
     },
     warnings,
   };
@@ -312,10 +325,15 @@ function assembleMounted<K extends MountKind>(
   const normMount = normalizeMount(kind, mountIn);
   warnings.push(...normMount.warnings);
   const shadeSpec = norm.shades[0];
-  const envelope = lightEnvelope(norm.light);
+  // The light: a puck was normalised with the classic shade; a bulb or a strip here.
+  const lightHub = { ...base.hub, mount: kind };
+  const normLight = normalizeLight(norm.light, lightHub);
+  warnings.push(...normLight.warnings.map((w) => ({ ...w, partId: 'hub' })));
+  const light = normLight.light;
+  const envelope = lightEnvelope(light, lightHub);
   const ctx: MountCtx<K> = {
     mount: normMount.mount,
-    light: norm.light,
+    light,
     envelope,
     joints,
     printer: project.printer,
@@ -351,7 +369,7 @@ function assembleMounted<K extends MountKind>(
   }
 
   const hubParams: HubParams = {
-    insert: lightInsert(norm.light),
+    insert: lightInsert(light, lightHub),
     envelope,
     mountFace,
     wallThickness: base.hub.wallThickness,
@@ -381,6 +399,7 @@ function assembleMounted<K extends MountKind>(
   const hd = deriveHub(hubParams);
   const sd = deriveRevolvedShade(shadeParams);
   const fitTest = project.fitTest;
+  warnings.push(...validateLight(light, mountFace, envelope));
 
   const hubCtx: MountHubCtx<K> = {
     ...ctx,
@@ -402,11 +421,15 @@ function assembleMounted<K extends MountKind>(
         colour: project.colours.hub ?? DEFAULT_HUB_COLOUR,
         footprint: hubFootprint(hubParams),
         printNotes: [
-          ...hubPrintNotes(mountFace.kind),
+          ...(light.kind === 'puck'
+            ? hubPrintNotes(mountFace.kind)
+            : [...HUB_PRINT_NOTES, ...lightPrintNotes(light, mountFace, hd)]),
           ...(fitTest
-            ? mountFace.kind === 'strap'
-              ? HUB_FIT_TEST_NOTES
-              : CLOSED_HUB_FIT_TEST_NOTES
+            ? light.kind !== 'puck'
+              ? LIGHT_HUB_FIT_TEST_NOTES
+              : mountFace.kind === 'strap'
+                ? HUB_FIT_TEST_NOTES
+                : CLOSED_HUB_FIT_TEST_NOTES
             : []),
         ],
       },
@@ -433,17 +456,25 @@ function assembleMounted<K extends MountKind>(
       });
     }
   }
-  const derived = {
-    puckZ: hd.zPuck,
-    puckDiameter: norm.light.diameter,
-    puckHeight: norm.light.height,
+  const derived: Record<string, number> = {
+    ...lightDerived(light, hd, placement.hubTransform, envelope),
     rBoss: hd.rBoss,
     ...placement.derived,
-    bottomZ: placement.bottomZ,
+    // A bulb may hang below the shade: the lamp's lowest point includes it.
+    bottomZ: Math.min(
+      placement.bottomZ,
+      lightBottomZ(light, placement.hubTransform) ?? placement.bottomZ,
+    ),
     hubHeight: hd.hubHeight,
     zCollar: sd.zCollar,
     collarDiameter: iface.nominalDiameter,
   };
+  // The ghost puck is the puck's (a standing lamp's placement places it too).
+  if (light.kind !== 'puck') {
+    delete derived.puckZ;
+    delete derived.puckDiameter;
+    delete derived.puckHeight;
+  }
   const interfaces: Record<string, JointInterface> = { [iface.id]: iface };
   for (const j of mountParts.interfaces) interfaces[j.id] = j;
   return finish(project, placed, interfaces, derived, placement.context, warnings);
@@ -451,9 +482,10 @@ function assembleMounted<K extends MountKind>(
 
 export function assemble(project: Project, options: AssembleOptions = {}): Assembly {
   const quality = options.quality ?? project.quality.preview;
-  const normalised = normalizeClassicShade(projectToClassicParams(project, quality));
-  // Only the strap has a single-piece print (the classic shade's tunnels).
-  if (project.hub.fused && project.mount.kind === 'ceilingStrap') {
+  const puck = project.light.kind === 'puck';
+  const normalised = normalizeClassicShade(projectToClassicParams(project, quality), { puck });
+  // Only the strap with a puck has a single-piece print (the classic shade's tunnels).
+  if (project.hub.fused && project.mount.kind === 'ceilingStrap' && puck) {
     return assembleFused(project, normalised.values, [...normalised.warnings]);
   }
   return assembleSplit(project, quality, normalised.values, normalised.warnings);

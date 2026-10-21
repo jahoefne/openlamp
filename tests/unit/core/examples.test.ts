@@ -39,10 +39,10 @@ async function buildsAll(assembly: Assembly): Promise<void> {
   }
 }
 
-it('ships the classic and pendant examples', () => {
-  expect(files.length).toBeGreaterThanOrEqual(8);
+it('ships the classic, pendant and light examples', () => {
+  expect(files.length).toBeGreaterThanOrEqual(10);
   expect(files.map((f) => f.replace('.lamp.json', ''))).toEqual(
-    expect.arrayContaining([...CLASSIC, 'pendant-cord']),
+    expect.arrayContaining([...CLASSIC, 'pendant-cord', 'e27-pendant', 'strip-drum']),
   );
 });
 
@@ -98,5 +98,30 @@ describe('the pendant example', () => {
       ['canopy', 'canopy'],
     ]);
     expect(assembly.context.kind).toBe('ceiling');
+  });
+});
+
+describe('the light examples', () => {
+  it('the E27 pendant hangs an E27 lampholder (shade ring) and vents in its hub', () => {
+    const project = read('e27-pendant');
+    expect(project.name).toBe('E27 pendant');
+    expect(project.light).toMatchObject({ kind: 'bulb', size: 'E27', fitting: 'shadeRing' });
+    expect(project.mount.kind).toBe('ceilingCord');
+    expect(project.hub).toMatchObject({ fused: false, ventCount: 8 });
+    const assembly = assemble(project, { quality: 'draft' });
+    expect(assembly.parts.map((p) => p.id)).toEqual(['hub', 'shade', 'canopy']);
+    expect(assembly.warnings.filter((w) => w.severity !== 'info')).toEqual([]);
+    expect(assembly.derived.bulbZ).toBeLessThan(0);
+  });
+
+  it('the strip ring drum carries an LED strip ring under a wide hub', () => {
+    const project = read('strip-drum');
+    expect(project.name).toBe('Strip ring drum');
+    expect(project.light.kind).toBe('strip');
+    expect(project.mount.kind).toBe('ceilingCord');
+    const assembly = assemble(project, { quality: 'draft' });
+    expect(assembly.parts.map((p) => p.id)).toEqual(['hub', 'shade', 'canopy']);
+    expect(assembly.warnings.filter((w) => w.severity !== 'info')).toEqual([]);
+    expect(assembly.derived.stripRingDiameter).toBe(120);
   });
 });

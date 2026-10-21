@@ -44,9 +44,8 @@ export const ceilingStrapMount: MountModule<'ceilingStrap'> = {
   partKinds: [],
 
   validate(ctx) {
-    // Only pucks so far (bulbs and strips arrive in M2.3), but the rule stands.
-    const light: { kind: string } = ctx.light;
-    if (light.kind === 'puck') return [];
+    // The strap holds the puck in its pocket; a bulb or a strip needs another mount.
+    if (ctx.light.kind === 'puck') return [];
     return [
       {
         severity: 'error',

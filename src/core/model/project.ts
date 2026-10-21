@@ -5,8 +5,10 @@
  *
  * Version 3 (M2.2) has every mount: the velcro ceiling strap, the pendant on
  * a cord, the wall arm and the standing lamp (`Mount`, a discriminated union).
- * `hub.fused` only applies to the strap; every other mount prints the hub and
- * the shade separately. Still a puck light and one revolved outer shade.
+ * `hub.fused` only applies to the strap with a puck; every other lamp prints
+ * the hub and the shade separately. One revolved outer shade. M2.3 added the
+ * E27 / E14 bulb and the LED strip to `LightSource` (purely additive: every
+ * earlier version-3 file is still valid, so the version stayed 3).
  *
  * Version 2 (M2.1) split the lamp into a hub and a shade joined by a collar
  * joint (`joints`), unless `hub.fused` kept them one print (the classic
@@ -24,16 +26,27 @@ import { SURFACE_STYLES } from '../geometry/surface.ts';
 import {
   ARM_SHAPES,
   BASE_LIDS,
+  BULB_FITTINGS,
+  BULB_PRESETS,
+  BULB_SIZES,
   CLASSIC_SHADE_DEFAULTS,
   CORD_GRIPS,
   HUB_JOINT_DEFAULTS,
+  LIGHT_DEFAULTS,
+  LIGHT_PARAM_PATHS,
   MOUNT_DEFAULTS,
   MOUNT_PARAM_PATHS,
   STANDING_VARIANTS,
+  type BulbFitting,
+  type BulbSize,
   type ClassicShadeKey,
   type ClassicShadeParams,
+  type FlatLightKind,
   type HubJointKey,
   type HubJointParams,
+  type LightChoice,
+  type LightKind,
+  type LightParamsByKind,
   type MountKind,
   type MountParamsByKind,
 } from '../schema/defs.ts';
@@ -80,7 +93,43 @@ export const PuckLightSchema = z.object({
   pocketExtraDepth: Mm,
 });
 
-export const LightSchema = z.discriminatedUnion('kind', [PuckLightSchema]);
+/**
+ * A mains lampholder for an E27 or E14 (LED) bulb: it is held in a plate with a
+ * hole (its threaded sleeve and shade ring, or an M10 nipple and a nut), under
+ * the plate a skirt surrounds it; the bulb hangs below (the heat zone keeps
+ * printed parts `heatClearance` away from it).
+ */
+export const BulbLightSchema = z.object({
+  kind: z.literal('bulb'),
+  size: z.enum(BULB_SIZES),
+  fitting: z.enum(BULB_FITTINGS),
+  holeDiameter: Mm,
+  plateThickness: Mm,
+  skirtDiameter: Mm,
+  skirtHeight: Mm,
+  bulbDiameter: Mm,
+  /** Overall, cap included. */
+  bulbLength: Mm,
+  heatClearance: Mm,
+  cableDiameter: Mm,
+});
+
+/** An LED strip stuck into a ring channel under a wide, flat hub. */
+export const StripLightSchema = z.object({
+  kind: z.literal('strip'),
+  stripWidth: Mm,
+  stripThickness: Mm,
+  /** Inner Ø of the ring channel. */
+  ringDiameter: Mm,
+  channelDepth: Mm,
+  cableWidth: Mm,
+});
+
+export const LightSchema = z.discriminatedUnion('kind', [
+  PuckLightSchema,
+  BulbLightSchema,
+  StripLightSchema,
+]);
 
 export const CeilingStrapMountSchema = z.object({
   kind: z.literal('ceilingStrap'),
@@ -138,9 +187,9 @@ export const HubSchema = z.object({
   collarWall: Mm,
   /** Gap between the outer and an inner shade collar (inner shades: M2.4). */
   radialGap: Mm,
-  /** Vents in the hub's cone (bulb lights, M2.3). */
+  /** Ø6 vents through the hub's shoulder (bulb lights only; 8 when a bulb is picked). */
   ventCount: z.number().int().nonnegative(),
-  /** Hub and outer shade printed as one part (the classic shade); velcro strap only. */
+  /** Hub and outer shade printed as one part (the classic shade); velcro strap and puck only. */
   fused: z.boolean(),
 });
 
@@ -209,6 +258,8 @@ export const ProjectSchema = z.object({
 
 export type Project = z.infer<typeof ProjectSchema>;
 export type LightSource = z.infer<typeof LightSchema>;
+/** One light variant. */
+export type LightOf<K extends LightKind> = Extract<LightSource, { kind: K }>;
 export type Mount = z.infer<typeof MountSchema>;
 /** One mount variant. */
 export type MountOf<K extends MountKind> = Extract<Mount, { kind: K }>;
@@ -327,6 +378,143 @@ function copyMount(mount: Mount): Mount {
   return JSON.parse(JSON.stringify(mount)) as Mount;
 }
 
+// ---------------------------------------------------------------- lights
+
+/** The kit puck of the classic shade's defaults (Bambu Lab LED Lamp Kit-001). */
+function defaultPuck(): LightOf<'puck'> {
+  const d = CLASSIC_SHADE_DEFAULTS;
+  return {
+    kind: 'puck',
+    preset: 'bambu-kit-001',
+    diameter: d.puckDiameter,
+    height: d.puckHeight,
+    clearance: d.puckClearance,
+    lightHoleDiameter: d.lightHoleDiameter,
+    ledgeThickness: d.ledgeThickness,
+    cableWidth: d.cableSlotWidth,
+    bossWall: d.bossWall,
+    pocketExtraDepth: d.pocketExtraDepth,
+  };
+}
+
+/** The bulb fields a size and fitting preset (see `BULB_PRESETS`). */
+const BULB_PRESET_KEYS = ['holeDiameter', 'skirtDiameter', 'bulbDiameter', 'bulbLength'] as const;
+type BulbPresetKey = (typeof BULB_PRESET_KEYS)[number];
+
+/** The preset diameters and length of a bulb size and fitting. */
+export function bulbPreset(size: BulbSize, fitting: BulbFitting): Record<BulbPresetKey, number> {
+  const p = BULB_PRESETS[size];
+  return {
+    holeDiameter: p.holeDiameter[fitting],
+    skirtDiameter: p.skirtDiameter,
+    bulbDiameter: p.bulbDiameter,
+    bulbLength: p.bulbLength,
+  };
+}
+
+/**
+ * A light of this kind with every parameter at its default: the kit puck, a
+ * bulb with the preset diameters of its size and fitting (E27 on a shade ring
+ * unless given), the LED strip ring.
+ */
+export function lightDefaults<K extends LightKind>(
+  kind: K,
+  size: BulbSize = 'E27',
+  fitting: BulbFitting = 'shadeRing',
+): LightOf<K> {
+  const k: LightKind = kind;
+  switch (k) {
+    case 'puck':
+      return defaultPuck() as LightOf<K>;
+    case 'bulb':
+      return {
+        ...lightFromParams('bulb', LIGHT_DEFAULTS.bulb),
+        size,
+        fitting,
+        ...bulbPreset(size, fitting),
+      } as LightOf<K>;
+    case 'strip':
+      return lightFromParams('strip', LIGHT_DEFAULTS.strip) as LightOf<K>;
+  }
+}
+
+/**
+ * The bulb on another size or fitting: the fields the old preset set and the
+ * user has not changed (they still hold the old preset's value) take the new
+ * preset's value; edited ones stay.
+ */
+export function withBulbPreset(
+  light: LightOf<'bulb'>,
+  size: BulbSize,
+  fitting: BulbFitting,
+): LightOf<'bulb'> {
+  const before = bulbPreset(light.size, light.fitting);
+  const after = bulbPreset(size, fitting);
+  const out: LightOf<'bulb'> = { ...light, size, fitting };
+  for (const key of BULB_PRESET_KEYS) if (light[key] === before[key]) out[key] = after[key];
+  return out;
+}
+
+/** What the inspector's Light select shows for a light. */
+export function lightChoiceOf(light: LightSource): LightChoice {
+  return light.kind === 'bulb' ? light.size : light.kind;
+}
+
+/**
+ * The light after picking `choice` in the Light select: the same light when
+ * nothing changes, another bulb size through `withBulbPreset`, else the new
+ * kind's defaults.
+ */
+export function lightForChoice(current: LightSource, choice: LightChoice): LightSource {
+  switch (choice) {
+    case 'puck':
+    case 'strip':
+      return current.kind === choice ? current : lightDefaults(choice);
+    case 'E27':
+    case 'E14':
+      if (current.kind !== 'bulb') return lightDefaults('bulb', choice);
+      return current.size === choice ? current : withBulbPreset(current, choice, current.fitting);
+  }
+}
+
+/** A light of this kind holding these flat parameters (see `LIGHT_PARAM_PATHS`). Not normalised. */
+export function lightFromParams<K extends FlatLightKind>(
+  kind: K,
+  params: Readonly<LightParamsByKind[K]>,
+): LightOf<K> {
+  const light: Record<string, unknown> = { kind };
+  const paths: Readonly<Record<string, string>> = LIGHT_PARAM_PATHS[kind];
+  for (const [key, path] of Object.entries(paths)) {
+    setAtPath(light, path, (params as Readonly<Record<string, unknown>>)[key]);
+  }
+  // The paths cover every field of the variant (the schema tests check it).
+  return light as LightOf<K>;
+}
+
+/** The flat parameters of a bulb or a strip (see `LIGHT_PARAM_PATHS`). Not normalised. */
+export function lightToParams<K extends FlatLightKind>(light: LightOf<K>): LightParamsByKind[K] {
+  const paths: Readonly<Record<string, string>> =
+    LIGHT_PARAM_PATHS[(light as LightSource).kind as K];
+  const out: Record<string, unknown> = {};
+  for (const [key, path] of Object.entries(paths)) out[key] = getAtPath(light, path);
+  return out as LightParamsByKind[K];
+}
+
+/** The project path of a flat light parameter of this kind, e.g. `light.holeDiameter`. */
+export function lightParamPath(kind: LightKind, key: string): string | undefined {
+  if (kind === 'puck') {
+    const path = (CLASSIC_PARAM_PATHS as Readonly<Record<string, string>>)[key];
+    return path?.startsWith('light.') ? path : undefined;
+  }
+  const paths: Readonly<Record<string, string>> = LIGHT_PARAM_PATHS[kind];
+  return Object.hasOwn(paths, key) ? `light.${paths[key]}` : undefined;
+}
+
+/** A copy of a light (flat plain data). */
+function copyLight(light: LightSource): LightSource {
+  return { ...light };
+}
+
 /** A new project with today's default shade on a Bambu Lab A1. */
 export function createDefaultProject(init: NewProjectInit = {}): Project {
   return classicParamsToProject({ ...CLASSIC_SHADE_DEFAULTS }, undefined, init);
@@ -368,13 +556,15 @@ export const CLASSIC_PARAM_PATHS: Readonly<Record<ClassicShadeKey, string>> = {
 /**
  * The flat parameters the classic-shade builder takes, read from the project.
  * Not normalised: `assemble()` (or `normalizeClassicShade`) does that. With a
- * mount other than the strap, the strap's parameters are its defaults.
+ * mount other than the strap, the strap's parameters are its defaults; with a
+ * light other than the puck, the puck's are the kit's.
  */
 export function projectToClassicParams(
   project: Project,
   quality: Quality = project.quality.preview,
 ): ClassicShadeParams {
-  const { light } = project;
+  // Other lights than the puck (and mounts than the strap) read as the classic defaults.
+  const light = project.light.kind === 'puck' ? project.light : defaultPuck();
   const mount =
     project.mount.kind === 'ceilingStrap' ? project.mount : defaultMount('ceilingStrap');
   const shade = project.shades[0];
@@ -411,7 +601,8 @@ export function projectToClassicParams(
  * A project holding these flat classic-shade parameters. Everything the flat
  * parameters do not describe (id, name, printer, colours, shade id, colour and
  * collar, the hub and the joints, export quality, a mount other than the
- * strap) comes from `base`, or from a new default project. Without a base,
+ * strap, a light other than the puck) comes from `base`, or from a new default
+ * project. Without a base,
  * `params.quality` is used for both preview and export, as in the first app.
  */
 export function classicParamsToProject(
@@ -433,18 +624,21 @@ export function classicParamsToProject(
     updatedAt: init.updatedAt ?? base?.updatedAt ?? new Date().toISOString(),
     printer,
     quality: { preview: p.quality, export: base?.quality.export ?? p.quality },
-    light: {
-      kind: 'puck',
-      preset: kitPuck ? 'bambu-kit-001' : 'custom',
-      diameter: p.puckDiameter,
-      height: p.puckHeight,
-      clearance: p.puckClearance,
-      lightHoleDiameter: p.lightHoleDiameter,
-      ledgeThickness: p.ledgeThickness,
-      cableWidth: p.cableSlotWidth,
-      bossWall: p.bossWall,
-      pocketExtraDepth: p.pocketExtraDepth,
-    },
+    light:
+      base && base.light.kind !== 'puck'
+        ? copyLight(base.light)
+        : {
+            kind: 'puck',
+            preset: kitPuck ? 'bambu-kit-001' : 'custom',
+            diameter: p.puckDiameter,
+            height: p.puckHeight,
+            clearance: p.puckClearance,
+            lightHoleDiameter: p.lightHoleDiameter,
+            ledgeThickness: p.ledgeThickness,
+            cableWidth: p.cableSlotWidth,
+            bossWall: p.bossWall,
+            pocketExtraDepth: p.pocketExtraDepth,
+          },
     mount:
       base && base.mount.kind !== 'ceilingStrap'
         ? copyMount(base.mount)

@@ -20,6 +20,9 @@ import { ZodError, prettifyError } from 'zod';
 import {
   CLASSIC_SHADE_DEFS,
   HUB_JOINT_DEFS,
+  LIGHT_CHOICE_DESCRIPTIONS,
+  LIGHT_CHOICE_LABELS,
+  LIGHT_DEFS,
   MOUNT_DEFS,
   MOUNT_DESCRIPTIONS,
   MOUNT_KINDS,
@@ -35,6 +38,7 @@ import {
   classicParamsToProject,
   defaultMount,
   dispose,
+  lightParamPath,
   mountParamPath,
   meshToBinaryStl,
   normalizeClassicShade,
@@ -76,7 +80,7 @@ Commands:
   project   Build every part of a .lamp.json project at its export quality into
             <dir> (default: the current directory) as openlamp-<project>-<part>.stl.
   samples   Build every example in src/examples into samples/ (git-ignored).
-  list      Show the part kinds, printers, examples, mounts and every parameter.
+  list      Show the part kinds, printers, examples, lights, mounts and every parameter.
 
 Options:
   -o, --out <path>     Output file (part) or directory (project, samples)
@@ -353,6 +357,21 @@ async function cmdList(): Promise<number> {
     '\nHub & joint parameters of a two-part lamp (hub.fused: false; set in the project file):',
   );
   for (const p of HUB_JOINT_DEFS) console.log(paramLine(p, p.key, false));
+  console.log('\nLights (project.light.kind; set in the project file):');
+  console.log(`\n  puck – ${LIGHT_CHOICE_LABELS.puck}: the classic-shade puck parameters above`);
+  console.log(`    ${LIGHT_CHOICE_DESCRIPTIONS.puck}`);
+  for (const kind of ['bulb', 'strip'] as const) {
+    const label = kind === 'bulb' ? 'E27 / E14 bulb' : LIGHT_CHOICE_LABELS.strip;
+    console.log(`\n  ${kind} – ${label}`);
+    const text =
+      kind === 'bulb'
+        ? LIGHT_CHOICE_DESCRIPTIONS.E27.replace('an E27', 'an E27 or E14')
+        : LIGHT_CHOICE_DESCRIPTIONS.strip;
+    console.log(`    ${text}`);
+    for (const p of LIGHT_DEFS[kind]) {
+      console.log(`  ${paramLine(p, lightParamPath(kind, p.key) ?? p.key, false)}`);
+    }
+  }
   console.log('\nMounts (project.mount.kind; part <kind> --mount <kind>):');
   for (const kind of MOUNT_KINDS) {
     const parts = MOUNT_MODULES[kind].partKinds;

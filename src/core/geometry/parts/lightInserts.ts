@@ -1,7 +1,8 @@
 /**
  * Light inserts: what the hub (or the fused classic shade) cuts so the light
- * source fits. Pucks first, two ways:
+ * source fits.
  *
+ * Pucks, two ways:
  * - under an open mount face (the strap): the pocket the puck drops into from
  *   the mount face, the light opening through the ledge it rests on, and the
  *   cable slot through the housing wall;
@@ -10,10 +11,32 @@
  *   until it touches the 45° roof, and three crush ribs hold it; the cable
  *   slot gets a 45° gable top so it prints without support.
  *
- * Bulb sockets and strip channels join in M2.3.
+ * Bulbs: the lampholder plate, its skirt and the chamber above it are part of
+ * the hub's revolve profile (hub.ts); here are the cutters that are not
+ * revolved: the vents through the shoulder and the M10 nut's hexagonal recess.
+ *
+ * Strips: the ring channel is part of the profile too; here are the cable's
+ * slots (through the channel's ceiling, through the boss's side).
  */
-import type { LightInsert, PuckInsert } from '../../model/parts.ts';
+import type { BulbInsert, LightInsert, PuckInsert, StripInsert } from '../../model/parts.ts';
 import { scoped, type Kernel, type Manifold, type Vec3 } from '../kernel.ts';
+
+/**
+ * The hexagonal recess for an M10 nipple's nut on the plate's mount side:
+ * Ø19 across corners (an M10 nut 16 mm across flats, ISO 4032), 4 mm deep, in
+ * a boss with a 2.4 mm wall; mm.
+ */
+export const M10_NUT_RECESS = Object.freeze({ diameter: 19, depth: 4, wall: 2.4 });
+/** The bore of a hollow M10 × 1 nipple (the lampholder's cable runs through it), mm. */
+export const M10_NIPPLE_BORE = 7;
+/** Diameter of the vents through a bulb hub's shoulder, mm. */
+export const VENT_DIAMETER = 6;
+/** A strip's channel is this much wider than the strip, mm. */
+export const STRIP_CHANNEL_EXTRA = 0.4;
+/** The longest bridge a channel's ceiling should print as, mm. */
+export const STRIP_MAX_BRIDGE = 11;
+/** A strip hub's disc stops this far inside the shade collar's bore, mm. */
+export const STRIP_DISC_GAP = 0.5;
 
 /** Where the puck pocket sits; the fused shade's `derive()` has the same fields. */
 export interface PuckCutterDims {
@@ -74,17 +97,118 @@ export function puckInsertCutters(
   });
 }
 
-/** The cutters of any light insert (only pucks so far). The caller owns the results. */
+/** The cutters of a puck's open pocket (the strap's hub). The caller owns the results. */
 export function lightInsertCutters(
   k: Kernel,
-  insert: LightInsert,
+  insert: Extract<LightInsert, { kind: 'puck' }>,
   d: PuckCutterDims,
   segs: number,
 ): Manifold[] {
-  switch (insert.kind) {
-    case 'puck':
-      return puckInsertCutters(k, d, insert.cableWidth, segs);
-  }
+  return puckInsertCutters(k, d, insert.cableWidth, segs);
+}
+
+// ---------------------------------------------------------------- bulb
+
+/** Where a bulb hub's vents go: on a circle between the skirt and the hub ring, through the shoulder. */
+export interface VentDims {
+  /** Radius of the circle through the vents' axes. */
+  rVent: number;
+  /** The vents start above the shade collar's room … */
+  z0: number;
+  /** … and end above the shoulder's outer cone. */
+  z1: number;
+}
+
+/**
+ * The bulb's vents: `insert.vents` vertical Ø6 cylinders (vertical walls, so
+ * no overhang) evenly around the axis, half a pitch off +X. The caller owns
+ * the results.
+ */
+export function bulbVentCutters(
+  k: Kernel,
+  insert: Pick<BulbInsert, 'vents'>,
+  d: VentDims,
+  segs: number,
+): Manifold[] {
+  const n = Math.max(0, Math.round(insert.vents));
+  if (n === 0) return [];
+  return scoped(k, (s) => {
+    const { Manifold } = k;
+    const r = VENT_DIAMETER / 2;
+    const ventSegs = Math.max(16, Math.round(segs / 8));
+    const vent = s.add(
+      s.add(Manifold.cylinder(d.z1 - d.z0, r, r, ventSegs)).translate([d.rVent, 0, d.z0]),
+    );
+    return Array.from({ length: n }, (_, i) =>
+      s.keep(s.add(vent.rotate([0, 0, ((i + 0.5) * 360) / n]))),
+    );
+  });
+}
+
+/**
+ * The M10 nut's hexagonal recess (corners on ±X), from the plate's top face
+ * `zFloor` up through its boss. The caller owns the result.
+ */
+export function nutRecessCutter(k: Kernel, zFloor: number): Manifold {
+  return scoped(k, (s) => {
+    const r = M10_NUT_RECESS.diameter / 2;
+    return s.keep(
+      s.add(k.Manifold.cylinder(M10_NUT_RECESS.depth + 1, r, r, 6)).translate([0, 0, zFloor]),
+    );
+  });
+}
+
+// ---------------------------------------------------------------- strip
+
+/** Where a strip hub's cable runs: the channel, the disc's tops, the boss in the middle. */
+export interface StripCableDims {
+  /** The channel's inner radius and its ceiling. */
+  rChannel: number;
+  zChannel: number;
+  /** The disc's top over the channel and inside it. */
+  discThickness: number;
+  innerThickness: number;
+  /** The pocket in the boss and the boss's outer radius. */
+  rPocket: number;
+  rBoss: number;
+}
+
+/**
+ * The strip's cable slots on +X: one through the channel's ceiling up onto
+ * the disc (vertical walls) and, under a closed mount face, one through the
+ * boss's side into its pocket with a 45° gable top. The caller owns the results.
+ */
+export function stripCableCutters(
+  k: Kernel,
+  insert: Pick<StripInsert, 'channelWidth' | 'cableWidth'>,
+  d: StripCableDims,
+  boss: boolean,
+): Manifold[] {
+  return scoped(k, (s) => {
+    const { Manifold } = k;
+    const w = insert.cableWidth + 1;
+    const ceiling = s.add(
+      s
+        .add(Manifold.cube([insert.channelWidth, w, d.discThickness - d.zChannel + 1.5], false))
+        .translate([d.rChannel, -w / 2, d.zChannel - 0.5]),
+    );
+    const out = [s.keep(ceiling)];
+    if (boss) {
+      const z0 = d.innerThickness;
+      const pts: Vec3[] = [];
+      for (const x of [d.rPocket - 1, d.rBoss + 1]) {
+        pts.push([x, -w / 2, z0], [x, w / 2, z0], [x, -w / 2, z0 + w], [x, w / 2, z0 + w]);
+        pts.push([x, 0, z0 + w + w / 2]); // 45° gable
+      }
+      out.push(s.keep(s.add(Manifold.hull(pts))));
+    }
+    return out;
+  });
+}
+
+/** Height of the strip's cable slot through the boss (gable included), mm. */
+export function stripBossSlotHeight(insert: Pick<StripInsert, 'cableWidth'>): number {
+  return 1.5 * (insert.cableWidth + 1);
 }
 
 // ---------------------------------------------------------------- press-fit puck (closed faces)

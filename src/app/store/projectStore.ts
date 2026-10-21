@@ -27,16 +27,23 @@ import {
   classicParamsToProject,
   createDefaultProject,
   defaultMount,
+  lightForChoice,
+  lightParamPath,
   mountParamPath,
   projectToClassicParams,
+  withBulbPreset,
   type Project,
 } from '@core/model/project.ts';
-import type {
-  ClassicShadeKey,
-  ClassicShadeParams,
-  HubJointKey,
-  HubJointParams,
-  MountKind,
+import {
+  BULB_FITTINGS,
+  BULB_SIZES,
+  DEFAULT_VENTS,
+  type ClassicShadeKey,
+  type ClassicShadeParams,
+  type HubJointKey,
+  type HubJointParams,
+  type LightChoice,
+  type MountKind,
 } from '@core/schema/defs.ts';
 import type { PrinterSpec } from '@core/schema/printers.ts';
 
@@ -89,6 +96,20 @@ export interface ProjectState {
    * a key the current mount does not have is ignored.
    */
   setMountParam(key: string, value: number | string, options?: EditOptions): void;
+  /**
+   * Switch the light (the Light select): another kind gets its defaults and
+   * the hub the vents it starts with (`DEFAULT_VENTS`); another bulb size keeps
+   * the fields the user changed (`lightForChoice`). One undo step; nothing
+   * happens if nothing changes.
+   */
+  setLight(choice: LightChoice): void;
+  /**
+   * Set one flat parameter of the current bulb or strip (see
+   * `LIGHT_PARAM_PATHS`); a new bulb size or fitting applies its preset to the
+   * fields the user has not changed (`withBulbPreset`). A key the current
+   * light does not have is ignored.
+   */
+  setLightParam(key: string, value: number | string, options?: EditOptions): void;
   /**
    * End a transient edit without a final value (a drag released where it
    * started): one undo step if the project changed, none if it did not.
@@ -254,6 +275,35 @@ export const useProjectStore = create<ProjectState>()(
           const path = mountParamPath(get().project.mount.kind, key);
           if (path === undefined) return;
           editParam(options, (_current, draft) => {
+            setAtPath(draft.project, path, value);
+          });
+        },
+
+        setLight(choice) {
+          const current = get().project.light;
+          const next = lightForChoice(current, choice);
+          if (next === current) return;
+          cancelTransient();
+          edit((p) => {
+            p.light = next;
+            if (next.kind !== current.kind) p.hub.ventCount = DEFAULT_VENTS[next.kind];
+          });
+        },
+
+        setLightParam(key, value, options = {}) {
+          const light = get().project.light;
+          const path = lightParamPath(light.kind, key);
+          if (light.kind === 'puck' || path === undefined) return;
+          editParam(options, (current, draft) => {
+            const bulb = current.light;
+            if (bulb.kind === 'bulb' && (key === 'bulbSize' || key === 'bulbFitting')) {
+              const size = BULB_SIZES.find((s) => s === (key === 'bulbSize' ? value : bulb.size));
+              const fitting = BULB_FITTINGS.find(
+                (f) => f === (key === 'bulbFitting' ? value : bulb.fitting),
+              );
+              if (size && fitting) draft.project.light = withBulbPreset(bulb, size, fitting);
+              return;
+            }
             setAtPath(draft.project, path, value);
           });
         },

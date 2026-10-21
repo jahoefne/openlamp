@@ -8,28 +8,51 @@
  */
 import type { Quality } from '../geometry/quality.ts';
 import type { SurfaceStyleName } from '../geometry/surface.ts';
-import type { ARM_SHAPES, BASE_LIDS, ClassicShadeParams } from '../schema/defs.ts';
+import type {
+  ARM_SHAPES,
+  BASE_LIDS,
+  BulbFitting,
+  BulbSize,
+  ClassicShadeParams,
+} from '../schema/defs.ts';
 import type { Deg, JointInterface, Mm } from './assembly.ts';
 
 // ---------------------------------------------------------------- lights
 
+/**
+ * Where a hot light (a bulb) wants printed parts to keep away, in the hub's
+ * own frame (the collar plane at z 0, the light below it; a standing lamp's
+ * placement turns it over with the hub): nothing printed within `rMin` of the
+ * axis between `z0` and `z1`.
+ */
+export interface HeatZone {
+  z0: Mm;
+  z1: Mm;
+  rMin: Mm;
+}
+
 /** What the hub has to make room for, whatever the light source (see assembly/lights). */
 export interface LightEnvelope {
-  /** Radius of the hub core around the light (the puck housing: pocket + boss wall). */
+  /**
+   * Radius of the hub core around the light; the shade collar is
+   * `2·(rCore + 1.5)`. The puck housing (pocket + boss wall), a bulb's skirt
+   * plus the air annulus around it, the strip's ring plus the strip and two walls.
+   */
   rCore: Mm;
-  /** How deep the light insert reaches into the hub, measured from its mount face. */
+  /** How far the light insert reaches into the hub (the puck: from its mount face; a bulb or strip: from the light face). */
   insertDepth: Mm;
   cableDiameter: Mm;
   /** The cable leaves the hub through its side wall or along the axis. */
   cablePath: 'side' | 'axial';
-  /** The light's own body plus the clearance hot parts must keep from it. */
-  heatZone: { radius: Mm; length: Mm; clearance: Mm };
+  /** Hot lights only (bulbs): the bulb plus its `heatClearance`. */
+  heatZone?: HeatZone;
 }
 
 /** The pocket a puck light sits in: today's pocket, ledge, light opening and cable slot. */
 export interface PuckInsert {
   kind: 'puck';
   diameter: Mm;
+  /** The puck's thickness (every insert's `height` is its light's length along the axis). */
   height: Mm;
   /** Radial gap around the puck. */
   clearance: Mm;
@@ -42,8 +65,53 @@ export interface PuckInsert {
   pocketExtraDepth: Mm;
 }
 
-/** The light insert the hub cuts (bulb sockets and strip channels join in M2.3). */
-export type LightInsert = PuckInsert;
+/**
+ * A bulb's lampholder: a plate with the lampholder's hole on top of a skirt
+ * that stands on the light face (the bed), its inside rising at 45° to the
+ * hole so it prints without support; the chamber above the plate (the cable,
+ * the M10 nut in its hexagonal recess) under the mount face; `vents` Ø6 vents
+ * through the hub's shoulder above the air annulus around the skirt.
+ */
+export interface BulbInsert {
+  kind: 'bulb';
+  size: BulbSize;
+  fitting: BulbFitting;
+  holeDiameter: Mm;
+  plateThickness: Mm;
+  skirtDiameter: Mm;
+  skirtHeight: Mm;
+  /** Wall of the skirt (the hub's wall). */
+  wall: Mm;
+  cableDiameter: Mm;
+  /** Number of Ø6 vents through the shoulder. */
+  vents: number;
+  bulbDiameter: Mm;
+  /** The bulb's length, cap included (it hangs from the skirt's rim). */
+  height: Mm;
+}
+
+/**
+ * An LED strip ring: a channel `channelWidth` × `channelDepth` opening on the
+ * light face of a wide disc, from `ringDiameter / 2` outward; the strip is
+ * stuck to its ceiling, its cable leaves through a slot in the ceiling and
+ * runs over the disc to the boss in the middle.
+ */
+export interface StripInsert {
+  kind: 'strip';
+  ringDiameter: Mm;
+  stripWidth: Mm;
+  /** The strip's thickness (its length along the axis). */
+  height: Mm;
+  /** `stripWidth + 0.4`. */
+  channelWidth: Mm;
+  channelDepth: Mm;
+  cableWidth: Mm;
+  /** Wall of the disc and its rim (the hub's wall). */
+  wall: Mm;
+}
+
+/** The light insert the hub cuts: a puck pocket, a bulb's lampholder plate, a strip channel. */
+export type LightInsert = PuckInsert | BulbInsert | StripInsert;
 
 // ---------------------------------------------------------------- mounts
 
@@ -209,8 +277,8 @@ export interface CordGripParams {
   quality: Quality;
 }
 
-// The parts of the wall arm and the standing lamp (builders: M2.2b). Fields
-// follow the plan's part table; the mount modules fill them in.
+// The parts of the wall arm and the standing lamp. Fields follow the plan's
+// part table; the mount modules fill them in.
 
 /**
  * A stem segment of the standing lamp (part kind `stem`): a tube with a cable
