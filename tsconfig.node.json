@@ -7,6 +7,15 @@
     "moduleResolution": "nodenext",
     "types": ["node"]
   },
-  // The CLI and the tests run src/core directly under Node (type stripping).
-  "include": ["cli", "tests", "vite.config.ts", "vitest.config.ts", "src/core"]
+  // The CLI and the unit tests run src/core directly under Node (type
+  // stripping); `tests` also holds the Playwright specs (tests/e2e), which
+  // pass browser code to `page.evaluate` as strings since there are no DOM types.
+  "include": [
+    "cli",
+    "tests",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "src/core"
+  ]
 }
