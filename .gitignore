@@ -1,3 +1,8 @@
 node_modules/
 dist/
 .DS_Store
+samples/
+test-results/
+playwright-report/
+coverage/
+node_modules/.tmp/

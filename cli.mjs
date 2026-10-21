@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Command-line STL generator.
+ * openlamp command-line STL generator.
  *
  *   node cli.mjs                          # default shade → samples/shade.stl
  *   node cli.mjs -o my.stl --bottomDiameter 180 --style faceted --patternCount 8
@@ -34,7 +34,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  console.log(`reflector – parametric lamp shade for the Bambu Lab LED Lamp Kit-001
+  console.log(`openlamp – parametric lamp shade for the Bambu Lab LED Lamp Kit-001
 
 Usage: node cli.mjs [options] [--<param> <value> ...]
 
@@ -76,7 +76,7 @@ const t0 = performance.now();
 const { manifold, stats } = buildShade(wasm, params);
 if (stats.status !== 'NoError') { console.error('Geometry error:', stats.status); process.exit(1); }
 const mesh = manifold.getMesh();
-const stl = meshToBinaryStl(mesh, 'reflector lamp shade for Bambu Lab LED Lamp Kit-001');
+const stl = meshToBinaryStl(mesh, 'openlamp lamp shade for Bambu Lab LED Lamp Kit-001');
 const out = args.out || 'samples/shade.stl';
 await mkdir(dirname(out), { recursive: true });
 await writeFile(out, Buffer.from(stl));

@@ -55,7 +55,7 @@ self.onmessage = async (e) => {
         [positions.buffer, indices.buffer]);
     } else if (msg.type === 'stl') {
       const { manifold, params } = ensureBuilt(msg.params);
-      const buffer = meshToBinaryStl(manifold.getMesh(), 'reflector lamp shade for Bambu Lab LED Lamp Kit-001');
+      const buffer = meshToBinaryStl(manifold.getMesh(), 'openlamp lamp shade for Bambu Lab LED Lamp Kit-001');
       self.postMessage({ type: 'stl', id: msg.id, buffer, params }, [buffer]);
     }
   } catch (err) {

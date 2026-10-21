@@ -1,8 +1,15 @@
-# Reflector
+# openlamp
 
-Parametric, 3D‑printable **ceiling lamp shade for the Bambu Lab LED Lamp Kit‑001**, hung
-from the ceiling with a velcro (hook‑and‑loop) strap. Generates a watertight binary STL
-from a browser UI with live preview, or from the command line.
+**openlamp** is the start of a full parametric lamp generator: pluggable light sources,
+several mount types, inner and outer shades in different styles, structural parts and
+printer-aware, slicer-ready exports. Try the live app at
+**https://jahoefne.github.io/openlamp/**; the target design and the roadmap are in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+Today it generates one part: a parametric, 3D‑printable **ceiling lamp shade for the Bambu
+Lab LED Lamp Kit‑001**, hung from the ceiling with a velcro (hook‑and‑loop) strap. It
+produces a watertight binary STL from a browser UI with live preview, or from the command
+line.
 
 ```
 ceiling  ═════════════════════  self‑adhesive velcro strip stuck to the ceiling
@@ -32,14 +39,17 @@ rattling, so it can be swapped at any time.
 
 ```bash
 npm install
-npm run dev        # opens the UI on http://localhost:5173
+npm run dev        # opens the UI on http://localhost:5173/openlamp/
 ```
 
 Adjust the sliders, watch the preview (there is a section view and a "mounted on the
 ceiling" view), then click **Download STL**. The settings are mirrored in the URL, so
 **Copy link** gives you a shareable configuration.
 
-`npm run build` produces a static site in `dist/` that works from any web server.
+`npm run build` produces a static site in `dist/`. It is built for the base path
+`/openlamp/` (set in `vite.config.js`), so serve it from a directory of that name;
+`npm run preview` serves the build on http://localhost:4173/openlamp/. Every push to
+`main` builds the site and deploys it to GitHub Pages (`.github/workflows/ci.yml`).
 
 ## Command line
 
@@ -53,7 +63,8 @@ node cli.mjs --json                            # stats as JSON
 
 Any parameter from `--list` can be passed as `--key value`. Values are clamped to their
 range and cross‑checked (for example the top of the shade is widened automatically if it
-would not clear the puck housing).
+would not clear the puck housing). The package also exposes the CLI as an `openlamp`
+binary (`npm link`, then `openlamp --list`).
 
 ## Parameters
 
@@ -95,8 +106,9 @@ would not clear the puck housing).
   light – a smooth PEI plate and a slow first layer work well.
 * Fine quality exports are ~10 MB; the slicer copes, but "normal" is plenty for printing.
 * **Check the fit first:** set *Fit test only* to *yes* (or `--fitTest yes`) to export just the
-  13 mm tall housing ring (`samples/fit-test-ring.stl`, ≈ 15 g, ≈ 10 min). Drop your puck in,
-  thread the strap, then adjust `puckDiameter`, `puckHeight` or `puckClearance` if needed.
+  13 mm tall housing ring (`node cli.mjs --fitTest yes -o samples/fit-test-ring.stl`,
+  ≈ 15 g, ≈ 10 min). Drop your puck in, thread the strap, then adjust `puckDiameter`,
+  `puckHeight` or `puckClearance` if needed.
 
 ## Verification
 
@@ -108,15 +120,19 @@ light opening 25.00, housing 32.60 and belt loops out to 37.5 mm, as designed.
 ## Project layout
 
 ```
-cli.mjs            command‑line generator
-index.html         web UI shell
-src/params.js      parameter schema, defaults, presets, validation
-src/geometry.js    shade geometry (profile → revolve → warp → booleans)
-src/stl.js         binary STL writer
-src/worker.js      web worker that owns the WASM geometry kernel
-src/app.js         UI, three.js preview, STL download
-samples/           example STLs
+cli.mjs                   command‑line generator
+index.html                web UI shell
+src/params.js             parameter schema, defaults, presets, validation
+src/geometry.js           shade geometry (profile → revolve → warp → booleans)
+src/stl.js                binary STL writer
+src/worker.js             web worker that owns the WASM geometry kernel
+src/app.js                UI, three.js preview, STL download
+docs/ARCHITECTURE.md      target architecture and milestones
+.github/workflows/ci.yml  build and GitHub Pages deploy
 ```
+
+Sample STLs are not committed. Regenerate them with the CLI, for example
+`node cli.mjs --preset "Faceted" -o samples/shade-faceted.stl` (`samples/` is git‑ignored).
 
 ## Sources for the kit dimensions
 
@@ -126,3 +142,7 @@ samples/           example STLs
   overhangs > 40° print cleanly, 0.2 mm fit tolerance.
 * Resellers (3DJake, 3D Universe) list 59 × 18 mm – the puck thickness is therefore a
   parameter; measure your kit before printing.
+
+## License
+
+[MIT](LICENSE)

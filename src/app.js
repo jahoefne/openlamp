@@ -252,7 +252,7 @@ worker.onmessage = (e) => {
     const a = document.createElement('a');
     const p = msg.params;
     a.href = URL.createObjectURL(blob);
-    a.download = `reflector-shade-${p.bottomDiameter}x${p.height}-${p.style}.stl`;
+    a.download = `openlamp-shade-${p.bottomDiameter}x${p.height}-${p.style}.stl`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     downloadBtn.disabled = false;
