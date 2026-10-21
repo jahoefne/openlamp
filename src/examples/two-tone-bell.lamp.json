@@ -1,0 +1,105 @@
+{
+  "version": 3,
+  "id": "two-tone-bell",
+  "name": "Two-tone bell",
+  "revision": 0,
+  "updatedAt": "2026-10-21T00:00:00.000Z",
+  "printer": {
+    "id": "bambu-a1",
+    "vendor": "Bambu Lab",
+    "name": "A1",
+    "bed": [256, 256, 256],
+    "nozzle": 0.4,
+    "multiColour": true,
+    "notes": "AMS lite"
+  },
+  "quality": {
+    "preview": "normal",
+    "export": "normal"
+  },
+  "light": {
+    "kind": "puck",
+    "preset": "bambu-kit-001",
+    "diameter": 59,
+    "height": 8,
+    "clearance": 0.7,
+    "lightHoleDiameter": 50,
+    "ledgeThickness": 2,
+    "cableWidth": 4.5,
+    "bossWall": 2.4,
+    "pocketExtraDepth": 0.3
+  },
+  "mount": {
+    "kind": "ceilingCord",
+    "cordDiameter": 4,
+    "dropLength": 600,
+    "grip": "knot",
+    "canopy": {
+      "diameter": 90,
+      "height": 25,
+      "screwSpacing": 60
+    }
+  },
+  "hub": {
+    "wallThickness": 2,
+    "shoulderAngle": 50,
+    "collarWall": 2,
+    "radialGap": 8,
+    "ventCount": 0,
+    "fused": false
+  },
+  "shades": [
+    {
+      "id": "outer",
+      "role": "outer",
+      "colour": "#1f1f23",
+      "wallThickness": 0.8,
+      "style": {
+        "family": "revolved",
+        "bottomDiameter": 190,
+        "topDiameter": 120,
+        "height": 130,
+        "curve": 0.3,
+        "shoulderAngle": 50,
+        "surface": {
+          "style": "ribbed",
+          "patternCount": 48,
+          "ribDepth": 1.6,
+          "twist": 0
+        }
+      }
+    },
+    {
+      "id": "inner",
+      "role": "inner",
+      "colour": "#ffffff",
+      "wallThickness": 0.8,
+      "style": {
+        "family": "revolved",
+        "bottomDiameter": 172,
+        "topDiameter": 102,
+        "height": 120,
+        "curve": 0.3,
+        "shoulderAngle": 50,
+        "surface": {
+          "style": "smooth",
+          "patternCount": 48,
+          "ribDepth": 1.6,
+          "twist": 0
+        }
+      }
+    }
+  ],
+  "joints": {
+    "shadeToHub": "bayonet",
+    "tolerance": 0.3,
+    "threadPitch": 2.5,
+    "threadDepth": 0.8,
+    "screw": "M3",
+    "heatSet": true
+  },
+  "colours": {
+    "hub": "#1f1f23"
+  },
+  "fitTest": false
+}

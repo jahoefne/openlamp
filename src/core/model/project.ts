@@ -8,7 +8,10 @@
  * `hub.fused` only applies to the strap with a puck; every other lamp prints
  * the hub and the shade separately. One revolved outer shade. M2.3 added the
  * E27 / E14 bulb and the LED strip to `LightSource` (purely additive: every
- * earlier version-3 file is still valid, so the version stayed 3).
+ * earlier version-3 file is still valid, so the version stayed 3). M2.4 added
+ * the optional inner shade (`shades: [outer] | [outer, inner]`, likewise
+ * additive): it hangs from a second, concentric hub collar inside the outer
+ * shade's (`hub.radialGap` apart), so it needs a split lamp.
  *
  * Version 2 (M2.1) split the lamp into a hub and a shade joined by a collar
  * joint (`joints`), unless `hub.fused` kept them one print (the classic
@@ -42,6 +45,8 @@ import {
   type ClassicShadeKey,
   type ClassicShadeParams,
   type FlatLightKind,
+  type FlatShadeKey,
+  type FlatShadeParams,
   type HubJointKey,
   type HubJointParams,
   type LightChoice,
@@ -57,6 +62,8 @@ import { SHADE_JOINT_TYPES, type Hex } from './assembly.ts';
 export const PROJECT_VERSION = 3;
 
 export const DEFAULT_SHADE_COLOUR: Hex = '#f4efe6';
+/** A new inner shade's colour (white reflects the light out of the outer shade). */
+export const DEFAULT_INNER_SHADE_COLOUR: Hex = '#ffffff';
 /** The hub's colour in new and migrated projects (`colours.hub`). */
 export const DEFAULT_HUB_COLOUR: Hex = '#d9d4cb';
 
@@ -185,7 +192,11 @@ export const HubSchema = z.object({
   shoulderAngle: Mm,
   /** Wall of the shade collar and of the hub ring around it. */
   collarWall: Mm,
-  /** Gap between the outer and an inner shade collar (inner shades: M2.4). */
+  /**
+   * With an inner shade: the air between the hub's inner and outer collar
+   * rings (the outer shade's collar sits in it), i.e. between the inner
+   * shade's collar and the outer shade's collar bore.
+   */
   radialGap: Mm,
   /** Ø6 vents through the hub's shoulder (bulb lights only; 8 when a bulb is picked). */
   ventCount: z.number().int().nonnegative(),
@@ -213,15 +224,32 @@ export const RevolvedStyleSchema = z.object({
 
 export const ShadeStyleSchema = z.discriminatedUnion('family', [RevolvedStyleSchema]);
 
+/** The outer shade (`shades[0]`). */
 export const ShadeSchema = z.object({
   id: z.string().min(1),
   role: z.literal('outer'),
   colour: HexSchema,
   wallThickness: Mm,
-  /** Collar diameter; automatic (from the light) unless set, and it may only enlarge it. */
+  /**
+   * Collar diameter; automatic (from the light, or from the inner shade's
+   * collar plus the radial gap) unless set, and it may only enlarge it.
+   */
   collarDiameter: Mm.optional(),
   style: ShadeStyleSchema,
 });
+
+/**
+ * The optional inner shade (`shades[1]`): its own colour, wall and style
+ * (revolved for now), hanging inside the outer shade from the hub's inner
+ * collar ring. Needs a split lamp (not `hub.fused`).
+ */
+export const InnerShadeSchema = ShadeSchema.extend({ role: z.literal('inner') });
+
+/** The outer shade alone, or the outer and an inner shade. */
+export const ShadesSchema = z.union([
+  z.tuple([ShadeSchema]),
+  z.tuple([ShadeSchema, InnerShadeSchema]),
+]);
 
 export const JointsSchema = z.object({
   /** How the shade hangs from the hub. */
@@ -247,8 +275,8 @@ export const ProjectSchema = z.object({
   light: LightSchema,
   mount: MountSchema,
   hub: HubSchema,
-  /** Exactly one outer shade so far. */
-  shades: z.tuple([ShadeSchema]),
+  /** The outer shade, optionally followed by an inner one. */
+  shades: ShadesSchema,
   joints: JointsSchema,
   /** Colours by part id or part kind (the shade falls back to its own colour). */
   colours: z.record(z.string(), HexSchema),
@@ -264,7 +292,11 @@ export type Mount = z.infer<typeof MountSchema>;
 /** One mount variant. */
 export type MountOf<K extends MountKind> = Extract<Mount, { kind: K }>;
 export type Hub = z.infer<typeof HubSchema>;
-export type ShadeSpec = z.infer<typeof ShadeSchema>;
+export type OuterShadeSpec = z.infer<typeof ShadeSchema>;
+export type InnerShadeSpec = z.infer<typeof InnerShadeSchema>;
+/** A shade of either role. */
+export type ShadeSpec = OuterShadeSpec | InnerShadeSpec;
+export type ShadeRole = ShadeSpec['role'];
 export type ShadeStyle = z.infer<typeof ShadeStyleSchema>;
 export type SurfaceStyle = z.infer<typeof SurfaceSchema>;
 export type Joints = z.infer<typeof JointsSchema>;
@@ -515,6 +547,46 @@ function copyLight(light: LightSource): LightSource {
   return { ...light };
 }
 
+// ---------------------------------------------------------------- shades
+
+/** Where each shade lives in `project.shades`. */
+export const SHADE_INDEX: Readonly<Record<ShadeRole, 0 | 1>> = { outer: 0, inner: 1 };
+
+/**
+ * Where each flat shade parameter (`SHADE_DEFS`) lives inside a `ShadeSpec`,
+ * as a dotted path (the same keys as the classic shade's shape and surface).
+ */
+export const SHADE_PARAM_PATHS: Readonly<Record<FlatShadeKey, string>> = {
+  bottomDiameter: 'style.bottomDiameter',
+  topDiameter: 'style.topDiameter',
+  height: 'style.height',
+  curve: 'style.curve',
+  wallThickness: 'wallThickness',
+  shoulderAngle: 'style.shoulderAngle',
+  style: 'style.surface.style',
+  patternCount: 'style.surface.patternCount',
+  ribDepth: 'style.surface.ribDepth',
+  twist: 'style.surface.twist',
+};
+
+/** The project path of a flat shade parameter of the shade with this role, e.g. `shades.1.style.height`. */
+export function shadeParamPath(role: ShadeRole, key: string): string | undefined {
+  const paths: Readonly<Record<string, string>> = SHADE_PARAM_PATHS;
+  return Object.hasOwn(paths, key) ? `shades.${SHADE_INDEX[role]}.${paths[key]}` : undefined;
+}
+
+/** The flat parameters of a shade (see `SHADE_PARAM_PATHS`). Not normalised. */
+export function shadeToParams(shade: ShadeSpec): FlatShadeParams {
+  const out: Record<string, unknown> = {};
+  for (const [key, path] of Object.entries(SHADE_PARAM_PATHS)) out[key] = getAtPath(shade, path);
+  return out as FlatShadeParams;
+}
+
+/** A deep copy of a shade (plain JSON data). */
+function copyShade<S extends ShadeSpec>(shade: S): S {
+  return JSON.parse(JSON.stringify(shade)) as S;
+}
+
 /** A new project with today's default shade on a Bambu Lab A1. */
 export function createDefaultProject(init: NewProjectInit = {}): Project {
   return classicParamsToProject({ ...CLASSIC_SHADE_DEFAULTS }, undefined, init);
@@ -600,9 +672,9 @@ export function projectToClassicParams(
 /**
  * A project holding these flat classic-shade parameters. Everything the flat
  * parameters do not describe (id, name, printer, colours, shade id, colour and
- * collar, the hub and the joints, export quality, a mount other than the
- * strap, a light other than the puck) comes from `base`, or from a new default
- * project. Without a base,
+ * collar, an inner shade, the hub and the joints, export quality, a mount
+ * other than the strap, a light other than the puck) comes from `base`, or
+ * from a new default project. Without a base,
  * `params.quality` is used for both preview and export, as in the first app.
  */
 export function classicParamsToProject(
@@ -612,6 +684,7 @@ export function classicParamsToProject(
 ): Project {
   const p = params;
   const baseShade = base?.shades[0];
+  const baseInner = base?.shades[1];
   const printer = base ? copyPrinter(base.printer) : defaultPrinter();
   const kitPuck =
     p.puckDiameter === CLASSIC_SHADE_DEFAULTS.puckDiameter &&
@@ -650,7 +723,7 @@ export function classicParamsToProject(
             loopWall: p.loopWall,
           },
     hub: base ? { ...base.hub } : defaultHub(),
-    shades: [
+    shades: withInner(
       {
         id: baseShade?.id ?? 'outer',
         role: 'outer',
@@ -674,11 +747,17 @@ export function classicParamsToProject(
           },
         },
       },
-    ],
+      baseInner && copyShade(baseInner),
+    ),
     joints: base ? { ...base.joints } : defaultJoints(),
     colours: base ? { ...base.colours } : { hub: DEFAULT_HUB_COLOUR },
     fitTest: p.fitTest === 'yes',
   };
+}
+
+/** The shades tuple: the outer shade, and the inner one if there is one. */
+function withInner(outer: OuterShadeSpec, inner: InnerShadeSpec | undefined): Project['shades'] {
+  return inner ? [outer, inner] : [outer];
 }
 
 // ---------------------------------------------------------------- hub & joint bridge

@@ -341,9 +341,39 @@ export const CLASSIC_SHADE_DEFAULTS: Readonly<ClassicShadeParams> = Object.freez
   Object.fromEntries(CLASSIC_SHADE_DEFS.map((p) => [p.key, p.default])) as ClassicShadeParams,
 );
 
+// ---------------------------------------------------------------- one shade
+
+/**
+ * The classic shade's groups that describe a shade itself (its shape and its
+ * surface): every shade of a split lamp, the outer and the inner one, has
+ * these flat parameters (`SHADE_PARAM_PATHS` in project.ts says where each
+ * lives inside a `ShadeSpec`).
+ */
+export const SHADE_GROUP_IDS = ['shape', 'style'] as const;
+
+type ShadeSchemaParam = Extract<
+  (typeof CLASSIC_SHADE_SCHEMA)[number],
+  { id: (typeof SHADE_GROUP_IDS)[number] }
+>['params'][number];
+
+/** The flat parameters of one shade (a subset of the classic shade's). */
+export type FlatShadeKey = ShadeSchemaParam['key'];
+export type FlatShadeParams = Pick<ClassicShadeParams, FlatShadeKey>;
+
+export const SHADE_GROUPS: readonly ParamGroup<ClassicShadeParamDef>[] =
+  CLASSIC_SHADE_GROUPS.filter((g) => (SHADE_GROUP_IDS as readonly string[]).includes(g.id));
+
+export const SHADE_DEFS: readonly ClassicShadeParamDef[] = SHADE_GROUPS.flatMap((g) => g.params);
+
+export const FLAT_SHADE_KEYS: readonly FlatShadeKey[] = SHADE_DEFS.map(
+  (d) => d.key as FlatShadeKey,
+);
+
 // ---------------------------------------------------------------- hub & joint
 
 const split = (v: ParamValues) => v.fused !== true;
+/** The radial gap matters with an inner shade only: the form passes `innerShade`. */
+const splitInner = (v: ParamValues) => split(v) && v.innerShade === true;
 const splitThread = (v: ParamValues) => split(v) && v.shadeToHub === 'thread';
 /** The vents are a bulb feature: the form passes the light's kind as `lightKind`. */
 const splitBulb = (v: ParamValues) => split(v) && v.lightKind === 'bulb';
@@ -417,8 +447,8 @@ const HUB_JOINT_SCHEMA = [
         max: 30,
         step: 0.5,
         default: 8,
-        help: 'Gap between the outer and an inner shade collar (inner shades arrive in a later version).',
-        visibleWhen: split,
+        help: "Air between the hub's two collar rings: the inner shade's collar is in the inner ring, the outer shade's collar sits in this gap inside the outer ring. Raised if the outer collar would come closer than 2 mm to the inner ring.",
+        visibleWhen: splitInner,
       },
       {
         key: 'hubShoulderAngle',

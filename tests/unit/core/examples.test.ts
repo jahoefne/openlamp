@@ -39,10 +39,16 @@ async function buildsAll(assembly: Assembly): Promise<void> {
   }
 }
 
-it('ships the classic, pendant and light examples', () => {
+it('ships the classic, pendant, light and two-shade examples', () => {
   expect(files.length).toBeGreaterThanOrEqual(10);
   expect(files.map((f) => f.replace('.lamp.json', ''))).toEqual(
-    expect.arrayContaining([...CLASSIC, 'pendant-cord', 'e27-pendant', 'strip-drum']),
+    expect.arrayContaining([
+      ...CLASSIC,
+      'pendant-cord',
+      'e27-pendant',
+      'strip-drum',
+      'two-tone-bell',
+    ]),
   );
 });
 
@@ -98,6 +104,34 @@ describe('the pendant example', () => {
       ['canopy', 'canopy'],
     ]);
     expect(assembly.context.kind).toBe('ceiling');
+  });
+});
+
+describe('the two-shade example', () => {
+  it('hangs a black ribbed bell and a white smooth inner shade from a split hub on a cord', async () => {
+    const project = read('two-tone-bell');
+    expect(project.name).toBe('Two-tone bell');
+    expect(project.mount.kind).toBe('ceilingCord');
+    expect(project.light.kind).toBe('puck');
+    expect(project.hub.fused).toBe(false);
+    expect(project.joints.shadeToHub).toBe('bayonet');
+    const [outer, inner] = project.shades;
+    expect(outer).toMatchObject({ role: 'outer', colour: '#1f1f23' });
+    expect(outer.style.surface.style).toBe('ribbed');
+    expect(inner).toMatchObject({ role: 'inner', colour: '#ffffff' });
+    expect(inner!.style.surface.style).toBe('smooth');
+    const assembly = assemble(project, { quality: 'draft' });
+    expect(assembly.parts.map((p) => [p.id, p.colour])).toEqual([
+      ['hub', '#1f1f23'],
+      ['shade', '#1f1f23'],
+      ['innerShade', '#ffffff'],
+      ['canopy', '#1f1f23'],
+    ]);
+    expect(Object.keys(assembly.interfaces)).toEqual(
+      expect.arrayContaining(['shadeToHub', 'innerShadeToHub']),
+    );
+    expect(assembly.warnings.filter((w) => w.severity !== 'info')).toEqual([]);
+    await buildsAll(assembly);
   });
 });
 

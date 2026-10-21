@@ -1,5 +1,5 @@
 /**
- * Edits of the flat parameters from the forms (classic shade, light, mount, hub & joint),
+ * Edits of the flat parameters from the forms (classic shade, inner shade, light, mount, hub & joint),
  * including the slider drag lifecycle: the intermediate values of a drag are
  * transient (one undo step for the whole drag) and built at draft quality;
  * the commit returns to the project's preview quality, so the release
@@ -68,6 +68,12 @@ export const mountEdits = editSession<string, number | string>(
 /** Edits of the current bulb's or strip's flat parameters (see `LIGHT_PARAM_PATHS`). */
 export const lightEdits = editSession<string, number | string>(
   () => useProjectStore.getState().setLightParam,
+);
+
+/** Edits of the inner shade's flat parameters (see `SHADE_PARAM_PATHS`). */
+export const innerShadeEdits = editSession<string, number | string>(
+  () => (key, value, options) =>
+    useProjectStore.getState().setShadeParam('inner', key, value, options),
 );
 
 /** Edits of the hub & joint parameters. */
