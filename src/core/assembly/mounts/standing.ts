@@ -432,15 +432,21 @@ export const standingMount: MountModule<'standing'> = {
       topZ = Math.max(topZ, hubZ + shade.zCollar);
     }
     const partTransforms: Record<string, Mat4> = {};
+    const instanceTransforms: Record<string, Mat4[]> = {};
     for (const part of parts.parts) {
       switch (part.kind) {
         case 'stem':
-          // The foot stands on the base; the segments' part is shown as the top one.
-          partTransforms[part.id] = translation(
-            0,
-            0,
-            part.params.variant === 'base' ? H : H + (count - 1) * length,
-          );
+          if (part.params.variant === 'base') {
+            // The foot stands on the base.
+            partTransforms[part.id] = translation(0, 0, H);
+          } else {
+            // The segments stacked on the foot, bottom to top, one `length` apart;
+            // the part itself is placed as the top one.
+            instanceTransforms[part.id] = Array.from({ length: part.instances ?? 1 }, (_, i) =>
+              translation(0, 0, H + (i + 1) * length),
+            );
+            partTransforms[part.id] = translation(0, 0, H + (count - 1) * length);
+          }
           break;
         case 'base':
           // Printed top face down: half a turn about x, its top face at H.
@@ -459,6 +465,7 @@ export const standingMount: MountModule<'standing'> = {
       hubTransform,
       shadeTransforms,
       partTransforms,
+      instanceTransforms,
       bottomZ: Math.min(0, hubZ - d.hubHeight),
       context: { kind: 'floor', floorZ: 0 },
       derived: {

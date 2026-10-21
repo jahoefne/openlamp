@@ -20,6 +20,8 @@ const DEFAULT_CEILING = 153;
 /** Size of the ceiling, the wall and the floor planes, mm. */
 const PLANE = 400;
 const FLOOR = 800;
+/** How far the wall plane sits behind `wallY` (the plate's back face), mm. */
+const WALL_GAP = 0.5;
 
 function BedGrid() {
   return (
@@ -79,21 +81,24 @@ export function ContextPlanes() {
   if (!mounted) return <BedGrid />;
   switch (context?.kind ?? 'ceiling') {
     case 'ceiling':
+      // Facing down into the room (planeGeometry faces +z: half a turn about x).
       return (
         <mesh
           material={ceilingMaterial}
           position={[0, 0, (context?.ceilingZ ?? DEFAULT_CEILING) + lift]}
+          rotation={[Math.PI, 0, 0]}
         >
           <planeGeometry args={[PLANE, PLANE]} />
         </mesh>
       );
     case 'wall':
-      // A vertical plane y = wallY (planeGeometry lies in XY: turned about x).
+      // A vertical plane y = wallY facing the room (+y; planeGeometry lies in
+      // XY: turned −90° about x), just behind the plate's back face.
       return (
         <mesh
           material={wallMaterial}
-          position={[0, context?.wallY ?? -PLANE / 2, PLANE / 2]}
-          rotation={[Math.PI / 2, 0, 0]}
+          position={[0, (context?.wallY ?? -PLANE / 2) - WALL_GAP, PLANE / 2]}
+          rotation={[-Math.PI / 2, 0, 0]}
         >
           <planeGeometry args={[PLANE, PLANE]} />
         </mesh>

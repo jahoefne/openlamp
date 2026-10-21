@@ -155,6 +155,8 @@ interface Placed {
   draft: PartDraft;
   /** Print frame → world. */
   assembledTransform: Mat4;
+  /** Print frame → world of each copy, if the part has several (default: all at `assembledTransform`). */
+  instanceTransforms?: Mat4[] | undefined;
 }
 
 /** Cache keys, bed layout, bed-fit and layout warnings: what every assembly does with its parts. */
@@ -167,20 +169,28 @@ function finish(
   warnings: Warning[],
 ): Assembly {
   const layout = layoutParts(
-    placed.map(({ draft: d }) => ({ id: d.id, x: d.footprint.x, y: d.footprint.y })),
+    placed.map(({ draft: d }) => ({
+      id: d.id,
+      x: d.footprint.x,
+      y: d.footprint.y,
+      instances: d.instances ?? 1,
+    })),
     project.printer.bed,
   );
-  const parts = placed.map(({ draft: d, assembledTransform }): PartSpec => {
+  const parts = placed.map(({ draft: d, assembledTransform, instanceTransforms }): PartSpec => {
     const buildKey = canonicalJson({ kind: d.kind, params: d.params });
     const placement = layout.placements.find((p) => p.id === d.id);
+    const instances = d.instances ?? 1;
     const common = {
       id: d.id,
       displayName: d.displayName,
       buildKey,
       hash: cyrb53(buildKey),
       colour: d.colour,
-      instances: d.instances ?? 1,
+      instances,
       assembledTransform,
+      instanceTransforms:
+        instanceTransforms ?? Array.from({ length: instances }, () => [...assembledTransform]),
       printTransform: placement ? placementTransform(placement) : [...IDENTITY],
       bedFootprint: d.footprint,
       printNotes: d.printNotes,
@@ -453,6 +463,7 @@ function assembleMounted<K extends MountKind>(
       placed.push({
         draft,
         assembledTransform: placement.partTransforms[draft.id] ?? [...IDENTITY],
+        instanceTransforms: placement.instanceTransforms?.[draft.id],
       });
     }
   }

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { standingDefaults } from '@core/assembly/mounts/standing.ts';
 import { createDefaultProject, defaultMount, parseProject } from '@core/model/project.ts';
 import { findPrinter } from '@core/schema/printers.ts';
 import {
@@ -227,6 +228,50 @@ describe('mounts', () => {
     pause();
     undo();
     expect(project().mount).toMatchObject({ dropLength: 600 });
+  });
+
+  it('switching the standing variant applies its defaults to the unedited fields, one step', () => {
+    store().setMount('standing');
+    pause();
+    store().setMountParam('baseDiameter', 200); // edited: stays
+    pause();
+    store().setMountParam('standingVariant', 'floor');
+    const floor = standingDefaults('floor');
+    expect(project().mount).toEqual({
+      ...floor,
+      base: { ...floor.base, diameter: 200 },
+    });
+    expect(project().mount).toMatchObject({
+      variant: 'floor',
+      base: { diameter: 200, height: 30, pocketDepth: 22, lid: 'snap' },
+      stem: { totalHeight: 1300, segmentLength: 220, diameter: 32, cableDiameter: 6 },
+    });
+    expect(steps()).toBe(3);
+    undo();
+    expect(project().mount).toEqual({
+      ...defaultMount('standing'),
+      base: { ...defaultMount('standing').base, diameter: 200 },
+    });
+    redo();
+    pause();
+    // Back to a table lamp: the floor defaults go, the edited Ø and a new edit stay.
+    store().setMountParam('stemTotalHeight', 900);
+    pause();
+    store().setMountParam('standingVariant', 'table');
+    expect(project().mount).toMatchObject({
+      variant: 'table',
+      base: { diameter: 200, height: 22, pocketDepth: 14 },
+      stem: { totalHeight: 900, segmentLength: 200, diameter: 28 },
+    });
+  });
+
+  it('switching to an unedited floor lamp gives the floor defaults (Ø280 base, taller stem)', () => {
+    store().setMount('standing');
+    store().setMountParam('standingVariant', 'floor');
+    expect(project().mount).toEqual(standingDefaults('floor'));
+    // Choosing the same variant again changes nothing else.
+    store().setMountParam('standingVariant', 'floor');
+    expect(project().mount).toEqual(standingDefaults('floor'));
   });
 
   it('a shade edit keeps a mount other than the strap', () => {

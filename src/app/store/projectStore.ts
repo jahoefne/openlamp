@@ -19,6 +19,7 @@ import { create, useStore } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { temporal, type TemporalState } from 'zundo';
 import type { Draft } from 'immer';
+import { standingDefaults } from '@core/assembly/mounts/standing.ts';
 import type { Quality } from '@core/geometry/quality.ts';
 import { canonicalJson } from '@core/hash.ts';
 import type { Hex } from '@core/model/assembly.ts';
@@ -29,21 +30,26 @@ import {
   defaultMount,
   lightForChoice,
   lightParamPath,
+  mountFromParams,
   mountParamPath,
+  mountToParams,
   projectToClassicParams,
   withBulbPreset,
+  type MountOf,
   type Project,
 } from '@core/model/project.ts';
 import {
   BULB_FITTINGS,
   BULB_SIZES,
   DEFAULT_VENTS,
+  STANDING_VARIANTS,
   type ClassicShadeKey,
   type ClassicShadeParams,
   type HubJointKey,
   type HubJointParams,
   type LightChoice,
   type MountKind,
+  type StandingMountParams,
 } from '@core/schema/defs.ts';
 import type { PrinterSpec } from '@core/schema/printers.ts';
 
@@ -93,7 +99,10 @@ export interface ProjectState {
   setMount(kind: MountKind): void;
   /**
    * Set one flat parameter of the current mount (see `MOUNT_PARAM_PATHS`);
-   * a key the current mount does not have is ignored.
+   * a key the current mount does not have is ignored. Switching the standing
+   * lamp's variant (`standingVariant`) also gives every parameter that still
+   * has the old variant's default the new one's (`standingDefaults`), in the
+   * same undo step.
    */
   setMountParam(key: string, value: number | string, options?: EditOptions): void;
   /**
@@ -136,6 +145,30 @@ function contentKey(project: Project): string {
 function touch(project: Draft<Project>): void {
   project.revision += 1;
   project.updatedAt = new Date().toISOString();
+}
+
+/** The flat key of the standing lamp's variant (table or floor lamp). */
+const STANDING_VARIANT_KEY = 'standingVariant';
+
+type StandingMount = MountOf<'standing'>;
+
+/**
+ * The standing mount as `variant`: every parameter that still has the
+ * current variant's default (`standingDefaults`) takes the new variant's (a
+ * floor lamp is taller, on a wider base); values the user changed stay.
+ */
+function withVariantDefaults(
+  mount: StandingMount,
+  variant: StandingMount['variant'],
+): StandingMount {
+  const before: Readonly<Record<string, unknown>> = mountToParams(standingDefaults(mount.variant));
+  const after: Readonly<Record<string, unknown>> = mountToParams(standingDefaults(variant));
+  const params: Record<string, unknown> = { ...mountToParams(mount) };
+  for (const key of Object.keys(params)) {
+    if (params[key] === before[key]) params[key] = after[key];
+  }
+  params[STANDING_VARIANT_KEY] = variant;
+  return mountFromParams('standing', params as StandingMountParams);
 }
 
 /** Set the value at a dotted path such as `joints.tolerance` in a draft. */
@@ -274,8 +307,15 @@ export const useProjectStore = create<ProjectState>()(
         setMountParam(key, value, options = {}) {
           const path = mountParamPath(get().project.mount.kind, key);
           if (path === undefined) return;
-          editParam(options, (_current, draft) => {
+          editParam(options, (current, draft) => {
             setAtPath(draft.project, path, value);
+            // A table lamp turned into a floor lamp (or back) takes that variant's defaults.
+            if (current.mount.kind === 'standing' && key === STANDING_VARIANT_KEY) {
+              const variant = STANDING_VARIANTS.find((v) => v === value);
+              if (variant && variant !== current.mount.variant) {
+                draft.project.mount = withVariantDefaults(current.mount, variant);
+              }
+            }
           });
         },
 
