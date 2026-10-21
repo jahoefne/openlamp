@@ -25,6 +25,7 @@ import {
   meshToBinaryStl,
   normalizeClassicShade,
   parseProject,
+  partFileName,
   printerLabel,
   type Kernel,
   type PartSpec,
@@ -77,13 +78,6 @@ function getKernel(): Promise<Kernel> {
     return k;
   });
   return kernelPromise;
-}
-
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 }
 
 const fmt = (n: number, d = 1) => n.toFixed(d);
@@ -177,11 +171,10 @@ async function buildProject(
   const assembly = assemble(project, { quality: q });
   printWarnings(assembly.warnings);
   const k = await getKernel();
-  const name = slugify(project.name) || slugify(project.id) || 'project';
   let ok = true;
   const results: Record<string, unknown>[] = [];
   for (const part of assembly.parts) {
-    const file = join(outDir, `openlamp-${name}-${part.id}.stl`);
+    const file = join(outDir, partFileName(project, part, 'stl'));
     const header = `openlamp ${part.displayName} - ${project.name}`;
     const built = await buildToFile(k, part, q, file, header);
     if (built.stats.status !== 'NoError') ok = false;

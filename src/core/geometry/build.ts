@@ -27,11 +27,14 @@ export const PART_BUILDERS: { readonly [K in PartKind]: Builder<PartParamsByKind
   classicShade: buildClassicShade,
 };
 
-/** Build a part at the given quality and time it. */
+/**
+ * Build a part and time it. The quality defaults to the one `assemble()` baked
+ * into the part's params (and its buildKey).
+ */
 export function buildPart(
   k: Kernel,
   spec: Pick<PartSpec, 'kind' | 'params'>,
-  quality: Quality,
+  quality: Quality = spec.params.quality,
 ): { manifold: Manifold; stats: PartStats } {
   const builder: Builder<PartParamsByKind[typeof spec.kind]> = PART_BUILDERS[spec.kind];
   const t0 = Date.now();
