@@ -25,33 +25,63 @@ Requires Node.js 24 (the version CI uses).
 
 ## Using the app
 
-- **Examples** opens a gallery of starting points: seven classic shades (bell, drum, faceted,
-  fluted twist, straight cone, trumpet, wide & shallow) and a pendant on a cord. Picking one
-  replaces the current lamp, which stays one undo away.
-- **The inspector** on the left holds every parameter of the shade: shape, surface style,
-  the LED puck and the velcro mount. Each number has a slider and a text field; values out of
-  range are clamped and explained under the field. Rows that do not apply are hidden (a
-  smooth shade has no rib count). While you drag a slider the preview builds at draft
-  quality; releasing it builds the full mesh. **Mount** picks how the lamp is hung or stands:
-  the velcro strap on the ceiling, a pendant on a cord (with a ceiling canopy, the cord knotted
-  in it or held by a collet and a screw-on grip), a wall arm or a standing lamp (the parts of
-  the last two arrive in the next step), each with its own parameters. **Hub & joint**
-  switches between the single-piece print (velcro strap only) and the two-part lamp
-  (_Single-piece print (fused)_ off) and, for the two-part lamp, picks the joint (bayonet, press fit, thread), its clearance, the thread pitch
-  and depth, the collar wall and the hub's own shoulder angle. **Output** sets the preview and
-  export mesh quality, the fit-test mode and the shade colour.
+The window has three columns: the **lamp tree** on the left, the 3D **viewport** in the middle
+with the **status strip** under it, and the **inspector** of whatever is selected in the tree on
+the right. Below 1100 px the tree shrinks to a rail of icons (» expands it) and the inspector
+opens as a sheet over the viewport (pick a node, or _Edit …_); below 760 px everything stacks,
+the viewport at half the screen height.
+
+- **Examples** opens a gallery of starting points: the classic shades (bell, drum, faceted,
+  fluted twist, straight cone, trumpet, wide & shallow), the pendant on a cord, the E27 pendant,
+  the strip-ring drum, the two-tone bell (with an inner shade), the table lamp and the wall
+  lamp. Picking one replaces the current lamp, which stays one undo away.
+- **The lamp tree** lists the lamp's nodes: **Project**, **Printer**, **Mount** (its kind),
+  **Light** (its kind), **Outer shade**, **Inner shade** (or _Add inner shade_), **Hub &
+  joints**, then one row per further part of the lamp (canopy, cord grip, stem segments, stem
+  foot, base, base lid, wall plate, wall arm, or the fit-test pieces), each part with its colour
+  and a bed-fit mark (✓ fits, ⚠ too big for the printer). Selecting a node shows only its
+  parameters in the inspector; selecting a part row selects the node it belongs to (its mount,
+  or Hub & joints for the test pieces) and outlines the part.
+- **The inspector** shows the selected node's parameters, generated from the core schema. Each
+  number has a slider and a text field; values out of range are clamped and explained under the
+  field, rows that do not apply are hidden (a smooth shade has no rib count). While you drag a
+  slider the preview builds at draft quality; releasing it builds the full mesh.
+  - **Project**: _Reset_, the preview and export mesh quality, _Fit test only (joint test
+    pair)_ and the view options below.
+  - **Printer**: the build volume, how the parts lie on the plate, _Choose printer…_ (also the
+    chip next to the project name).
+  - **Mount**: how the lamp is hung or stands: the velcro strap on the ceiling, a pendant on a
+    cord (a ceiling canopy, the cord knotted in it or held by a collet and a screw-on grip), a
+    wall arm (wall plate and arm) or a standing lamp (base, lid and a segmented stem), each with
+    its own parameters.
+  - **Light**: a USB LED puck, an E27 or E14 bulb in a lampholder or an LED strip ring.
+  - **Outer shade** / **Inner shade**: shape, surface and colour; the inner shade hangs from a
+    second collar ring of the hub (_Remove inner shade_ takes it away).
+  - **Hub & joints**: the single-piece print (velcro strap with a puck only) or the two-part
+    lamp, and for that the shade joint (bayonet, press fit, thread), its clearance, the thread
+    pitch and depth, the collar wall, the radial gap between two collars, the hub's shoulder
+    and, for bulbs, the vents.
+- **The viewport** shows the lamp assembled; click a part to select it (and its node), click
+  empty space to go back to the project, drag to orbit, **F** frames the lamp. The **View**
+  options: **Explode** moves the parts apart along the lamp's axis (nothing is rebuilt, the
+  camera stays); **Bed view** (**B**) lays every part out in its print orientation on the
+  printer's bed as the export does, with the height limit as a wire box and parts that do not
+  fit beside the bed in red; the section view (**X**, across X or Y) cuts the lamp in half; the
+  light, strap and cord show as ghosts; _Show as mounted_ shows the ceiling, the wall or the
+  floor.
+- **The status strip** under the viewport shows the build status, the bed-fit badge, the part
+  table (footprint, grams, triangles, overhang, bed fit per part, and the totals; clicking a
+  row selects that part) with the selected part's details, and every warning.
 - **Undo / redo**: ⌘Z / Ctrl+Z and ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y, or the arrows in the top
   bar. A whole slider drag is one step.
-- **Printer**: the chip next to the project name opens the printer list (Bambu Lab, Prusa,
-  Creality, Elegoo, Voron, Anycubic) or a custom build volume. The badge under the stats says
-  whether the shade fits the bed, or by how many millimetres it is too large.
-- **The viewport** shows the lamp with its build stats (footprint, housing, material, max
-  overhang, triangles); a two-part lamp gets one row per part (footprint, grams, triangles,
-  overhang, bed fit) plus the totals, and clicking a row or a part selects it. Drag to orbit, **F** frames the lamp. The **View** options cut the
-  shade in half (section view, **X**, across X or Y), show the LED puck and strap as ghosts
-  and show the shade mounted on the ceiling.
-- **Export → Download STL** writes one binary STL per part (the shade, or the hub and the
-  shade) at the export quality, named `openlamp-<project>-<part>.stl`.
+- **Export → Download STL** writes one binary STL per part at the export quality, named
+  `openlamp-<project>-<part>.stl`; **ZIP of all parts** packs them with the print sheet;
+  **Print sheet…** shows the parts, what to buy, the assembly steps and printing tips.
+- **Fit test**: with _Fit test only_ a two-part lamp exports just a test pair of its shade
+  joint, a 15 mm section of the shade's collar on a base disc and one of the hub's collar ring
+  (≈ 35 g together), built from the same joint as the real parts; join them, then raise or lower
+  the joint clearance under Hub & joints until the fit is right. The single-piece print exports
+  its puck housing ring instead.
 - **Projects**: **Save** downloads the lamp as a `.lamp.json` file named after the project and
   **Open** loads one back. **Share** copies a link that carries the whole project in the URL hash (`#p=…`);
   the address bar follows your edits, so any URL of the app reopens what you see. The app
@@ -88,7 +118,7 @@ The shade's parameters, as shown in the inspector and accepted by the CLI
 |        | loopLength        | 10 mm   | vertical tunnel length                                                           |
 |        | loopWall          | 2.4 mm  |                                                                                  |
 | Output | quality           | normal  | draft / normal / fine                                                            |
-|        | fitTest           | no      | `yes` exports only the housing ring (or the hub of a two-part lamp)              |
+|        | fitTest           | no      | `yes`: only the housing ring, or a two-part lamp's joint test pair               |
 
 The two-part lamp's hub and joint live in the project file (`hub`, `joints`) and in the
 inspector's **Hub & joint** group:
@@ -153,7 +183,9 @@ the top must be at least 78 mm).
 - Fine quality exports are ~10 MB; the slicer copes, but "normal" is plenty for printing.
 - **Check the fit first:** turn on _Fit test only_ (or pass `--fitTest yes`) to export just the
   13 mm tall housing ring (≈ 15 g, ≈ 10 min). Drop your puck in, thread the strap, then adjust
-  `puckDiameter`, `puckHeight` or `puckClearance` if needed.
+  `puckDiameter`, `puckHeight` or `puckClearance` if needed. For a two-part lamp the same switch
+  exports the joint's test pair instead (`part fitMale` / `part fitFemale` on the command line):
+  print both, twist, press or screw them together, and adjust `joints.tolerance`.
 
 Every STL is produced by [manifold-3d](https://github.com/elalish/manifold), which only emits
 oriented, watertight 2-manifold meshes; the app, the CLI and the tests check `status: NoError`.
@@ -170,6 +202,8 @@ node cli/openlamp.ts part shade                # default single-piece shade → 
 node cli/openlamp.ts part shade --bottomDiameter 200 --height 150 --style ribbed \
   --patternCount 48 --twist 60 --quality fine -o big.stl
 node cli/openlamp.ts part shade --fitTest yes -o samples/fit-test-ring.stl
+node cli/openlamp.ts part fitMale --joint thread   # the joint test pair: collar piece …
+node cli/openlamp.ts part fitFemale --joint thread # … and hub-ring piece
 node cli/openlamp.ts part hub --joint thread   # hub of a two-part lamp → samples/openlamp-hub.stl
 node cli/openlamp.ts part shade --joint snap   # its shade, with a press-fit collar
 node cli/openlamp.ts part hub --mount ceilingCord  # the pendant's hub (cord boss on top)
@@ -185,7 +219,7 @@ node cli/openlamp.ts samples                   # every example → samples/ (sam
   housing). Kinds: `shade` (the single-piece shade, or with `--joint bayonet|snap|thread` the
   shade of a two-part lamp) and `hub` (the hub of a two-part lamp, bayonet by default);
   `--mount <kind>` picks the mount, and a mount's own parts (`canopy`, `cordGrip`) come with
-  that mount's defaults.
+  that mount's defaults; `fitMale` and `fitFemale` are the fit-test pair of the shade joint.
 - `project <file.lamp.json>` builds every part of a project at its export quality into
   `--out <dir>` as `openlamp-<project>-<part>.stl`.
 - `samples` builds every `src/examples/*.lamp.json` into `samples/` (git-ignored).

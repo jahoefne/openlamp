@@ -22,6 +22,15 @@ export function partMaterial(colour: string): MeshStandardMaterial {
   return material;
 }
 
+/** A part that does not fit the print bed (bed view). */
+export const overflowMaterial = new MeshStandardMaterial({
+  color: 0xe5484d,
+  roughness: 0.55,
+  metalness: 0,
+  side: DoubleSide,
+  clippingPlanes: [...sectionPlanes],
+});
+
 /** The LED puck ghost. */
 export const puckMaterial = new MeshStandardMaterial({
   color: 0x9fd3ff,

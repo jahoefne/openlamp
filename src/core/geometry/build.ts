@@ -8,6 +8,7 @@ import { buildBase } from './parts/base.ts';
 import { buildBaseLid } from './parts/baseLid.ts';
 import { buildCanopy } from './parts/canopy.ts';
 import { buildCordGrip } from './parts/cordGrip.ts';
+import { buildFitFemale, buildFitMale } from './parts/fitPair.ts';
 import { buildHub } from './parts/hub.ts';
 import { buildShade } from './parts/shade.ts';
 import { buildStem } from './parts/stem.ts';
@@ -35,6 +36,8 @@ export const PART_BUILDERS: { readonly [K in PartKind]: Builder<PartParamsByKind
   baseLid: buildBaseLid,
   wallPlate: buildWallPlate,
   wallArm: buildWallArm,
+  fitMale: buildFitMale,
+  fitFemale: buildFitFemale,
 };
 
 /** One line per part kind, for the CLI's `list`. */
@@ -51,6 +54,9 @@ export const PART_KIND_DESCRIPTIONS: { readonly [K in PartKind]: string } = {
     'the wall plate of the wall arm: keyholes, insert pockets for the arm flange, cable slot',
   wallArm:
     'the arm of the wall lamp: flange, straight / angled / curved tube, threaded end boss for the hub',
+  fitMale:
+    'fit test: a section of the shade collar with the joint (lugs, ribs or thread) on a base disc',
+  fitFemale: "fit test: a section of the hub's collar ring with the joint's slots or thread",
 };
 
 /** What a builder needs of a part spec: its kind and the matching params. */
@@ -96,5 +102,9 @@ function runBuilder(
       return PART_BUILDERS.wallPlate(k, spec.params, quality);
     case 'wallArm':
       return PART_BUILDERS.wallArm(k, spec.params, quality);
+    case 'fitMale':
+      return PART_BUILDERS.fitMale(k, spec.params, quality);
+    case 'fitFemale':
+      return PART_BUILDERS.fitFemale(k, spec.params, quality);
   }
 }

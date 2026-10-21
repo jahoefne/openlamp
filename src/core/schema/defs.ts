@@ -310,7 +310,7 @@ const CLASSIC_SHADE_SCHEMA = [
         type: 'select',
         options: ['no', 'yes'],
         default: 'no',
-        help: 'Export just the puck housing ring of the single-piece shade (≈ 10 min print), or just the hub of a two-part lamp, to check the puck fit and strap tunnels before printing the whole lamp.',
+        help: 'Export just the puck housing ring of the single-piece shade (≈ 10 min print) to check the puck fit and the strap tunnels, or, for a two-part lamp, a test pair of the shade joint (a collar piece and a hub-ring piece) to check its clearance before printing the whole lamp.',
       },
     ],
   },

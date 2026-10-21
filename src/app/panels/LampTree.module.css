@@ -1,0 +1,210 @@
+/* The lamp tree: one button per node or part; a rail of icons when collapsed. */
+.tree {
+  padding: 10px 8px 24px;
+  font-size: 13px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 4px 6px 8px;
+}
+
+.tree[data-expanded='false'] .head {
+  justify-content: center;
+  padding: 0 0 6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.toggle {
+  padding: 2px 8px;
+  line-height: 1.2;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+}
+
+.row:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--panel-2);
+}
+
+.row[aria-current='true'] {
+  background: rgb(242 181 68 / 12%);
+  border-color: rgb(242 181 68 / 40%);
+}
+
+.row[aria-current='true'] .icon,
+.row[aria-current='true'] .label {
+  color: var(--accent);
+}
+
+.tree[data-expanded='false'] .row {
+  justify-content: center;
+  padding: 5px 0;
+}
+
+.child {
+  padding-left: 22px;
+}
+
+.tree[data-expanded='false'] .child {
+  padding-left: 0;
+}
+
+.icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+.partDot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin: 2px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 35%);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.badges {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 35%);
+}
+
+.fit {
+  min-width: 18px;
+  font-size: 11px;
+  text-align: center;
+  border-radius: 999px;
+  padding: 0 4px;
+}
+
+.fitOk {
+  color: var(--ok);
+  background: rgb(126 212 145 / 12%);
+}
+
+.fitWarn {
+  color: var(--warn);
+  background: rgb(255 138 101 / 14%);
+}
+
+.group {
+  margin: 12px 8px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.divider {
+  margin: 8px 6px;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Visually hidden, still read by screen readers. */
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Narrow screens: the collapsed tree is one row of icons above the viewport. */
+@media (max-width: 759.98px) {
+  .tree[data-expanded='false'] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 8px;
+  }
+
+  .tree[data-expanded='false'] .head {
+    padding: 0 4px 0 0;
+  }
+
+  .tree[data-expanded='false'] .rows {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .tree[data-expanded='false'] .row {
+    width: 36px;
+  }
+
+  .tree[data-expanded='false'] .divider {
+    width: 1px;
+    height: 24px;
+    margin: 0 4px;
+    border-top: 0;
+    border-left: 1px solid var(--border);
+  }
+}

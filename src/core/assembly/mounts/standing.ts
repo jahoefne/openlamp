@@ -420,8 +420,7 @@ export const standingMount: MountModule<'standing'> = {
     const { count, length } = stemLayout(mount);
     const H = mount.base.height;
     const d = ctx.hub.derived;
-    // In fit-test mode the hub alone stands on the floor as it would on the stem.
-    const stemTop = ctx.fitTest ? 0 : H + count * length;
+    const stemTop = H + count * length;
     // The hub turned over (light face up), its mount face on the stem's top.
     const hubZ = stemTop + d.zFace;
     const hubTransform = compose(translation(0, 0, hubZ), flipX());
@@ -472,7 +471,7 @@ export const standingMount: MountModule<'standing'> = {
         floorZ: 0,
         baseDiameter: mount.base.diameter,
         baseHeight: H,
-        stemZ0: ctx.fitTest ? 0 : H,
+        stemZ0: H,
         stemZ1: stemTop,
         stemSegments: count,
         stemSegmentLength: length,

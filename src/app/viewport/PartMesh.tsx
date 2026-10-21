@@ -2,8 +2,10 @@
  * One printable part in the viewport: a mesh per copy (`instanceTransforms`,
  * e.g. the stacked stem segments), all sharing the part's geometry and
  * material, placed by the transforms of the spec the shown geometry was built
- * from (so a mesh never moves ahead of its rebuild). Selecting any copy
- * selects the part, and every copy gets the outline.
+ * from (so a mesh never moves ahead of its rebuild), moved along z by the
+ * exploded view's `offsetZ`; in the bed view by the bed scene's `transforms`
+ * instead (red when the part does not fit the bed). Clicking any copy picks
+ * the part (and selects its node in the lamp tree); every copy gets the outline.
  *
  * The geometry comes from the geometry registry and is re-read whenever the
  * part's build `revision` changes, so the old mesh stays on screen while a new
@@ -15,11 +17,11 @@
 import { Outlines } from '@react-three/drei';
 import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { useLayoutEffect } from 'react';
-import type { PartSpec } from '@core/model/assembly.ts';
+import type { Mat4, PartSpec } from '@core/model/assembly.ts';
 import { useBuildStore } from '../store/buildStore.ts';
 import { useUiStore } from '../store/uiStore.ts';
 import { geometryRegistry } from '../worker/geometryRegistry.ts';
-import { partMaterial } from './materials.ts';
+import { overflowMaterial, partMaterial } from './materials.ts';
 import { sectionPlanes } from './sectionPlane.ts';
 import { useMatrices } from './useMatrix.ts';
 
@@ -27,14 +29,24 @@ const OUTLINE_PLANES = [...sectionPlanes];
 /** Pointer travel (px) above which a click is an orbit drag, not a selection. */
 const CLICK_SLOP = 4;
 
-export function PartMesh({ part }: { part: PartSpec }) {
+export interface PartMeshProps {
+  part: PartSpec;
+  /** Print frame → world of each copy, replacing the assembled ones (the bed view). */
+  transforms?: readonly Mat4[] | undefined;
+  /** The exploded view's move along z, mm. */
+  offsetZ?: number | undefined;
+  /** Drawn in red: the part does not fit the bed (bed view). */
+  overflow?: boolean | undefined;
+}
+
+export function PartMesh({ part, transforms, offsetZ = 0, overflow = false }: PartMeshProps) {
   const revision = useBuildStore((s) => s.parts[part.id]?.revision ?? 0);
   const shown = useBuildStore((s) => s.parts[part.id]?.built);
-  const selected = useUiStore((s) => s.selection === part.id);
-  const select = useUiStore((s) => s.select);
+  const selected = useUiStore((s) => s.selectedPart === part.id);
+  const selectPart = useUiStore((s) => s.selectPart);
   const invalidate = useThree((s) => s.invalidate);
-  const matrices = useMatrices((shown ?? part).instanceTransforms);
-  const material = partMaterial(part.colour);
+  const matrices = useMatrices(transforms ?? (shown ?? part).instanceTransforms, offsetZ);
+  const material = overflow ? overflowMaterial : partMaterial(part.colour);
   // `revision` names the registry entry this render shows.
   const geometry = revision > 0 ? geometryRegistry.get(part.id) : undefined;
 
@@ -54,7 +66,7 @@ export function PartMesh({ part }: { part: PartSpec }) {
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     if (e.delta > CLICK_SLOP) return;
     e.stopPropagation();
-    select(part.id);
+    selectPart(part);
   };
 
   return matrices.map((matrix, i) => (

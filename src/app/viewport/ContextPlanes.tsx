@@ -5,11 +5,15 @@
  * pendant's canopy, the wall behind a wall arm, the floor under a standing
  * lamp. Positions are world coordinates plus the display lift, so the bed
  * grid stays at z 0, where the lift puts the lamp's lowest point.
+ *
+ * The bed view has the printer's own bed instead: `BedPlate` (the plate and
+ * its grid, inside the camera's bounds so a refit frames the whole bed) and
+ * `BedVolume` (the height limit as a wire box).
  */
 import { Grid } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
-import { useLayoutEffect } from 'react';
-import { DoubleSide } from 'three';
+import { useLayoutEffect, useMemo } from 'react';
+import { BoxGeometry, DoubleSide, EdgesGeometry } from 'three';
 import { useUiStore } from '../store/uiStore.ts';
 import { ceilingMaterial, wallMaterial } from './materials.ts';
 import { useDisplayLift, useShownContext } from './sceneDerived.ts';
@@ -45,6 +49,53 @@ function BedGrid() {
         <meshBasicMaterial color="#1a1d24" transparent opacity={0.6} side={DoubleSide} />
       </mesh>
     </>
+  );
+}
+
+/** The printer's bed in the bed view: centred on the origin, grid cells of 10 mm. */
+export function BedPlate({ bed }: { bed: readonly [number, number, number] }) {
+  const [x, y] = bed;
+  return (
+    <group name="bed-plate">
+      <Grid
+        args={[x, y]}
+        rotation={[Math.PI / 2, 0, 0]}
+        cellSize={10}
+        cellThickness={0.8}
+        cellColor="#2c3038"
+        sectionSize={50}
+        sectionThickness={1}
+        sectionColor="#4a5060"
+        fadeDistance={10_000}
+        fadeStrength={0}
+        side={DoubleSide}
+      />
+      <mesh position={[0, 0, -0.3]}>
+        <planeGeometry args={[x, y]} />
+        <meshBasicMaterial color="#1a1d24" side={DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
+
+/** The build volume's height limit: a wire box over the bed. */
+export function BedVolume({ bed }: { bed: readonly [number, number, number] }) {
+  const [x, y, z] = bed;
+  const edges = useMemo(() => {
+    const box = new BoxGeometry(x, y, z);
+    const lines = new EdgesGeometry(box);
+    box.dispose();
+    return lines;
+  }, [x, y, z]);
+  const invalidate = useThree((s) => s.invalidate);
+  useLayoutEffect(() => {
+    invalidate();
+    return () => edges.dispose();
+  }, [edges, invalidate]);
+  return (
+    <lineSegments geometry={edges} position={[0, 0, z / 2]}>
+      <lineBasicMaterial color="#5b6273" transparent opacity={0.7} />
+    </lineSegments>
   );
 }
 

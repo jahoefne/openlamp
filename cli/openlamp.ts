@@ -260,14 +260,17 @@ async function cmdPart(
     (mountKind !== undefined && mountKind !== 'ceilingStrap');
   project.hub.fused = !split;
   if (jointType) project.joints.shadeToHub = jointType;
+  // The joint's test pieces exist in fit-test mode only.
+  const fitPiece = kind === 'fitMale' || kind === 'fitFemale';
+  if (fitPiece) project.fitTest = true;
   const assembly = assemble(project, { quality: values.quality });
   printWarnings(assembly.warnings);
   const part = assembly.parts.find((p) => p.kind === kind);
   if (!part) {
     throw new UsageError(
-      provider === undefined && kind !== 'hub' && kind !== 'shade'
+      provider === undefined && kind !== 'hub' && kind !== 'shade' && !fitPiece
         ? `No mount builds a ${kind} part yet (it arrives with its mount in a later step)`
-        : `The project has no ${kind} part (fit-test mode keeps only the hub)`,
+        : `The project has no ${kind} part (fit-test mode prints the joint's test pair instead of the lamp)`,
     );
   }
   const out = resolve(typeof flags.out === 'string' ? flags.out : `samples/openlamp-${kind}.stl`);

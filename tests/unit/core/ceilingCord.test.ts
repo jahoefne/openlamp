@@ -155,14 +155,14 @@ describe('assemble (pendant on a cord)', () => {
     expect(a.warnings.map((w) => w.paramPath)).toContain('mount.canopy.screwSpacing');
   });
 
-  it('keeps only the hub in fit-test mode', () => {
+  it("prints the shade joint's test pair in fit-test mode, without the canopy", () => {
     const a = assemble(
       pendant((_m, p) => {
         p.fitTest = true;
       }),
     );
-    expect(a.parts.map((x) => x.id)).toEqual(['hub']);
-    expect(a.derived.bottomZ).toBe(0);
+    expect(a.parts.map((x) => x.id)).toEqual(['fitMale', 'fitFemale']);
+    expect(a.derived.bottomZ).toBe(-3);
   });
 
   it('matches the knot snapshot', () => {

@@ -266,11 +266,11 @@ describe('assemble (wall arm)', () => {
     );
   });
 
-  it('keeps only the hub in fit-test mode', () => {
+  it("prints the shade joint's test pair in fit-test mode, without the plate and arm", () => {
     const a = assemble(wallLamp((_m, p) => (p.fitTest = true)));
-    expect(a.parts.map((x) => x.id)).toEqual(['hub']);
-    expect(a.context.kind).toBe('wall');
-    expect(a.derived.bottomZ).toBe(0);
+    expect(a.parts.map((x) => x.id)).toEqual(['fitMale', 'fitFemale']);
+    expect(Object.keys(a.interfaces)).toEqual(['shadeToHub']);
+    expect(a.derived.bottomZ).toBe(-3);
   });
 
   it('matches the snapshot', () => {

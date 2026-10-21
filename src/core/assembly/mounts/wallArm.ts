@@ -71,7 +71,7 @@ export function armScrewJoint(ctx: Pick<MountCtx<'wallArm'>, 'joints'>): JointIn
   );
 }
 
-/** The arm's params (also needed for the placement in fit-test mode, when there are no parts). */
+/** The arm's params (the placement needs them too). */
 export function wallArmParams(ctx: MountCtx<'wallArm'>): WallArmParams {
   const { arm } = ctx.mount;
   return {
@@ -264,21 +264,19 @@ export const wallArmMount: MountModule<'wallArm'> = {
     // The arm frame's origin (the flange's centre) in the world: the boss's
     // bottom face (the thread's mouth) sits on the hub's mount face.
     const flangeZ = ctx.hub.derived.zFace - d.yBoss0;
-    const partTransforms: Record<string, Mat4> = ctx.fitTest
-      ? {}
-      : {
-          wallPlate: compose(translation(0, wallY, flangeZ), WALL_ROTATION),
-          wallArm: compose(
-            translation(0, -reach, flangeZ),
-            WALL_ROTATION,
-            translation(0, -d.yShift, 0),
-          ),
-        };
+    const partTransforms: Record<string, Mat4> = {
+      wallPlate: compose(translation(0, wallY, flangeZ), WALL_ROTATION),
+      wallArm: compose(
+        translation(0, -reach, flangeZ),
+        WALL_ROTATION,
+        translation(0, -d.yShift, 0),
+      ),
+    };
     const plateBottom = flangeZ - plate.height / 2;
     return {
       ...hanging,
       partTransforms,
-      bottomZ: ctx.fitTest ? hanging.bottomZ : Math.min(hanging.bottomZ, plateBottom),
+      bottomZ: Math.min(hanging.bottomZ, plateBottom),
       context: { kind: 'wall', wallY },
       derived: {
         wallY,

@@ -532,7 +532,9 @@ export function assemblySteps(input: Pick<PrintSheetInput, 'project' | 'assembly
   const { project, assembly } = input;
   if (project.fitTest) {
     return [
-      'This is a fit-test export: print the pieces, try the light and the mount as their notes describe, and adjust the clearances before printing the whole lamp.',
+      isFused(assembly)
+        ? 'This is a fit-test export: print the pieces, try the light and the mount as their notes describe, and adjust the clearances before printing the whole lamp.'
+        : 'This is a fit-test export: print the collar and the ring test piece, join them as their notes describe, and adjust the joint clearance before printing the whole lamp.',
     ];
   }
   const heatSet = project.joints.heatSet;

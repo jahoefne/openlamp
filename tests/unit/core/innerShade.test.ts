@@ -291,15 +291,18 @@ describe('assemble with an inner shade', () => {
     );
   });
 
-  it('keeps just the hub, with both rings, in fit-test mode', () => {
+  it("prints the outer shade joint's test pair in fit-test mode", () => {
     const a = assemble(
       pendantWithInner((p) => {
         p.fitTest = true;
       }),
       { quality: 'draft' },
     );
-    expect(a.parts.map((x) => x.id)).toEqual(['hub']);
-    expect(hubParamsOf(a).innerCollar).toBeDefined();
+    expect(a.parts.map((x) => x.id)).toEqual(['fitMale', 'fitFemale']);
+    const full = assemble(pendantWithInner(), { quality: 'draft' });
+    expect(a.interfaces.shadeToHub!.nominalDiameter).toBe(
+      full.interfaces.shadeToHub!.nominalDiameter,
+    );
   });
 
   it('flips both shades with the hub on a standing lamp', () => {

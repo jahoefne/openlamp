@@ -9,6 +9,7 @@ import type { Assembly, PartSpec, Warning } from '@core/model/assembly.ts';
 import type { Project } from '@core/model/project.ts';
 import type { PrinterSpec } from '@core/schema/printers.ts';
 import { useBuildStore } from './buildStore.ts';
+import { shownNode, type NodeId } from './nodes.ts';
 import { useProjectStore } from './projectStore.ts';
 import { useUiStore } from './uiStore.ts';
 
@@ -46,11 +47,18 @@ export function useAssembly(): Assembly {
   return getAssembly(project, previewQualityOf(project, override));
 }
 
-/** The selected part of the current assembly, or null. */
+/** The picked part of the current assembly (`uiStore.selectedPart`), or null. */
 export function useSelectedPart(): PartSpec | null {
   const { parts } = useAssembly();
+  const selected = useUiStore((s) => s.selectedPart);
+  return parts.find((p) => p.id === selected) ?? null;
+}
+
+/** The lamp-tree node the inspector shows (the inner shade's falls back to the outer one's). */
+export function useShownNode(): NodeId {
   const selection = useUiStore((s) => s.selection);
-  return parts.find((p) => p.id === selection) ?? null;
+  const inner = useProjectStore((s) => s.project.shades.length > 1);
+  return shownNode(selection, inner);
 }
 
 export interface BedFit {

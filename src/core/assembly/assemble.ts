@@ -10,8 +10,11 @@
  *   (`joints.shadeToHub`, copied into both parts' params), plus whatever the
  *   mount adds. The mount is one `MountModule` (mounts/), which says what the
  *   hub carries on its mount face, adds its own parts and joints and places
- *   everything in the world. Fit-test mode keeps just the hub (the joint test
- *   pair comes in M2.5).
+ *   everything in the world.
+ * - fit-test mode (`project.fitTest`): the fused print keeps just its puck
+ *   housing ring; a split lamp exports the joint's test pair instead of its
+ *   parts, a section of the shade collar (`fitMale`) and one of the hub ring
+ *   (`fitFemale`), built from the same `shadeToHub` joint (see fitPair.ts).
  * - an inner shade (`shades[1]`) adds the part `innerShade`, hanging from a
  *   second hub ring inside the outer one on its own joint (`innerShadeToHub`);
  *   the outer collar moves out by the radial gap (see `resolveShadeJoints`).
@@ -23,12 +26,14 @@ import {
   classicShadeZOffset,
   derive,
 } from '../geometry/parts/classicShade.ts';
+import { FIT_BASE, FIT_GRIP, FIT_SECTION, fitPieceFootprint } from '../geometry/parts/fitPair.ts';
 import { deriveHub, hubFootprint } from '../geometry/parts/hub.ts';
 import { deriveRevolvedShade, revolvedShadeFootprint } from '../geometry/parts/shades/revolved.ts';
 import type { Quality } from '../geometry/quality.ts';
 import {
   IDENTITY,
   type Assembly,
+  type Hex,
   type JointInterface,
   type Mat4,
   type MountContext,
@@ -39,6 +44,7 @@ import {
 } from '../model/assembly.ts';
 import type {
   CollarDims,
+  FitPieceParams,
   FusedShadeParams,
   HubParams,
   RevolvedShadeParams,
@@ -84,7 +90,7 @@ import {
 } from './lights/index.ts';
 import { STRAP_CEILING_GAP, strapDerived } from './mounts/ceilingStrap.ts';
 import { mountModule } from './mounts/index.ts';
-import type { MountCtx, MountHubCtx, MountParts } from './mounts/types.ts';
+import type { MountCtx, MountHubCtx } from './mounts/types.ts';
 import { translation } from './transforms.ts';
 import { validateBedFit, validateInnerShade, validateLayout } from './validate.ts';
 
@@ -128,17 +134,26 @@ function hubPrintNotes(face: HubParams['mountFace']['kind']): string[] {
   }
 }
 
-const HUB_FIT_TEST_NOTES = [
-  'Fit test: drop the puck into the hub and thread the strap before printing the shade.',
-];
+/** Part ids of the fit-test pair. */
+export const FIT_MALE_ID = 'fitMale';
+export const FIT_FEMALE_ID = 'fitFemale';
 
-const CLOSED_HUB_FIT_TEST_NOTES = [
-  'Fit test: press the puck into the hub and try the mount before printing the shade.',
-];
+const FIT_PAIR_NOTE =
+  'Fit test: print both test pieces and join them as the shade joins the hub, before printing the lamp.';
 
-const LIGHT_HUB_FIT_TEST_NOTES = [
-  'Fit test: fit the light (lampholder or strip) and try the mount before printing the shade.',
-];
+const FIT_JOIN_NOTES: Readonly<Record<ShadeJointType, string>> = {
+  bayonet:
+    'Push the ring piece onto the collar piece with the lugs in its slots and twist it until it stops (the shade locks into the hub the same way).',
+  snap: 'Press the ring piece onto the collar piece all the way; the crush ribs should hold it firmly without forcing it.',
+  thread:
+    'Screw the ring piece onto the collar piece until it sits on the base disc (the shade screws into the hub the same way).',
+};
+
+/** How to act on the fit: the joint clearance it was printed with. */
+function fitAdjustNote(tolerance: number): string {
+  const mm = Math.round(tolerance * 100) / 100;
+  return `Too tight: raise the joint clearance (Hub & joints, now ${mm} mm); too loose: lower it. Then print the pair again.`;
+}
 
 const SHADE_PRINT_NOTES = [
   'Print as exported: open end on the bed, collar up. No supports needed.',
@@ -391,6 +406,80 @@ function normalizeMount<K extends MountKind>(
   return { mount: out, warnings };
 }
 
+/**
+ * Fit-test mode of a split lamp: the joint's test pair instead of the lamp's
+ * parts, built from the outer shade's collar and joint (`shadeToHub`, its ids
+ * relabelled to the pair). Assembled as the shade hangs from the hub: the ring
+ * piece (`fitFemale`) at the hub's place with its mouth on the collar plane
+ * (z 0), the collar piece (`fitMale`) below it, standing on the floor.
+ */
+function assembleFitPair(
+  project: Project,
+  shadeJoint: JointInterface,
+  collar: CollarDims,
+  quality: Quality,
+  colours: { shadeColour: Hex; hubColour: Hex },
+  warnings: Warning[],
+): Assembly {
+  const joint: JointInterface = { ...shadeJoint, male: FIT_MALE_ID, female: FIT_FEMALE_ID };
+  const params: FitPieceParams = {
+    collar,
+    joint,
+    height: FIT_SECTION,
+    base: FIT_BASE,
+    baseRadius: collar.seatRadius + FIT_GRIP,
+    quality,
+  };
+  const type = joint.type as ShadeJointType;
+  const common = [FIT_PAIR_NOTE, FIT_JOIN_NOTES[type], fitAdjustNote(joint.tolerance)];
+  const placed: Placed[] = [
+    {
+      draft: {
+        id: FIT_MALE_ID,
+        kind: 'fitMale',
+        displayName: 'Collar test piece',
+        params,
+        colour: colours.shadeColour,
+        footprint: fitPieceFootprint(params),
+        printNotes: [
+          'Print as exported: base disc on the bed, collar up (as the shade prints). No supports needed.',
+          ...common,
+        ],
+      },
+      assembledTransform: translation(0, 0, -FIT_BASE),
+    },
+    {
+      draft: {
+        id: FIT_FEMALE_ID,
+        kind: 'fitFemale',
+        displayName: 'Ring test piece',
+        params,
+        colour: colours.hubColour,
+        footprint: fitPieceFootprint(params),
+        printNotes: [
+          'Print as exported: ring base on the bed, mouth down (as the hub prints). No supports needed.',
+          ...common,
+        ],
+      },
+      assembledTransform: [...IDENTITY],
+    },
+  ];
+  const derived = {
+    bottomZ: -FIT_BASE,
+    collarDiameter: joint.nominalDiameter,
+    fitBase: FIT_BASE,
+    fitHeight: FIT_BASE + FIT_SECTION,
+  };
+  return finish(
+    project,
+    placed,
+    { [joint.id]: joint },
+    derived,
+    { kind: 'floor', floorZ: -FIT_BASE },
+    warnings,
+  );
+}
+
 function assembleMounted<K extends MountKind>(
   kind: K,
   mountIn: MountOf<K>,
@@ -482,7 +571,6 @@ function assembleMounted<K extends MountKind>(
   const hd = deriveHub(hubParams);
   const sd = deriveRevolvedShade(shadeParams);
   const innerD = innerParams && deriveRevolvedShade(innerParams);
-  const fitTest = project.fitTest;
   warnings.push(...validateLight(light, mountFace, envelope));
   if (innerParams) {
     warnings.push(
@@ -493,19 +581,21 @@ function assembleMounted<K extends MountKind>(
       }),
     );
   }
+  if (project.fitTest) {
+    const shadeColour = project.colours.shade ?? shadeSpec.colour;
+    const hubColour = project.colours.hub ?? DEFAULT_HUB_COLOUR;
+    return assembleFitPair(project, iface, collar, quality, { shadeColour, hubColour }, warnings);
+  }
 
   const hubCtx: MountHubCtx<K> = {
     ...ctx,
     hub: { params: hubParams, derived: hd },
-    shades: fitTest
-      ? []
-      : [
-          { id: 'shade', zCollar: sd.zCollar },
-          ...(innerD ? [{ id: INNER_SHADE_ID, zCollar: innerD.zCollar }] : []),
-        ],
-    fitTest,
+    shades: [
+      { id: 'shade', zCollar: sd.zCollar },
+      ...(innerD ? [{ id: INNER_SHADE_ID, zCollar: innerD.zCollar }] : []),
+    ],
   };
-  const mountParts: MountParts = fitTest ? { parts: [], interfaces: [] } : module.parts(hubCtx);
+  const mountParts = module.parts(hubCtx);
   warnings.push(...(mountParts.warnings ?? []));
   const placement = module.placement(hubCtx, mountParts);
 
@@ -514,28 +604,18 @@ function assembleMounted<K extends MountKind>(
       draft: {
         id: 'hub',
         kind: 'hub',
-        displayName: fitTest ? 'Hub (fit test)' : 'Hub',
+        displayName: 'Hub',
         params: hubParams,
         colour: project.colours.hub ?? DEFAULT_HUB_COLOUR,
         footprint: hubFootprint(hubParams),
-        printNotes: [
-          ...(light.kind === 'puck'
+        printNotes:
+          light.kind === 'puck'
             ? hubPrintNotes(mountFace.kind)
-            : [...HUB_PRINT_NOTES, ...lightPrintNotes(light, mountFace, hd)]),
-          ...(fitTest
-            ? light.kind !== 'puck'
-              ? LIGHT_HUB_FIT_TEST_NOTES
-              : mountFace.kind === 'strap'
-                ? HUB_FIT_TEST_NOTES
-                : CLOSED_HUB_FIT_TEST_NOTES
-            : []),
-        ],
+            : [...HUB_PRINT_NOTES, ...lightPrintNotes(light, mountFace, hd)],
       },
       assembledTransform: placement.hubTransform,
     },
-  ];
-  if (!fitTest) {
-    placed.push({
+    {
       draft: {
         id: 'shade',
         kind: 'shade',
@@ -550,29 +630,29 @@ function assembleMounted<K extends MountKind>(
         ],
       },
       assembledTransform: placement.shadeTransforms.shade ?? translation(0, 0, -sd.zCollar),
+    },
+  ];
+  if (innerSpec && innerParams && innerD) {
+    placed.push({
+      draft: {
+        id: INNER_SHADE_ID,
+        kind: 'shade',
+        displayName: 'Inner shade',
+        params: innerParams,
+        colour: project.colours[INNER_SHADE_ID] ?? innerSpec.colour,
+        footprint: revolvedShadeFootprint(innerParams),
+        printNotes: [...SHADE_PRINT_NOTES, JOINT_NOTES[joints.shadeToHub], INNER_FIRST_NOTE],
+      },
+      assembledTransform:
+        placement.shadeTransforms[INNER_SHADE_ID] ?? translation(0, 0, -innerD.zCollar),
     });
-    if (innerSpec && innerParams && innerD) {
-      placed.push({
-        draft: {
-          id: INNER_SHADE_ID,
-          kind: 'shade',
-          displayName: 'Inner shade',
-          params: innerParams,
-          colour: project.colours[INNER_SHADE_ID] ?? innerSpec.colour,
-          footprint: revolvedShadeFootprint(innerParams),
-          printNotes: [...SHADE_PRINT_NOTES, JOINT_NOTES[joints.shadeToHub], INNER_FIRST_NOTE],
-        },
-        assembledTransform:
-          placement.shadeTransforms[INNER_SHADE_ID] ?? translation(0, 0, -innerD.zCollar),
-      });
-    }
-    for (const draft of mountParts.parts) {
-      placed.push({
-        draft,
-        assembledTransform: placement.partTransforms[draft.id] ?? [...IDENTITY],
-        instanceTransforms: placement.instanceTransforms?.[draft.id],
-      });
-    }
+  }
+  for (const draft of mountParts.parts) {
+    placed.push({
+      draft,
+      assembledTransform: placement.partTransforms[draft.id] ?? [...IDENTITY],
+      instanceTransforms: placement.instanceTransforms?.[draft.id],
+    });
   }
   const derived: Record<string, number> = {
     ...lightDerived(light, hd, placement.hubTransform, envelope),

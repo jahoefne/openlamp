@@ -1,0 +1,49 @@
+/* The inspector sheet on medium screens: over the right edge of the viewport. */
+.sheet {
+  position: absolute;
+  z-index: 30;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, calc(100% - 48px));
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  box-shadow: -16px 0 40px rgb(0 0 0 / 40%);
+  outline: none;
+  animation: sheet-in 0.16s ease-out;
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.close {
+  padding: 3px 9px;
+  line-height: 1;
+}
+
+.body {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+}

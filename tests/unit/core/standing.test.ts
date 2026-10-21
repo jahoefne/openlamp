@@ -294,15 +294,14 @@ describe('assemble (standing lamp)', () => {
     }
   });
 
-  it('keeps only the hub in fit-test mode, standing on the floor as on the stem', () => {
+  it("prints the shade joint's test pair in fit-test mode, without the stem and base", () => {
     const a = assemble(
       standing((_m, p) => {
         p.fitTest = true;
       }),
     );
-    expect(a.parts.map((x) => x.id)).toEqual(['hub']);
-    const hd = deriveHub(hubParams(a));
-    expect(a.derived).toMatchObject({ bottomZ: 0, hubZ: hd.zFace, floorZ: 0 });
+    expect(a.parts.map((x) => x.id)).toEqual(['fitMale', 'fitFemale']);
+    expect(Object.keys(a.interfaces)).toEqual(['shadeToHub']);
     expect(a.context.kind).toBe('floor');
   });
 
