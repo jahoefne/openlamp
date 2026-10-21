@@ -1,5 +1,6 @@
-# M0: build the static site and deploy it to GitHub Pages.
-# Later milestones add typecheck, lint, unit tests, sample generation and e2e tests.
+# Job `check` typechecks, lints, checks formatting and builds the static site on
+# every push and PR; job `deploy` publishes the build to GitHub Pages from main.
+# Later milestones add unit tests, sample generation and e2e tests to `check`.
 name: CI
 
 on:
@@ -16,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -28,6 +29,12 @@ jobs:
 
       - run: npm ci
 
+      - run: npm run typecheck
+
+      - run: npm run lint
+
+      - run: npm run format:check
+
       - run: npm run build
 
       - uses: actions/upload-pages-artifact@v5
@@ -36,7 +43,7 @@ jobs:
           path: dist
 
   deploy:
-    needs: build
+    needs: check
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

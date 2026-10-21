@@ -1,0 +1,8 @@
+dist
+samples
+package-lock.json
+docs
+# Hand-formatted prose (aligned tables, `*` bullets); left as is until the README rewrite in M1.6.
+README.md
+# Machine-local Claude Code settings (git-ignored globally, not part of the repo).
+.claude/settings.local.json

@@ -18,12 +18,52 @@
  * the same code runs in a web worker and in the Node CLI.
  */
 
-import { QUALITY } from './params.js';
+import type { ErrorStatus, Manifold, ManifoldToplevel, Vec3 } from 'manifold-3d';
+import { QUALITY, type Params } from './params.ts';
 
 const DEG = Math.PI / 180;
 
+/** A point of the revolve profile: radius and height in mm. */
+type RZ = [r: number, z: number];
+
 /** Derived dimensions shared by the builder, the UI overlay and the README. */
-export function derive(p) {
+export interface Derived {
+  rBot: number;
+  rTop: number;
+  H: number;
+  t: number;
+  /** Shoulder slope dz/dr. */
+  m: number;
+  rPocket: number;
+  rBoss: number;
+  rHole: number;
+  pocketDepth: number;
+  kOuter: number;
+  kInner: number;
+  zHoleBottom: number;
+  zFloor: number;
+  zTop: number;
+  zShoulderOuter: number;
+}
+
+export interface ShadeStats {
+  status: ErrorStatus;
+  triangles: number;
+  vertices: number;
+  volumeMm3: number;
+  estGramsPla: number;
+  size: { x: number; y: number; z: number };
+  maxOverhangDeg: number;
+  housingDiameter: number;
+  totalHeight: number;
+  pocketDiameter: number;
+  pocketDepth: number;
+  /** z shift applied to the result (non-zero in fit-test mode). */
+  zOffset: number;
+  derived: Derived;
+}
+
+export function derive(p: Params): Derived {
   const rBot = p.bottomDiameter / 2;
   const rTop = p.topDiameter / 2;
   const H = p.height;
@@ -43,47 +83,73 @@ export function derive(p) {
   const zTop = zFloor + pocketDepth; // top of the housing = ceiling side
   const zShoulderOuter = H + m * (rTop - rBoss); // outer cone meets housing wall
 
-  return { rBot, rTop, H, t, m, rPocket, rBoss, rHole, pocketDepth, kOuter, kInner, zHoleBottom, zFloor, zTop, zShoulderOuter };
+  return {
+    rBot,
+    rTop,
+    H,
+    t,
+    m,
+    rPocket,
+    rBoss,
+    rHole,
+    pocketDepth,
+    kOuter,
+    kInner,
+    zHoleBottom,
+    zFloor,
+    zTop,
+    zShoulderOuter,
+  };
 }
 
 /** Outer wall radius as a function of u in [0,1] (0 = bottom, 1 = shoulder). */
-function wallRadius(p, d, u) {
+function wallRadius(p: Params, d: Derived, u: number): number {
   const bulge = p.curve * 0.3 * d.rBot;
   return d.rBot + (d.rTop - d.rBot) * u + bulge * Math.sin(Math.PI * u);
 }
 
 /** Sample the outer wall and its inward offset, both bottom → top as [r, z]. */
-function wallProfiles(p, d, wallStep) {
+function wallProfiles(
+  p: Params,
+  d: Derived,
+  wallStep: number,
+): { outer: RZ[]; inner: RZ[]; maxOverhangDeg: number } {
   const n = Math.max(8, Math.ceil(d.H / wallStep));
-  const outer = [];
+  const outer: RZ[] = [];
   for (let i = 0; i <= n; i++) {
     const u = i / n;
     outer.push([wallRadius(p, d, u), u * d.H]);
   }
   // Inward normal offset by wall thickness.
-  const inner = [];
+  // Indices into outer/inner below stay within 0..n, hence the non-null assertions.
+  const inner: RZ[] = [];
   let maxSlope = 0;
   for (let i = 0; i <= n; i++) {
-    const a = outer[Math.max(0, i - 1)];
-    const b = outer[Math.min(n, i + 1)];
+    const a = outer[Math.max(0, i - 1)]!;
+    const b = outer[Math.min(n, i + 1)]!;
+    const o = outer[i]!;
     let tr = b[0] - a[0];
     let tz = b[1] - a[1];
     const len = Math.hypot(tr, tz) || 1;
-    tr /= len; tz /= len;
+    tr /= len;
+    tz /= len;
     if (tz > 1e-9) maxSlope = Math.max(maxSlope, Math.abs(tr / tz));
     // Outward normal of a curve travelling upwards is (dz, -dr).
-    const nr = tz, nz = -tr;
-    inner.push([outer[i][0] - d.t * nr, outer[i][1] - d.t * nz]);
+    const nr = tz;
+    const nz = -tr;
+    inner.push([o[0] - d.t * nr, o[1] - d.t * nz]);
   }
   // Trim / extend the inner curve so it starts exactly on the bed (z = 0).
-  let k = inner.findIndex((pt) => pt[1] >= 0);
+  const k = inner.findIndex((pt) => pt[1] >= 0);
   if (k <= 0) {
-    const [a, b] = [inner[0], inner[1]];
-    const s = (0 - a[1]) / ((b[1] - a[1]) || 1e-9);
+    const a = inner[0]!;
+    const b = inner[1]!;
+    const s = (0 - a[1]) / (b[1] - a[1] || 1e-9);
     inner[0] = [a[0] + (b[0] - a[0]) * s, 0];
   } else {
-    const a = inner[k - 1], b = inner[k];
-    const s = (0 - a[1]) / ((b[1] - a[1]) || 1e-9);
+    const a = inner[k - 1]!;
+    const b = inner[k]!;
+    const s = (0 - a[1]) / (b[1] - a[1] || 1e-9);
     inner.splice(0, k, [a[0] + (b[0] - a[0]) * s, 0]);
   }
   return { outer, inner, maxOverhangDeg: Math.atan(maxSlope) / DEG };
@@ -94,19 +160,29 @@ function wallProfiles(p, d, wallStep) {
  * The housing is left solid here; the pocket and light opening are cut later
  * with cylinders so the belt loops can fuse into it first.
  */
-function buildProfile(p, d, wallStep) {
+function buildProfile(
+  p: Params,
+  d: Derived,
+  wallStep: number,
+): { polygon: RZ[]; maxOverhangDeg: number; kUsed: number } {
   const { outer, inner, maxOverhangDeg } = wallProfiles(p, d, wallStep);
-  const { m, kInner, rTop, H, rBoss, zTop, zShoulderOuter } = d;
+  const { m, kInner, rBoss, zTop, zShoulderOuter } = d;
 
   // Where does the inner shoulder cone (z + m r = kInner) meet the inner wall?
   // Scan from the top down for the first point below the line.
   let cut = -1;
   for (let i = inner.length - 1; i >= 0; i--) {
-    if (inner[i][1] + m * inner[i][0] < kInner) { cut = i; break; }
+    const pt = inner[i]!;
+    if (pt[1] + m * pt[0] < kInner) {
+      cut = i;
+      break;
+    }
   }
-  let innerKept, kUsed = kInner;
+  let innerKept: RZ[];
+  let kUsed = kInner;
   if (cut >= 0 && cut < inner.length - 1) {
-    const a = inner[cut], b = inner[cut + 1];
+    const a = inner[cut]!;
+    const b = inner[cut + 1]!;
     const fa = a[1] + m * a[0] - kInner;
     const fb = b[1] + m * b[0] - kInner;
     const s = fa / (fa - fb);
@@ -114,37 +190,44 @@ function buildProfile(p, d, wallStep) {
     innerKept.push([a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s]);
   } else {
     // Very flat shade: start the roof cone at the lowest point of the inner wall.
-    let best = 0, bestV = Infinity;
-    inner.forEach((pt, i) => { const v = pt[1] + m * pt[0]; if (v < bestV) { bestV = v; best = i; } });
+    let best = 0;
+    let bestV = Infinity;
+    inner.forEach((pt, i) => {
+      const v = pt[1] + m * pt[0];
+      if (v < bestV) {
+        bestV = v;
+        best = i;
+      }
+    });
     innerKept = inner.slice(0, best + 1);
     kUsed = bestV;
   }
   const apexZ = kUsed; // inner cone reaches the axis here (removed by the light opening cut)
 
-  const pts = [];
+  const pts: RZ[] = [];
   for (const pt of outer) pts.push(pt);
   pts.push([rBoss, zShoulderOuter]);
   pts.push([rBoss, zTop]);
   pts.push([0, zTop]);
   pts.push([0, apexZ]);
-  for (let i = innerKept.length - 1; i >= 0; i--) pts.push(innerKept[i]);
+  for (let i = innerKept.length - 1; i >= 0; i--) pts.push(innerKept[i]!);
   return { polygon: pts, maxOverhangDeg, kUsed };
 }
 
-function smoothstep(e0, e1, x) {
+function smoothstep(e0: number, e1: number, x: number): number {
   const u = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
   return u * u * (3 - 2 * u);
 }
 
 /** Vertex warp that applies ribs / facets / twist to the wall only. */
-function makeWarp(p, d) {
+function makeWarp(p: Params, d: Derived): ((v: Vec3) => void) | null {
   const n = Math.max(1, Math.round(p.patternCount));
   const twist = p.twist * DEG;
   const fade = Math.min(15, d.H * 0.25);
   const style = p.style;
   if (style === 'smooth' && Math.abs(twist) < 1e-9) return null;
   if (style === 'smooth') return null; // twist is meaningless on a smooth surface
-  return (v) => {
+  return (v: Vec3) => {
     const z = v[2];
     if (z >= d.H) return;
     const a = z > d.H - fade ? 1 - smoothstep(d.H - fade, d.H, z) : 1;
@@ -157,16 +240,18 @@ function makeWarp(p, d) {
       newR = r + a * (p.ribDepth / 2) * Math.cos(n * theta);
     } else if (style === 'faceted') {
       const sector = (2 * Math.PI) / n;
-      let th = theta % sector; if (th < 0) th += sector;
+      let th = theta % sector;
+      if (th < 0) th += sector;
       const f = 1 / Math.cos(th - sector / 2); // flats stay at r, corners move out
       newR = r * (1 + a * (f - 1));
     }
     const s = newR / r;
-    v[0] *= s; v[1] *= s;
+    v[0] *= s;
+    v[1] *= s;
   };
 }
 
-function circularSegments(p) {
+function circularSegments(p: Params): number {
   const base = QUALITY[p.quality].segments;
   if (p.style === 'smooth') return base;
   const n = Math.max(1, Math.round(p.patternCount));
@@ -178,7 +263,13 @@ function circularSegments(p) {
  * Build one belt-loop tunnel bracket on the ±Y side of the housing, with its
  * strap channel already cut, ready to be unioned onto the body.
  */
-function beltLoop(wasm, p, d, segs, sign) {
+function beltLoop(
+  wasm: ManifoldToplevel,
+  p: Params,
+  d: Derived,
+  segs: number,
+  sign: 1 | -1,
+): Manifold {
   const { Manifold } = wasm;
   const { rBoss, zTop, kInner, m } = d;
   const wx = p.strapWidth / 2 + p.loopWall;
@@ -187,31 +278,41 @@ function beltLoop(wasm, p, d, segs, sign) {
   const yOut = rBoss + p.strapThickness + p.loopWall;
   const zLoopBottom = zTop - p.loopLength;
   const zChamfer = zLoopBottom - (yOut - yIn); // 45° chamfer under the loop
-  const pts = [];
+  const pts: Vec3[] = [];
   for (const x of [-wx, wx]) {
     pts.push([x, yIn, zTop], [x, yOut, zTop], [x, yOut, zLoopBottom], [x, yIn, zChamfer]);
   }
-  let bracket = Manifold.hull(pts);
+  const bracket = Manifold.hull(pts);
   // Remove anything that would poke through the roof into the shade cavity.
   const rc = rBoss + 40;
   const cavity = Manifold.cylinder(m * rc, rc, 0, segs).translate([0, 0, kInner - m * rc]);
   // The strap channel is cut from the bracket only, so it can never nick the
   // thin shoulder shell below the tunnel.
-  const slot = Manifold.cube([p.strapWidth, p.strapThickness, p.loopLength + (yOut - yIn) + 2], false)
-    .translate([-p.strapWidth / 2, rBoss, zChamfer - 1]);
+  const slot = Manifold.cube(
+    [p.strapWidth, p.strapThickness, p.loopLength + (yOut - yIn) + 2],
+    false,
+  ).translate([-p.strapWidth / 2, rBoss, zChamfer - 1]);
   const cut = Manifold.difference([bracket, cavity, slot]);
-  bracket.delete(); cavity.delete(); slot.delete();
-  if (sign < 0) { const m2 = cut.mirror([0, 1, 0]); cut.delete(); return m2; }
+  bracket.delete();
+  cavity.delete();
+  slot.delete();
+  if (sign < 0) {
+    const m2 = cut.mirror([0, 1, 0]);
+    cut.delete();
+    return m2;
+  }
   return cut;
 }
 
 /**
  * Build the complete shade.
  * @param wasm  manifold-3d toplevel (after `setup()`)
- * @param params  normalized parameters (see params.js)
- * @returns {{manifold: Manifold, stats: object}}
+ * @param params  normalized parameters (see params.ts)
  */
-export function buildShade(wasm, params) {
+export function buildShade(
+  wasm: ManifoldToplevel,
+  params: Params,
+): { manifold: Manifold; stats: ShadeStats } {
   const { Manifold } = wasm;
   const p = params;
   const d = derive(p);
@@ -222,19 +323,34 @@ export function buildShade(wasm, params) {
   let body = Manifold.revolve(polygon, segs);
 
   const warp = makeWarp(p, d);
-  if (warp) { const w = body.warp(warp); body.delete(); body = w; }
+  if (warp) {
+    const w = body.warp(warp);
+    body.delete();
+    body = w;
+  }
 
   // Belt-loop tunnels on ±Y.
   const loops = [beltLoop(wasm, p, d, segs, +1), beltLoop(wasm, p, d, segs, -1)];
-  let solid = Manifold.union([body, ...loops]);
-  body.delete(); loops.forEach((l) => l.delete());
+  const solid = Manifold.union([body, ...loops]);
+  body.delete();
+  loops.forEach((l) => l.delete());
 
   // Puck pocket (open to the ceiling side) and the light opening through the ledge.
-  const pocket = Manifold.cylinder(d.pocketDepth + 1, d.rPocket, d.rPocket, segs).translate([0, 0, d.zFloor]);
-  const hole = Manifold.cylinder(d.zTop - d.zHoleBottom + 2, d.rHole, d.rHole, segs).translate([0, 0, d.zHoleBottom - 1]);
+  const pocket = Manifold.cylinder(d.pocketDepth + 1, d.rPocket, d.rPocket, segs).translate([
+    0,
+    0,
+    d.zFloor,
+  ]);
+  const hole = Manifold.cylinder(d.zTop - d.zHoleBottom + 2, d.rHole, d.rHole, segs).translate([
+    0,
+    0,
+    d.zHoleBottom - 1,
+  ]);
   // Cable slot through the housing wall on +X, from the pocket floor to the top.
-  const cable = Manifold.cube([d.rBoss - d.rPocket + 4, p.cableSlotWidth, d.pocketDepth + 1], false)
-    .translate([d.rPocket - 2, -p.cableSlotWidth / 2, d.zFloor]);
+  const cable = Manifold.cube(
+    [d.rBoss - d.rPocket + 4, p.cableSlotWidth, d.pocketDepth + 1],
+    false,
+  ).translate([d.rPocket - 2, -p.cableSlotWidth / 2, d.zFloor]);
 
   let result = Manifold.difference([solid, pocket, hole, cable]);
   [solid, pocket, hole, cable].forEach((x) => x.delete());
@@ -244,9 +360,14 @@ export function buildShade(wasm, params) {
   let zOffset = 0;
   if (p.fitTest === 'yes') {
     const zCut = d.zFloor - p.ledgeThickness - 3;
-    const keep = Manifold.cube([400, 400, d.zTop - zCut + 2], true).translate([0, 0, zCut + (d.zTop - zCut + 2) / 2]);
+    const keep = Manifold.cube([400, 400, d.zTop - zCut + 2], true).translate([
+      0,
+      0,
+      zCut + (d.zTop - zCut + 2) / 2,
+    ]);
     const ring = result.intersect(keep);
-    result.delete(); keep.delete();
+    result.delete();
+    keep.delete();
     result = ring.translate([0, 0, -zCut]);
     ring.delete();
     zOffset = -zCut;
@@ -254,7 +375,7 @@ export function buildShade(wasm, params) {
 
   const bb = result.boundingBox();
   const volume = result.volume();
-  const stats = {
+  const stats: ShadeStats = {
     status: result.status(),
     triangles: result.numTri(),
     vertices: result.numVert(),

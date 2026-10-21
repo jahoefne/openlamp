@@ -337,18 +337,18 @@ All profiles default to a 0.4 mm nozzle. Profile shape: `{ id, vendor, name, bed
 
 | Today (`src/`) | New home | Change |
 | --- | --- | --- |
-| `geometry.js` `derive` | `assembly/interfaces.ts` (puck envelope) + `parts/shades/revolved.ts` (cone maths) | hub core replaces `rBoss` |
+| `geometry.ts` `derive` | `assembly/interfaces.ts` (puck envelope) + `parts/shades/revolved.ts` (cone maths) | hub core replaces `rBoss` |
 | `wallRadius`, `wallProfiles` | `geometry/profile.ts` `sampleProfile(rFn, zSamples)` + `offsetProfile` | explicit z samples (pleat bands); returns overhang |
 | `buildProfile` | `parts/shades/revolved.ts` | ends at the collar annulus; flat-shade fallback kept |
 | `makeWarp`, `smoothstep` | `geometry/surface.ts` `radialWarp({ style, n, depth, twist, zRange, fade })` | z-range so stems/threads stay untouched |
 | `circularSegments`, `QUALITY` | `geometry/quality.ts` | per-part budgets |
 | `beltLoop` | `parts/hub.ts` (strap mount face) | takes hub dims |
 | `buildShade` | M1: `classicShade` builder as-is; M2: dissolved into hub + revolved shade, kept via `hub.fused` | — |
-| `params.js` `PARAM_GROUPS` / `normalizeParams` | `schema/defs.ts` / `schema/normalize.ts` | typed `ParamDef` union, `visibleWhen`; cross-constraints move to `assemble` |
-| `params.js` `PRESETS` | `src/examples/*.lamp.json` | validated by tests |
-| `stl.js` `meshToBinaryStl` | `core/export/stl.ts` | unchanged |
-| `worker.js` | `src/worker/geometry.worker.ts` | per-part cache, generations, normals, export jobs |
-| `app.js` three.js setup (Z-up, clipping, ghosts, ceiling, debounce, URL mirror) | `viewport/*`, `useBuildPipeline`, `urlState` | declarative equivalents |
+| `params.ts` `PARAM_GROUPS` / `normalizeParams` | `schema/defs.ts` / `schema/normalize.ts` | typed `ParamDef` union, `visibleWhen`; cross-constraints move to `assemble` |
+| `params.ts` `PRESETS` | `src/examples/*.lamp.json` | validated by tests |
+| `stl.ts` `meshToBinaryStl` | `core/export/stl.ts` | unchanged |
+| `worker.ts` | `src/worker/geometry.worker.ts` | per-part cache, generations, normals, export jobs |
+| `app.ts` three.js setup (Z-up, clipping, ghosts, ceiling, debounce, URL mirror) | `viewport/*`, `useBuildPipeline`, `urlState` | declarative equivalents |
 | `style.css` tokens | `styles/tokens.css` | unchanged palette |
 | `cli.mjs` | `cli/openlamp.ts` | project-aware, `samples` command |
 
