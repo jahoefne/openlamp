@@ -1,0 +1,189 @@
+/* The print-sheet dialog: wider than the other dialogs (the parts table has seven columns). */
+.content {
+  width: min(980px, calc(100vw - 32px));
+}
+
+.header {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.body {
+  padding-top: 4px;
+}
+
+/* ---------------------------------------------------------------- the sheet */
+
+.sheet {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sheet h1 {
+  margin: 10px 0 4px;
+  font-size: 22px;
+}
+
+.sheet h2 {
+  margin: 22px 0 8px;
+  padding-bottom: 4px;
+  font-size: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sheet h3 {
+  margin: 16px 0 4px;
+  font-size: 14px;
+}
+
+.sheet p,
+.sheet ul,
+.sheet ol {
+  margin: 6px 0;
+}
+
+.sheet li {
+  margin: 3px 0;
+}
+
+.sheet a {
+  color: var(--accent);
+}
+
+.sheet code {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.sheet hr {
+  margin: 20px 0 8px;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.sheet table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.sheet th,
+.sheet td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.sheet th {
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.hex {
+  white-space: nowrap;
+}
+
+/* On a narrow screen the wide parts table scrolls on its own, not the whole sheet. */
+@media screen and (max-width: 760px) {
+  .sheet table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+/* ---------------------------------------------------------------- printing */
+
+/*
+ * While the sheet is open, print it alone: every other child of <body> (the
+ * app, the overlay, tooltips) is hidden, the dialog becomes a plain block on
+ * white paper, and the page is allowed to grow past one screen.
+ */
+@media print {
+  :global(html),
+  :global(html body),
+  :global(html body[data-scroll-locked]),
+  :global(#root) {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  :global(body:has([data-print-sheet]) > *:not([data-print-sheet])) {
+    display: none !important;
+  }
+
+  .content {
+    position: static !important;
+    transform: none !important;
+    width: auto !important;
+    max-height: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .header {
+    display: none !important;
+  }
+
+  .body {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .sheet {
+    color: #000;
+    font-size: 11pt;
+  }
+
+  .sheet a {
+    color: #000;
+  }
+
+  .sheet h2,
+  .sheet hr,
+  .sheet th,
+  .sheet td {
+    border-color: #bbb;
+  }
+
+  .sheet th {
+    color: #333;
+  }
+
+  .sheet tr,
+  .sheet li {
+    break-inside: avoid;
+  }
+
+  .sheet h2,
+  .sheet h3 {
+    break-after: avoid;
+  }
+
+  .swatch {
+    border-color: #999;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

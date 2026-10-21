@@ -365,6 +365,8 @@ type FromWorker =
 - **Bed layout** (`assembly/layout.ts`) also drives the viewport's bed view.
 - **Print sheet**: pure `renderPrintSheet(assembly, printer, project) → Markdown` (parts table with colour, grams, orientation and joint notes; non-printed items derived from mount/light such as puck + cable + velcro, E27 socket + cord set, screws/anchors, weights; per-mount assembly steps; printing notes), rendered with `marked` in a dialog with `@media print` CSS and included in the ZIP.
 
+**As built (M2.5, exports).** `zipFiles(entries, level = 0)` (export/zip.ts) wraps fflate `zipSync`; the worker's `zip-stl` format writes the `stl` export's per-part STLs (an instanced part once) stored, plus the main thread's `meta.extraFiles` deflated, as `openlamp-<slug>.zip` with a `progress` per part (`3mf`: not implemented yet). The print sheet is rendered on the main thread, where the grams and triangles live (`buildStore`, the preview build): `renderPrintSheet({ project, assembly, printer, stats?, shareUrl?, date?, statsQuality? })` (export/printSheet.ts) is deterministic, escapes project text, and derives the items to buy (`nonPrintedItems`, incl. M3 screws and heat-set inserts from the screw joints and the base's weight from its pocket), the per-mount steps (`assemblySteps`) and the tips (`printingNotes`). It is `print-sheet.md` in the ZIP and Export → Print sheet… (`PrintSheetDialog`: `marked` with raw HTML shown as text, http(s) links only; Print = `window.print()` with `@media print` hiding everything but the sheet; Download .md).
+
 ## 13. Printer database (`src/core/schema/printers.ts`)
 
 | id | Model | X×Y×Z mm | Multi-colour |

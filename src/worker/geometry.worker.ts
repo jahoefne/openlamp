@@ -11,8 +11,9 @@
 import Module from 'manifold-3d';
 import wasmUrl from 'manifold-3d/manifold.wasm?url';
 import { validateGeometry } from '@core/assembly/validate.ts';
-import { partFileName } from '@core/export/naming.ts';
+import { archiveFileName, partFileName } from '@core/export/naming.ts';
 import { meshToBinaryStl } from '@core/export/stl.ts';
+import { zipFiles } from '@core/export/zip.ts';
 import { buildPart } from '@core/geometry/build.ts';
 import { PartCache } from '@core/geometry/cache.ts';
 import type { Kernel, Manifold } from '@core/geometry/kernel.ts';
@@ -143,13 +144,31 @@ async function exportStl(
   return files;
 }
 
+/**
+ * One ZIP of every part's STL (stored, level 0; a part with several copies
+ * once) plus the main thread's text files (the print sheet), deflated.
+ */
+async function exportZip(
+  k: Kernel,
+  msg: ExportMessage,
+  job: { cancelled: boolean },
+): Promise<ExportFile[]> {
+  const stls = await exportStl(k, msg, job);
+  const data = zipFiles([
+    ...stls.map((f) => ({ name: f.name, data: f.data })),
+    ...(msg.meta.extraFiles ?? []).map((f) => ({ name: f.name, data: f.text, level: 6 as const })),
+  ]);
+  return [{ name: archiveFileName(msg.meta, 'zip'), data, mime: 'application/zip' }];
+}
+
 async function runExport(msg: ExportMessage): Promise<void> {
   const { jobId } = msg;
   const job = { cancelled: false };
   exportJobs.set(jobId, job);
   try {
-    if (msg.format !== 'stl') throw new Error(`${msg.format} export is not implemented yet`);
-    const files = await exportStl(await init(), msg, job);
+    if (msg.format === '3mf') throw new Error('3mf export is not implemented yet');
+    const k = await init();
+    const files = await (msg.format === 'zip-stl' ? exportZip : exportStl)(k, msg, job);
     post(
       { t: 'export-done', jobId, files },
       files.map((f) => f.data),
