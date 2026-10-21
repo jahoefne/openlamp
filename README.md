@@ -42,9 +42,9 @@ npm install
 npm run dev        # opens the UI on http://localhost:5173/openlamp/
 ```
 
-Adjust the sliders, watch the preview (there is a section view and a "mounted on the
-ceiling" view), then click **Download STL**. The settings are mirrored in the URL, so
-**Copy link** gives you a shareable configuration.
+Pick a printer and an example, adjust the sliders (⌘Z / Ctrl+Z undoes a whole drag), watch
+the preview (there is a section view and a "mounted on the ceiling" view), then choose
+**Export → Download STL**. Saving, opening and share links return in the next step.
 
 `npm run build` produces a static site in `dist/`. It is built for the base path
 `/openlamp/` (set in `vite.config.ts`), so serve it from a directory of that name;
@@ -126,8 +126,8 @@ index.html                web UI shell
 src/core/                 shared core: schema, project model, assembly, geometry, STL writer
 src/examples/             example projects (.lamp.json)
 src/worker/               web worker that owns the WASM geometry kernel, and its typed messages
-src/app/worker/           main-thread client for the worker (builds, exports)
-src/app.ts                UI, three.js preview, STL download
+src/app/                  React UI: stores, build pipeline, react-three-fiber viewport, panels
+src/app/worker/           main-thread client for the worker, build pipeline, mesh registry
 docs/ARCHITECTURE.md      target architecture and milestones
 .github/workflows/ci.yml  typecheck, lint, format check, tests, samples, build and GitHub Pages deploy
 tests/                    Vitest unit tests and fixtures

@@ -8,44 +8,9 @@
       name="description"
       content="openlamp – parametric, 3D-printable lamp generator. Currently builds a ceiling lamp shade for the Bambu Lab LED Lamp Kit-001 with a velcro strap mount and exports STL."
     />
-    <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <div id="app">
-      <aside id="sidebar">
-        <header>
-          <h1>openlamp</h1>
-          <p class="sub">
-            Ceiling lamp shade for the Bambu Lab LED Lamp Kit‑001, hung from a velcro strap.
-          </p>
-        </header>
-        <div class="toolbar">
-          <label class="preset">
-            <span>Preset</span>
-            <select id="preset"></select>
-          </label>
-          <button id="reset" type="button" title="Back to the default shade">Reset</button>
-        </div>
-        <form id="params" autocomplete="off"></form>
-        <section class="view-options">
-          <h2>View</h2>
-          <label><input type="checkbox" id="section" /> Section view (cut in half)</label>
-          <label><input type="checkbox" id="ghosts" checked /> Show LED puck and strap</label>
-          <label><input type="checkbox" id="mounted" /> Show as mounted on the ceiling</label>
-        </section>
-      </aside>
-      <main id="viewport">
-        <canvas id="canvas"></canvas>
-        <div id="status" class="status">Loading geometry engine…</div>
-        <div id="stats" class="stats"></div>
-        <div class="actions">
-          <button id="download" type="button" class="primary" disabled>Download STL</button>
-          <button id="share" type="button" title="Copy a link with these settings">
-            Copy link
-          </button>
-        </div>
-      </main>
-    </div>
-    <script type="module" src="/src/app.ts"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/app/main.tsx"></script>
   </body>
 </html>

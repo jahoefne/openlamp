@@ -16,5 +16,16 @@ export default defineConfig({
   // import it as a plain module.
   optimizeDeps: { exclude: ['manifold-3d'] },
   worker: { format: 'es' },
-  build: { chunkSizeWarningLimit: 1200 },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rolldownOptions: {
+      output: {
+        // three.js alone is most of the app's weight: give it its own chunk,
+        // cached across app releases.
+        codeSplitting: {
+          groups: [{ name: 'three', test: /[\\/]node_modules[\\/]three[\\/]/ }],
+        },
+      },
+    },
+  },
 });
