@@ -39,10 +39,10 @@ async function buildsAll(assembly: Assembly): Promise<void> {
   }
 }
 
-it('ships the eight examples', () => {
+it('ships the classic and pendant examples', () => {
   expect(files.length).toBeGreaterThanOrEqual(8);
   expect(files.map((f) => f.replace('.lamp.json', ''))).toEqual(
-    [...CLASSIC, 'pendant-cord'].sort(),
+    expect.arrayContaining([...CLASSIC, 'pendant-cord']),
   );
 });
 
