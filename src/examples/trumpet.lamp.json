@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "id": "trumpet",
   "name": "Trumpet",
   "revision": 0,
@@ -25,7 +25,9 @@
     "clearance": 0.7,
     "lightHoleDiameter": 50,
     "ledgeThickness": 2,
-    "cableWidth": 4.5
+    "cableWidth": 4.5,
+    "bossWall": 2.4,
+    "pocketExtraDepth": 0.3
   },
   "mount": {
     "kind": "ceilingStrap",
@@ -35,10 +37,11 @@
     "loopWall": 2.4
   },
   "hub": {
-    "wallThickness": 0.8,
+    "wallThickness": 2,
     "shoulderAngle": 50,
-    "bossWall": 2.4,
-    "pocketExtraDepth": 0.3,
+    "collarWall": 2,
+    "radialGap": 8,
+    "ventCount": 0,
     "fused": true
   },
   "shades": [
@@ -53,6 +56,7 @@
         "topDiameter": 80,
         "height": 140,
         "curve": -0.6,
+        "shoulderAngle": 50,
         "surface": {
           "style": "ribbed",
           "patternCount": 72,
@@ -62,6 +66,16 @@
       }
     }
   ],
-  "colours": {},
+  "joints": {
+    "shadeToHub": "bayonet",
+    "tolerance": 0.3,
+    "threadPitch": 2.5,
+    "threadDepth": 0.8,
+    "screw": "M3",
+    "heatSet": true
+  },
+  "colours": {
+    "hub": "#d9d4cb"
+  },
   "fitTest": false
 }

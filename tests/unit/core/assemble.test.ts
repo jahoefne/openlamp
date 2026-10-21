@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { assemble } from '@core/assembly/assemble.ts';
+import { autoCollarDiameter, minShadeTopDiameter } from '@core/assembly/interfaces.ts';
 import { layoutParts } from '@core/assembly/layout.ts';
+import { lightEnvelope } from '@core/assembly/lights/index.ts';
 import { classicShadeFootprint, derive } from '@core/geometry/parts/classicShade.ts';
-import { IDENTITY, type Placement } from '@core/model/assembly.ts';
+import { deriveHub } from '@core/geometry/parts/hub.ts';
+import { deriveRevolvedShade } from '@core/geometry/parts/shades/revolved.ts';
+import {
+  IDENTITY,
+  SHADE_JOINT_TYPES,
+  type Assembly,
+  type PartSpec,
+  type Placement,
+} from '@core/model/assembly.ts';
+import type { FusedShadeParams, HubParams, RevolvedShadeParams } from '@core/model/parts.ts';
 import { createDefaultProject, projectToClassicParams, type Project } from '@core/model/project.ts';
 import { normalizeClassicShade } from '@core/schema/normalize.ts';
 import { findPrinter } from '@core/schema/printers.ts';
@@ -22,28 +33,75 @@ const wide = (p: Project) => {
   p.shades[0].style.bottomDiameter = 240;
 };
 
+const split = (p: Project) => {
+  p.hub.fused = false;
+};
+
+/** The fused shade's params (the default project has exactly this one part). */
+function fusedParams(part: PartSpec | undefined): FusedShadeParams {
+  if (part?.kind !== 'shade' || part.params.variant !== 'fused') throw new Error('not fused');
+  return part.params;
+}
+
+function hubParams(a: Assembly): HubParams {
+  const part = a.parts.find((p) => p.id === 'hub');
+  if (part?.kind !== 'hub') throw new Error('no hub');
+  return part.params;
+}
+
+function shadeParams(a: Assembly): RevolvedShadeParams {
+  const part = a.parts.find((p) => p.id === 'shade');
+  if (part?.kind !== 'shade' || part.params.variant !== 'revolved') throw new Error('no shade');
+  return part.params;
+}
+
+/** The assembly without the numbers that only restate the params (for snapshots). */
+function summary(a: Assembly) {
+  return {
+    parts: a.parts.map(({ buildKey, ...part }) => ({ ...part, buildKeyLength: buildKey.length })),
+    interfaces: a.interfaces,
+    layout: a.layout,
+    derived: a.derived,
+    warnings: a.warnings,
+  };
+}
+
 describe('assemble', () => {
-  it('resolves the default project into one classic shade part', () => {
+  it('resolves the default project into one fused shade part', () => {
     const p = project();
     const a = assemble(p);
     expect(a.parts).toHaveLength(1);
     const part = a.parts[0]!;
     expect(part).toMatchObject({
       id: 'shade',
-      kind: 'classicShade',
+      kind: 'shade',
+      displayName: 'Shade (fused)',
       instances: 1,
       colour: '#f4efe6',
     });
-    expect(part.params).toEqual(normalizeClassicShade(projectToClassicParams(p)).values);
-    expect(part.params.quality).toBe(p.quality.preview);
+    const params = fusedParams(part);
+    expect(params).toEqual({
+      variant: 'fused',
+      ...normalizeClassicShade(projectToClassicParams(p)).values,
+    });
+    expect(params.quality).toBe(p.quality.preview);
+    expect(a.interfaces).toEqual({});
     expect(part.hash).toMatch(/^[0-9a-f]{14}$/);
     expect(part.assembledTransform).toEqual([...IDENTITY]);
     // Centred on the 256 mm bed.
     expect(part.printTransform.slice(12)).toEqual([128, 128, 0, 1]);
-    expect(part.bedFootprint).toEqual(classicShadeFootprint(part.params));
+    expect(part.bedFootprint).toEqual(classicShadeFootprint(params));
     expect(part.bedFootprint!.x).toBeCloseTo(161.6, 6);
-    expect(part.bedFootprint!.z).toBeCloseTo(derive(part.params).zTop, 9);
+    expect(part.bedFootprint!.z).toBeCloseTo(derive(params).zTop, 9);
     expect(a.warnings).toEqual([]);
+    // The viewport's ghosts and ceiling: the housing top and the puck on its ledge.
+    const d = derive(params);
+    expect(a.derived).toMatchObject({
+      ceilingZ: d.zTop,
+      puckZ: d.zFloor,
+      bottomZ: 0,
+      rBoss: d.rBoss,
+    });
   });
 
   it('warns when a 240 mm shade does not fit an A1 mini', () => {
@@ -98,7 +156,7 @@ describe('assemble', () => {
         p.shades[0].style.topDiameter = 40;
       }),
     );
-    expect(a.parts[0]!.params.topDiameter).toBe(68);
+    expect(fusedParams(a.parts[0]).topDiameter).toBe(68);
     expect(a.warnings.map((w) => [w.code, w.paramPath])).toEqual([
       ['clamped', 'shades.0.style.topDiameter'],
       ['adjusted', 'shades.0.style.topDiameter'],
@@ -114,6 +172,179 @@ describe('assemble', () => {
     expect(a.parts[0]!.displayName).toBe('Fit-test ring');
     expect(a.parts[0]!.bedFootprint!.y).toBeCloseTo(75, 6);
     expect(a.parts[0]!.bedFootprint!.z).toBeCloseTo(13.3, 6);
+    // The ring is moved down to the bed; so are the ghosts.
+    expect(a.derived.ceilingZ).toBeCloseTo(13.3, 6);
+  });
+
+  it('matches the fused snapshot', () => {
+    expect(summary(assemble(project()))).toMatchSnapshot();
+  });
+});
+
+describe('assemble (split into hub + shade)', () => {
+  it('resolves a hub and a revolved shade joined by a bayonet', () => {
+    const p = project('bambu-a1', split);
+    const a = assemble(p);
+    expect(a.parts.map((x) => [x.id, x.kind, x.displayName])).toEqual([
+      ['hub', 'hub', 'Hub'],
+      ['shade', 'shade', 'Shade'],
+    ]);
+    expect(a.warnings).toEqual([]);
+    const iface = a.interfaces.shadeToHub!;
+    expect(iface).toMatchObject({
+      type: 'bayonet',
+      male: 'shade',
+      female: 'hub',
+      length: 8,
+      tolerance: 0.3,
+      bayonet: { lugs: 3, lugWidth: 6, lugHeight: 2, lugDepth: 1.6, travel: 35 },
+    });
+    // Collar Ø = 2·(rCore + 1.5), rCore = the puck housing (29.5 + 0.7 + 2.4).
+    expect(lightEnvelope(p.light).rCore).toBeCloseTo(32.6, 9);
+    expect(iface.nominalDiameter).toBeCloseTo(68.2, 9);
+    expect(iface.nominalDiameter).toBe(autoCollarDiameter(lightEnvelope(p.light)));
+    // Both parts carry the same interface and collar.
+    const hub = hubParams(a);
+    const shade = shadeParams(a);
+    expect(hub.joint).toEqual(iface);
+    expect(shade.joint).toEqual(iface);
+    expect(shade.collar).toEqual(hub.collar);
+    expect(hub.collar).toMatchObject({ radius: 34.1, wall: 2 });
+    expect(hub.collar.ringInnerRadius).toBeCloseTo(34.4, 9);
+    expect(hub.collar.seatRadius).toBeCloseTo(38, 9);
+    // The hub is the world frame; the shade hangs below with its collar plane at z 0.
+    const sd = deriveRevolvedShade(shade);
+    const hd = deriveHub(hub);
+    expect(a.parts[0]!.assembledTransform).toEqual([...IDENTITY]);
+    expect(a.parts[1]!.assembledTransform).toEqual([
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      -sd.zCollar,
+      1,
+    ]);
+    expect(a.derived).toMatchObject({
+      ceilingZ: hd.zTop,
+      puckZ: hd.zFloor,
+      bottomZ: -sd.zCollar,
+      hubHeight: hd.hubHeight,
+    });
+    // Both parts are placed on the bed without overlapping.
+    expect(a.layout.overflow).toEqual([]);
+    expect(a.layout.placements.map((x) => x.id)).toEqual(['hub', 'shade']);
+    // The hub's colour default; the shade keeps its own.
+    expect(a.parts.map((x) => x.colour)).toEqual(['#d9d4cb', '#f4efe6']);
+    expect(a.parts[1]!.printNotes.at(-1)).toContain('clockwise');
+  });
+
+  it.each(SHADE_JOINT_TYPES)('gives the %s joint its geometry defaults', (type) => {
+    const a = assemble(
+      project('bambu-a1', (p) => {
+        split(p);
+        p.joints.shadeToHub = type;
+      }),
+    );
+    const iface = a.interfaces.shadeToHub!;
+    expect(iface.type).toBe(type);
+    if (type === 'thread') {
+      expect(iface.thread).toEqual({ pitch: 2.5, depth: 0.8, flank: 45, hand: 'right' });
+      expect(iface.tolerance).toBe(0.3);
+    } else if (type === 'snap') {
+      expect(iface.tolerance).toBeCloseTo(0.2, 9);
+      expect(iface.snap!.ribHeight).toBeCloseTo(0.3, 9);
+    } else {
+      expect(iface.bayonet).toBeDefined();
+    }
+  });
+
+  it('widens a shade whose top is too narrow for the hub ring, with a warning', () => {
+    const a = assemble(
+      project('bambu-a1', (p) => {
+        split(p);
+        p.shades[0].style.topDiameter = 70;
+      }),
+    );
+    const shade = shadeParams(a);
+    const min = Math.ceil(minShadeTopDiameter(shade.collar) - 1e-9);
+    expect(min).toBe(78); // ring Ø 76 + 2
+    expect(shade.topDiameter).toBe(min);
+    expect(a.warnings.map((w) => [w.code, w.paramPath, w.partId])).toEqual([
+      ['adjusted', 'shades.0.style.topDiameter', 'shade'],
+    ]);
+  });
+
+  it('uses a larger collar diameter when the shade asks for one, never a smaller one', () => {
+    const larger = assemble(
+      project('bambu-a1', (p) => {
+        split(p);
+        p.shades[0].collarDiameter = 80;
+      }),
+    );
+    expect(larger.interfaces.shadeToHub!.nominalDiameter).toBe(80);
+    const smaller = assemble(
+      project('bambu-a1', (p) => {
+        split(p);
+        p.shades[0].collarDiameter = 50;
+      }),
+    );
+    expect(smaller.interfaces.shadeToHub!.nominalDiameter).toBeCloseTo(68.2, 9);
+    expect(smaller.warnings.map((w) => w.paramPath)).toEqual(['shades.0.collarDiameter']);
+  });
+
+  it('clamps the hub and joint parameters with their project paths', () => {
+    const a = assemble(
+      project('bambu-a1', (p) => {
+        split(p);
+        p.joints.shadeToHub = 'thread';
+        p.joints.threadPitch = 2;
+        p.joints.threadDepth = 1.5;
+        p.hub.collarWall = 9;
+      }),
+    );
+    expect(a.warnings.map((w) => [w.code, w.paramPath])).toEqual([
+      ['clamped', 'hub.collarWall'],
+      ['adjusted', 'joints.threadDepth'],
+    ]);
+    expect(a.interfaces.shadeToHub!.thread!.depth).toBe(0.8);
+    expect(hubParams(a).collar.wall).toBe(5);
+  });
+
+  it('keeps the shade and its buildKey when only the hub changes', () => {
+    const base = assemble(project('bambu-a1', split));
+    const hubOnly = assemble(
+      project('bambu-a1', (p) => {
+        split(p);
+        p.hub.shoulderAngle = 60;
+      }),
+    );
+    expect(hubOnly.parts[0]!.hash).not.toBe(base.parts[0]!.hash);
+    expect(hubOnly.parts[1]!.hash).toBe(base.parts[1]!.hash);
+  });
+
+  it('keeps only the hub in fit-test mode', () => {
+    const a = assemble(
+      project('bambu-a1', (p) => {
+        split(p);
+        p.fitTest = true;
+      }),
+    );
+    expect(a.parts.map((x) => [x.id, x.displayName])).toEqual([['hub', 'Hub (fit test)']]);
+    expect(a.derived.bottomZ).toBe(0);
+  });
+
+  it('matches the split snapshot', () => {
+    expect(summary(assemble(project('bambu-a1', split)))).toMatchSnapshot();
   });
 });
 

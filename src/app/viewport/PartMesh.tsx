@@ -1,5 +1,7 @@
 /**
- * One printable part in the viewport, placed by its assembled transform.
+ * One printable part in the viewport, placed by its assembled transform (the
+ * transform of the spec the shown geometry was built from, so a mesh never
+ * moves ahead of its rebuild).
  *
  * The geometry comes from the geometry registry and is re-read whenever the
  * part's build `revision` changes, so the old mesh stays on screen while a new
@@ -25,10 +27,11 @@ const CLICK_SLOP = 4;
 
 export function PartMesh({ part }: { part: PartSpec }) {
   const revision = useBuildStore((s) => s.parts[part.id]?.revision ?? 0);
+  const shownTransform = useBuildStore((s) => s.parts[part.id]?.built?.assembledTransform);
   const selected = useUiStore((s) => s.selection === part.id);
   const select = useUiStore((s) => s.select);
   const invalidate = useThree((s) => s.invalidate);
-  const matrix = useMatrix(part.assembledTransform);
+  const matrix = useMatrix(shownTransform ?? part.assembledTransform);
   const material = partMaterial(part.colour);
   // `revision` names the registry entry this render shows.
   const geometry = revision > 0 ? geometryRegistry.get(part.id) : undefined;

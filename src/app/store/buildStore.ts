@@ -49,8 +49,17 @@ export interface BuildState {
   /** The latest build whose `build-done` arrived. */
   doneGeneration: number;
   parts: Record<string, PartBuild>;
-  /** Project-level warnings of the dispatched assembly and the worker's total time. */
-  assembly: { warnings: Warning[]; totalMs: number | null } | null;
+  /**
+   * Project-level warnings and derived dimensions of the dispatched assembly,
+   * and the worker's total time once its build is done.
+   */
+  assembly: { warnings: Warning[]; derived: Record<string, number>; totalMs: number | null } | null;
+  /**
+   * `Assembly.derived` of the latest build that finished: what the meshes on
+   * screen were built from, so the ghosts and context planes move with them
+   * rather than ahead of them.
+   */
+  shownDerived: Record<string, number> | null;
   lastBuild: BuildSummary | null;
   exporting: boolean;
   exportProgress: ExportProgress | null;
@@ -89,6 +98,7 @@ export const useBuildStore = create<BuildState>()(
     doneGeneration: 0,
     parts: {},
     assembly: null,
+    shownDerived: null,
     lastBuild: null,
     exporting: false,
     exportProgress: null,
@@ -108,7 +118,7 @@ export const useBuildStore = create<BuildState>()(
     dispatch: (generation, assembly, diff) =>
       set((s) => {
         s.generation = generation;
-        s.assembly = { warnings: assembly.warnings, totalMs: null };
+        s.assembly = { warnings: assembly.warnings, derived: assembly.derived, totalMs: null };
         s.exportError = null;
         for (const id of diff.removed) delete s.parts[id];
         for (const part of diff.unchanged) {
@@ -165,7 +175,10 @@ export const useBuildStore = create<BuildState>()(
     buildDone: (generation, totalMs) =>
       set((s) => {
         s.doneGeneration = generation;
-        if (s.assembly) s.assembly.totalMs = totalMs;
+        if (s.assembly) {
+          s.assembly.totalMs = totalMs;
+          if (generation === s.generation) s.shownDerived = s.assembly.derived;
+        }
       }),
 
     setKernelReady: () => set({ kernelReady: true }),

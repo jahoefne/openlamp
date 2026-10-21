@@ -4,9 +4,10 @@
  * ever serialised; only the project is (see project.ts).
  */
 import type { ErrorStatus, Vec3 } from 'manifold-3d';
-import type { ClassicShadeParams } from '../schema/defs.ts';
+import type { HubParams, ShadeParams } from './parts.ts';
 
 export type Mm = number;
+export type Deg = number;
 export type Hex = `#${string}`;
 /** 4×4 matrix, 16 numbers, column-major (the layout three.js and manifold use). */
 export type Mat4 = number[];
@@ -27,12 +28,90 @@ export interface Warning {
   paramPath?: string;
 }
 
-/** Part kinds with a builder. M1 has just the fused classic shade. */
-export type PartKind = 'classicShade';
+/** Part kinds with a builder (more join with the mounts, lights and shade families of M2/M3). */
+export type PartKind = 'hub' | 'shade';
 
-/** The resolved parameters each part kind's builder takes. */
+/**
+ * The resolved parameters each part kind's builder takes. A `shade` is either
+ * the fused single-piece print (hub + shade, today's classic shade) or a shade
+ * of one family that ends in a collar (see parts.ts).
+ */
 export interface PartParamsByKind {
-  classicShade: ClassicShadeParams;
+  hub: HubParams;
+  shade: ShadeParams;
+}
+
+// ---------------------------------------------------------------- joints
+
+export type JointType = 'thread' | 'bayonet' | 'snap' | 'screw';
+
+/** The joints a shade can hang from the hub with (`project.joints.shadeToHub`). */
+export const SHADE_JOINT_TYPES = ['bayonet', 'snap', 'thread'] as const;
+export type ShadeJointType = (typeof SHADE_JOINT_TYPES)[number];
+
+export interface ThreadSpec {
+  pitch: Mm;
+  /** Radial depth of the teeth. */
+  depth: Mm;
+  /** Flank angle from the axis-normal plane; the trapezoid cam gives 45°. */
+  flank: Deg;
+  hand: 'right';
+}
+
+export interface BayonetSpec {
+  lugs: number;
+  /** Circumferential width of a lug. */
+  lugWidth: Mm;
+  /** Axial height of a lug (its 45° underside included). */
+  lugHeight: Mm;
+  /** How far a lug stands out of the collar. */
+  lugDepth: Mm;
+  /** Twist from the entry slot to the locked position. */
+  travel: Deg;
+}
+
+export interface SnapSpec {
+  /** Crush ribs on the male collar. */
+  ribs: number;
+  /** How far a rib stands out of the collar (more than the clearance: it crushes). */
+  ribHeight: Mm;
+}
+
+export interface ScrewSpec {
+  count: number;
+  /** Through-hole diameter. */
+  hole: Mm;
+  /** Counterbore [diameter, depth] on the male side's head face. */
+  counterbore: [Mm, Mm];
+  /** Heat-set insert pocket [diameter, depth] on the female side; a tapping hole without. */
+  insertPocket?: [Mm, Mm];
+}
+
+/**
+ * One resolved joint between two parts, computed once by `assemble()` and
+ * copied into the params of both parts, so the two sides cannot drift.
+ *
+ * Shade joints (thread, bayonet, snap) are collars: `nominalDiameter` is the
+ * diameter of the male collar's cylindrical body (the thread root, the
+ * surface the bayonet lugs and snap ribs stand on); the female ring's bore is
+ * `tolerance` larger in radius. The joint spans `length` from the collar plane
+ * (where the female part sits on the male one) into the female part. For
+ * screws `nominalDiameter` is the bolt circle.
+ */
+export interface JointInterface {
+  id: string;
+  type: JointType;
+  nominalDiameter: Mm;
+  length: Mm;
+  /** Radial clearance between the male collar and the female bore. */
+  tolerance: Mm;
+  thread?: ThreadSpec;
+  bayonet?: BayonetSpec;
+  snap?: SnapSpec;
+  screw?: ScrewSpec;
+  /** Part ids. */
+  male: string;
+  female: string;
 }
 
 /** Axis-aligned extent of a part in its print orientation, in mm. */
@@ -110,8 +189,16 @@ export interface Layout {
 
 export interface Assembly {
   parts: PartSpec[];
+  /** Every joint between the parts, by id (also copied into both parts' params). */
+  interfaces: Record<string, JointInterface>;
   layout: Layout;
-  /** Derived dimensions worth showing (classic shade: `derive()`). */
+  /**
+   * Derived dimensions in world coordinates for the viewport and the panels:
+   * `ceilingZ` (the mount face on top of the hub), `bottomZ` (the lowest point
+   * of the lamp), `puckZ` / `puckDiameter` / `puckHeight` (the light in its
+   * pocket) and the strap's `strapWidth` / `strapThickness` / `loopLength` /
+   * `rBoss`. The fused shade adds its `derive()` dimensions.
+   */
   derived: Record<string, number>;
   /** Every warning of every part plus project-level ones. */
   warnings: Warning[];

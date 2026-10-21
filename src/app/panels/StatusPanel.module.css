@@ -106,9 +106,53 @@
   margin-bottom: 4px;
 }
 
-.totals {
-  margin-top: 4px;
+.parts {
+  border-collapse: collapse;
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.parts th,
+.parts td {
+  padding: 1px 8px 1px 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.parts thead th {
   color: var(--muted);
+  font-weight: 500;
+}
+
+.parts th[scope='row'],
+.parts thead th:first-child {
+  text-align: left;
+}
+
+.parts tbody tr {
+  cursor: pointer;
+}
+
+.parts tbody th[scope='row'] {
+  font-weight: 600;
+}
+
+.parts tfoot th,
+.parts tfoot td {
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 3px;
+}
+
+.selectedRow th[scope='row'] {
+  color: var(--accent);
+}
+
+.miniBadge {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
 }
 
 .badge {
