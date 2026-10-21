@@ -2,7 +2,7 @@
  * Part materials, one per colour, shared by every mesh of that colour. Each
  * clips against the shared section plane.
  */
-import { DoubleSide, MeshStandardMaterial } from 'three';
+import { DoubleSide, FrontSide, MeshStandardMaterial } from 'three';
 import { sectionPlanes } from './sectionPlane.ts';
 
 const partMaterials = new Map<string, MeshStandardMaterial>();
@@ -46,14 +46,26 @@ export const cordMaterial = new MeshStandardMaterial({
   roughness: 0.95,
 });
 
+/**
+ * The ceiling (and the floor under the grid): seen from the room only
+ * (FrontSide), so a camera above the ceiling looks through it at the lamp.
+ */
 export const ceilingMaterial = new MeshStandardMaterial({
   color: 0xe9e4dc,
   roughness: 0.9,
-  side: DoubleSide,
+  side: FrontSide,
 });
 
+/**
+ * The wall behind a wall lamp: seen from the room only (FrontSide; the plane
+ * faces +y), and pushed back in depth so the wall plate's back face, which
+ * lies on it, always wins (no z-fighting).
+ */
 export const wallMaterial = new MeshStandardMaterial({
   color: 0xdcd6cc,
   roughness: 0.95,
-  side: DoubleSide,
+  side: FrontSide,
+  polygonOffset: true,
+  polygonOffsetFactor: 2,
+  polygonOffsetUnits: 2,
 });

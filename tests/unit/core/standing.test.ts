@@ -19,7 +19,7 @@ import { deriveBase } from '@core/geometry/parts/base.ts';
 import { deriveBaseLid } from '@core/geometry/parts/baseLid.ts';
 import { deriveHub } from '@core/geometry/parts/hub.ts';
 import { deriveStem } from '@core/geometry/parts/stem.ts';
-import type { Assembly, PartSpec } from '@core/model/assembly.ts';
+import { IDENTITY, type Assembly, type PartSpec } from '@core/model/assembly.ts';
 import type { BaseLidParams, BaseParams, HubParams, StemParams } from '@core/model/parts.ts';
 import {
   createDefaultProject,
@@ -257,6 +257,43 @@ describe('assemble (standing lamp)', () => {
     expect(a.derived.ceilingZ).toBeUndefined();
   });
 
+  it('stacks the copies of the stem segment on the foot, one segment length apart', () => {
+    // 450 mm of 150 mm segments: the foot plus two copies of one segment part.
+    const a = assemble(standing(tall(450, 150)));
+    const segment = part(a, 'stem', 'stem');
+    expect(segment.instances).toBe(2);
+    const { stemZ0, stemSegmentLength } = a.derived;
+    expect(stemSegmentLength).toBe(150);
+    const zs = segment.instanceTransforms.map((m) => applyToPoint(m, [0, 0, 0])[2]);
+    expect(zs).toEqual([stemZ0! + 150, stemZ0! + 300]);
+    // Pure translations; the top copy is the part's own transform, the foot is its own part.
+    for (const m of segment.instanceTransforms)
+      expect(m.slice(0, 12)).toEqual(IDENTITY.slice(0, 12));
+    expect(segment.instanceTransforms.at(-1)).toEqual(segment.assembledTransform);
+    const foot = part(a, 'stemFoot', 'stem');
+    expect(foot.instanceTransforms).toEqual([foot.assembledTransform]);
+    expect(applyToPoint(foot.assembledTransform, [0, 0, 0])[2]).toBe(stemZ0);
+    // The top copy's male thread reaches the hub: the stack ends at stemZ1.
+    expect(zs.at(-1)! + stemSegmentLength!).toBeCloseTo(a.derived.stemZ1!, 9);
+    // Each copy has its own place on the bed (a large one: the A1 takes the
+    // base, not the shade next to it), without overlapping anything.
+    const big = standing(tall(450, 150));
+    big.printer = { ...big.printer, id: 'big', bed: [400, 400, 400] };
+    const { layout } = assemble(big);
+    const placements = layout.placements;
+    expect(placements.filter((x) => x.id === 'stem').map((x) => x.instance)).toEqual([0, 1]);
+    expect(placements.filter((x) => x.id !== 'stem').every((x) => x.instance === 0)).toBe(true);
+    expect(layout.overflow).toEqual([]);
+    for (const [i, p] of placements.entries()) {
+      for (const q of placements.slice(i + 1)) {
+        const apart =
+          Math.abs(p.x - q.x) >= (p.width + q.width) / 2 - 1e-9 ||
+          Math.abs(p.y - q.y) >= (p.depth + q.depth) / 2 - 1e-9;
+        expect(apart, `${p.id} #${p.instance} / ${q.id} #${q.instance}`).toBe(true);
+      }
+    }
+  });
+
   it('keeps only the hub in fit-test mode, standing on the floor as on the stem', () => {
     const a = assemble(
       standing((_m, p) => {
@@ -450,10 +487,11 @@ describe('the stem threads', () => {
     withBuilt(k, tracker, parts, 'normal', (built) => {
       scoped(k, (s) => {
         const foot = s.add(assembled(byId(built, 'stemFoot')));
-        // The segments' part is shown as the top one; the others sit 150 mm lower each.
-        const top = s.add(assembled(byId(built, 'stem')));
-        const segments = Array.from({ length: n - 1 }, (_, i) =>
-          s.add(top.translate([0, 0, -150 * (n - 2 - i)])),
+        // Every copy of the segment part where the assembly puts it, bottom to top.
+        const segment = byId(built, 'stem');
+        expect(segment.part.instanceTransforms).toHaveLength(n - 1);
+        const segments = segment.part.instanceTransforms.map((m) =>
+          s.add(segment.manifold.transform(m as Parameters<Manifold['transform']>[0])),
         );
         const stack = [foot, ...segments];
         for (let i = 0; i + 1 < stack.length; i++) {
