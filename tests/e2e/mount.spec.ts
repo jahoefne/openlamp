@@ -1,7 +1,7 @@
 /**
  * Switching the mount in the inspector: the pendant adds its canopy, the
- * wall arm (parts pending until M2.2b) builds the hub and the shade with an
- * info, and switching back to the strap restores the classic shade.
+ * wall arm its wall plate and arm, and switching back to the strap restores
+ * the classic shade.
  */
 import { expect, test, type Page } from '@playwright/test';
 import { expectReady, openApp, statsOf } from './helpers.ts';
@@ -28,11 +28,11 @@ test('Mount → Pendant on a cord builds the hub, the shade and the canopy', asy
   await expect(statsOf(page).getByText(/^⚠/)).toHaveCount(0);
 });
 
-test('Mount → Wall arm builds without errors and says its parts are pending', async ({ page }) => {
+test('Mount → Wall arm builds the hub, the shade, the wall plate and the arm', async ({ page }) => {
   await chooseMount(page, 'Wall arm');
 
-  await expect(partNames(page)).toHaveText(['Hub', 'Shade']);
-  await expect(statsOf(page).getByText(/arrive in a later step/)).toBeVisible();
+  await expect(partNames(page)).toHaveText(['Hub', 'Shade', 'Wall plate', 'Wall arm']);
+  await expect(statsOf(page).getByText(/arrive in a later step/)).toHaveCount(0);
   await expect(page.locator('#status')).not.toHaveText(/Error/);
 });
 
