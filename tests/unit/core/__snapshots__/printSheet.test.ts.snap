@@ -1,0 +1,819 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the print sheet of bell-default.lamp.json > matches its snapshot 1`] = `
+"# Bell (default)
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Velcro strap on the ceiling; USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); hub and shade printed as one piece
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 1 STL file, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Shade (fused) | 1 | warm white \`#f4efe6\` | — | — | Open end on the bed, housing on top | — |
+| **Total** | **1** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
+- 1 × USB power adapter (5 V)
+- 1 × self-adhesive velcro (hook-and-loop) strip for the ceiling, at least 25 × 66 mm
+- 1 × strip of the mating velcro, 25 mm wide and about 130 mm long (trim the tails)
+
+## Assembly
+
+1. Stick the self-adhesive hook strip (or the loop strip, either way round) to the ceiling.
+2. Drop the LED puck into the pocket from the top, diffuser facing down into the shade, and lay its cable out through the slot in the housing wall.
+3. Thread a strip of the mating velcro down through one side tunnel, across the top of the housing (over the back of the puck) and down through the other tunnel. The strap keeps the puck in; trim the tails.
+4. Press the lamp against the ceiling strip. To take it down, peel it off.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Shade (fused)
+
+File: \`openlamp-bell-default-shade.stl\`
+
+- Print as exported: open end on the bed, housing on top. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+
+## Warnings
+
+None.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
+exports[`the print sheet of drum.lamp.json > matches its snapshot 1`] = `
+"# Drum
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Velcro strap on the ceiling; USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); hub and shade printed as one piece
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 1 STL file, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Shade (fused) | 1 | warm white \`#f4efe6\` | — | — | Open end on the bed, housing on top | — |
+| **Total** | **1** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
+- 1 × USB power adapter (5 V)
+- 1 × self-adhesive velcro (hook-and-loop) strip for the ceiling, at least 25 × 66 mm
+- 1 × strip of the mating velcro, 25 mm wide and about 130 mm long (trim the tails)
+
+## Assembly
+
+1. Stick the self-adhesive hook strip (or the loop strip, either way round) to the ceiling.
+2. Drop the LED puck into the pocket from the top, diffuser facing down into the shade, and lay its cable out through the slot in the housing wall.
+3. Thread a strip of the mating velcro down through one side tunnel, across the top of the housing (over the back of the puck) and down through the other tunnel. The strap keeps the puck in; trim the tails.
+4. Press the lamp against the ceiling strip. To take it down, peel it off.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Shade (fused)
+
+File: \`openlamp-drum-shade.stl\`
+
+- Print as exported: open end on the bed, housing on top. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+
+## Warnings
+
+None.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
+exports[`the print sheet of e27-pendant.lamp.json > matches its snapshot 1`] = `
+"# E27 pendant
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); E27 LED bulb in a lampholder (shade ring); shade on a bayonet joint
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 3 STL files, one per part, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Hub | 1 | warm light grey \`#d9d4cb\` | — | — | Collar ring on the bed, mount face up | bayonet for the Shade |
+| Shade | 1 | cream \`#f2e8d5\` | — | — | Open end on the bed, collar up | bayonet into the Hub |
+| Canopy | 1 | warm light grey \`#d9d4cb\` | — | — | Ceiling face on the bed | — |
+| **Total** | **3** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × E27 lampholder with a threaded sleeve for the Ø40.5 mm hole and its shade ring
+- 1 × E27 LED bulb, at most Ø60 × 110 mm (LED only: no incandescent or halogen bulbs)
+- Cord Ø6 mm, at least 800 mm (the 600 mm drop and the knots) plus the run from the canopy to the power: a 2-core mains cord set with a plug and a switch (or wired to the outlet by a qualified person)
+- 2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs, for the canopy's slots (60 mm apart)
+
+## Assembly
+
+1. Feed the cord down through the hub's cord boss and tie a knot that sits in the knot cavity (reach in through the hole in the hub's plate).
+2. Wire the E27 lampholder to the cord (mains wiring: have it done by a qualified person), then pass its threaded sleeve through the Ø40.5 mm hole in the hub's plate and screw its shade ring on from the light face, so the plate is clamped.
+3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 600 mm above the hub, so it sits in the canopy's recess.
+4. Screw the canopy to the ceiling through its two slots (60 mm apart) with the screws and wall plugs; connect the cable at the ceiling outlet (mains wiring: have it done by a qualified person).
+5. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
+6. Screw in an E27 LED bulb, at most Ø60 × 110 mm (LED bulbs only).
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 1.2 mm wall (3 perimeters) and no infill; a 0.8 mm wall (two 0.4 mm perimeters) diffuses the light best. White or "Jade White" PLA spreads the light most evenly.
+- Print the hub in PETG: PLA softens near 60 °C, and even an LED bulb warms the hub.
+- No brim (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Hub
+
+File: \`openlamp-e27-pendant-hub.stl\`
+
+- Print as exported: collar ring on the bed, mount face up. No supports needed.
+- The lampholder's threaded sleeve goes through the Ø40.5 mm hole in the plate; screw its shade ring on from the light face, inside the skirt, so the plate is clamped.
+- Feed the cord down through the boss, tie a knot that sits in the knot cavity (reach in through the plate's hole), then wire the lampholder.
+- LED bulbs only. Print the hub in PETG (PLA softens near 60 °C); mains wiring is your responsibility: have it done by a qualified person.
+
+### Shade
+
+File: \`openlamp-e27-pendant-shade.stl\`
+
+- Print as exported: open end on the bed, collar up. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+- Assembly: push the shade's lugs up into the hub's slots and turn the shade clockwise (seen from below) until it stops.
+
+### Canopy
+
+File: \`openlamp-e27-pendant-canopy.stl\`
+
+- Print as exported: ceiling face on the bed. No supports needed.
+- Feed the cord up through the canopy and tie a knot that sits in the recess; then screw the canopy to the ceiling through its two slots.
+
+## Warnings
+
+- ℹ E27 bulb: LED bulbs only (no incandescent or halogen bulbs); print the hub in PETG (PLA softens near 60 °C), and have the mains wiring done by a qualified person.
+- ℹ canopy does not fit on the same plate as the other parts; print it separately.
+- ℹ hub does not fit on the same plate as the other parts; print it separately.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
+exports[`the print sheet of faceted.lamp.json > matches its snapshot 1`] = `
+"# Faceted
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Velcro strap on the ceiling; USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); hub and shade printed as one piece
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 1 STL file, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Shade (fused) | 1 | warm white \`#f4efe6\` | — | — | Open end on the bed, housing on top | — |
+| **Total** | **1** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
+- 1 × USB power adapter (5 V)
+- 1 × self-adhesive velcro (hook-and-loop) strip for the ceiling, at least 25 × 66 mm
+- 1 × strip of the mating velcro, 25 mm wide and about 130 mm long (trim the tails)
+
+## Assembly
+
+1. Stick the self-adhesive hook strip (or the loop strip, either way round) to the ceiling.
+2. Drop the LED puck into the pocket from the top, diffuser facing down into the shade, and lay its cable out through the slot in the housing wall.
+3. Thread a strip of the mating velcro down through one side tunnel, across the top of the housing (over the back of the puck) and down through the other tunnel. The strap keeps the puck in; trim the tails.
+4. Press the lamp against the ceiling strip. To take it down, peel it off.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Shade (fused)
+
+File: \`openlamp-faceted-shade.stl\`
+
+- Print as exported: open end on the bed, housing on top. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+
+## Warnings
+
+None.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
+exports[`the print sheet of fluted-twist.lamp.json > matches its snapshot 1`] = `
+"# Fluted twist
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Velcro strap on the ceiling; USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); hub and shade printed as one piece
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 1 STL file, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Shade (fused) | 1 | warm white \`#f4efe6\` | — | — | Open end on the bed, housing on top | — |
+| **Total** | **1** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
+- 1 × USB power adapter (5 V)
+- 1 × self-adhesive velcro (hook-and-loop) strip for the ceiling, at least 25 × 66 mm
+- 1 × strip of the mating velcro, 25 mm wide and about 130 mm long (trim the tails)
+
+## Assembly
+
+1. Stick the self-adhesive hook strip (or the loop strip, either way round) to the ceiling.
+2. Drop the LED puck into the pocket from the top, diffuser facing down into the shade, and lay its cable out through the slot in the housing wall.
+3. Thread a strip of the mating velcro down through one side tunnel, across the top of the housing (over the back of the puck) and down through the other tunnel. The strap keeps the puck in; trim the tails.
+4. Press the lamp against the ceiling strip. To take it down, peel it off.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Shade (fused)
+
+File: \`openlamp-fluted-twist-shade.stl\`
+
+- Print as exported: open end on the bed, housing on top. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+
+## Warnings
+
+None.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
+exports[`the print sheet of pendant-cord.lamp.json > matches its snapshot 1`] = `
+"# Pendant on a cord
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 3 STL files, one per part, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Hub | 1 | warm light grey \`#d9d4cb\` | — | — | Collar ring on the bed, mount face up | bayonet for the Shade |
+| Shade | 1 | cream \`#efe3cf\` | — | — | Open end on the bed, collar up | bayonet into the Hub |
+| Canopy | 1 | warm light grey \`#d9d4cb\` | — | — | Ceiling face on the bed | — |
+| **Total** | **3** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
+- 1 × USB power adapter (5 V)
+- Cord Ø4 mm, at least 800 mm (the 600 mm drop and the knots) plus the run from the canopy to the power: the puck's USB cable or a USB extension
+- 2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs, for the canopy's slots (60 mm apart)
+
+## Assembly
+
+1. Feed the cord down through the hub's cord boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity.
+2. Press the LED puck into the hub from the light face until it stops; the crush ribs hold it.
+3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 600 mm above the hub, so it sits in the canopy's recess.
+4. Screw the canopy to the ceiling through its two slots (60 mm apart) with the screws and wall plugs; run the cable on to the power supply.
+5. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Hub
+
+File: \`openlamp-pendant-on-a-cord-hub.stl\`
+
+- Print as exported: collar ring on the bed, mount face up. No supports needed.
+- Feed the cord down through the boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity; then press the puck in from below until it stops (crush ribs hold it).
+
+### Shade
+
+File: \`openlamp-pendant-on-a-cord-shade.stl\`
+
+- Print as exported: open end on the bed, collar up. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+- Assembly: push the shade's lugs up into the hub's slots and turn the shade clockwise (seen from below) until it stops.
+
+### Canopy
+
+File: \`openlamp-pendant-on-a-cord-canopy.stl\`
+
+- Print as exported: ceiling face on the bed. No supports needed.
+- Feed the cord up through the canopy and tie a knot that sits in the recess; then screw the canopy to the ceiling through its two slots.
+
+## Warnings
+
+None.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
+exports[`the print sheet of straight-cone.lamp.json > matches its snapshot 1`] = `
+"# Straight cone
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Velcro strap on the ceiling; USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); hub and shade printed as one piece
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 1 STL file, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Shade (fused) | 1 | warm white \`#f4efe6\` | — | — | Open end on the bed, housing on top | — |
+| **Total** | **1** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
+- 1 × USB power adapter (5 V)
+- 1 × self-adhesive velcro (hook-and-loop) strip for the ceiling, at least 25 × 66 mm
+- 1 × strip of the mating velcro, 25 mm wide and about 130 mm long (trim the tails)
+
+## Assembly
+
+1. Stick the self-adhesive hook strip (or the loop strip, either way round) to the ceiling.
+2. Drop the LED puck into the pocket from the top, diffuser facing down into the shade, and lay its cable out through the slot in the housing wall.
+3. Thread a strip of the mating velcro down through one side tunnel, across the top of the housing (over the back of the puck) and down through the other tunnel. The strap keeps the puck in; trim the tails.
+4. Press the lamp against the ceiling strip. To take it down, peel it off.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Shade (fused)
+
+File: \`openlamp-straight-cone-shade.stl\`
+
+- Print as exported: open end on the bed, housing on top. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+
+## Warnings
+
+None.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
+exports[`the print sheet of strip-drum.lamp.json > matches its snapshot 1`] = `
+"# Strip ring drum
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); 10 mm LED strip in a Ø120 mm ring; shade on a bayonet joint
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 3 STL files, one per part, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Hub | 1 | warm light grey \`#d9d4cb\` | — | — | Collar ring on the bed, mount face up | bayonet for the Shade |
+| Shade | 1 | warm white \`#f4efe6\` | — | — | Open end on the bed, collar up | bayonet into the Hub |
+| Canopy | 1 | warm light grey \`#d9d4cb\` | — | — | Ceiling face on the bed | — |
+| **Total** | **3** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × LED strip 10 mm wide, about 410 mm long (a bendable S-type strip lies flat in the ring)
+- 1 × power supply matching the strip (5 V or 12 V)
+- Cord Ø4 mm, at least 800 mm (the 600 mm drop and the knots) plus the run from the canopy to the power: the strip's power cable or an extension
+- 2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs, for the canopy's slots (60 mm apart)
+
+## Assembly
+
+1. Stick the LED strip into the ring channel on the hub's light face, adhesive side on the channel's ceiling, and feed its cable up through the slot in the channel.
+2. The cord is the strip's power cable: feed it down through the hub's cord boss, tie a knot that sits in the knot cavity (reach in through the opening in the middle of the light face) and lead it out through the side opening of the boss over the disc to the strip.
+3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 600 mm above the hub, so it sits in the canopy's recess.
+4. Screw the canopy to the ceiling through its two slots (60 mm apart) with the screws and wall plugs; run the cable on to the power supply.
+5. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Hub
+
+File: \`openlamp-strip-ring-drum-hub.stl\`
+
+- Print as exported: collar ring on the bed, mount face up. No supports needed.
+- The ring channel's ceiling prints as a 10.4 mm bridge, the slot for the shade's collar as a short one.
+- Stick the LED strip into the ring channel on the light face, its adhesive side on the channel's ceiling (a bendable S-type strip lies flat in the ring); feed its cable up through the slot in the channel.
+- The cord is the strip's power cable: feed it down through the boss, tie a knot that sits in the knot cavity (reach in through the opening in the middle of the light face), and lead it out through the side opening of the boss over the disc to the strip.
+
+### Shade
+
+File: \`openlamp-strip-ring-drum-shade.stl\`
+
+- Print as exported: open end on the bed, collar up. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+- Assembly: push the shade's lugs up into the hub's slots and turn the shade clockwise (seen from below) until it stops.
+
+### Canopy
+
+File: \`openlamp-strip-ring-drum-canopy.stl\`
+
+- Print as exported: ceiling face on the bed. No supports needed.
+- Feed the cord up through the canopy and tie a knot that sits in the recess; then screw the canopy to the ceiling through its two slots.
+
+## Warnings
+
+- ℹ hub does not fit on the same plate as the other parts; print it separately.
+- ℹ canopy does not fit on the same plate as the other parts; print it separately.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
+exports[`the print sheet of table-lamp.lamp.json > matches its snapshot 1`] = `
+"# Table lamp
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Table lamp (400 mm stem in 2 segments); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 6 STL files, one per part, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Hub | 1 | warm light grey \`#d9d4cb\` | — | — | Collar ring on the bed, mount face up | bayonet for the Shade; thread Ø20 × 2.5 for the Stem segment |
+| Shade | 1 | cream \`#f1e6d2\` | — | — | Open end on the bed, collar up | bayonet into the Hub |
+| Stem segment | 1 | dark grey \`#3a3835\` | — | — | Female thread on the bed, male thread up | thread Ø20 × 2.5 into the Hub; thread Ø20 × 2.5 for the Stem foot |
+| Stem foot | 1 | dark grey \`#3a3835\` | — | — | Flange on the bed, thread up | thread Ø20 × 2.5 into the Stem segment; 4 × M3 into the Base |
+| Base | 1 | dark grey \`#3a3835\` | — | — | Top face on the bed, weight pocket and cable groove up | 4 × M3 (heat-set inserts) for the Stem foot |
+| Base lid | 1 | dark grey \`#3a3835\` | — | — | Flat, the side that faces into the pocket on the bed | — |
+| **Total** | **6** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
+- 1 × USB power adapter (5 V)
+- Weight for the base: about 1 kg of steel shot (or 370 g of dry sand, or washers) to fill the pocket
+- Cable Ø6 mm, at least 750 mm through the stem and out of the base plus the run to the power: the puck's USB cable or a USB extension
+- 4 × M3 × 8 screws (Stem foot to Base)
+- 4 × M3 heat-set inserts (and a soldering iron to set them)
+
+## Assembly
+
+1. Press four M3 heat-set inserts into the pockets in the base's top face.
+2. Turn the base over, fill the weight pocket with about 1 kg of steel shot (or 370 g of dry sand) and close it with the lid: press it in, notch over the spoke; the crush ribs hold it.
+3. Screw the stem foot's flange onto the base with four M3 × 8 screws.
+4. Feed the cable up through the base and the stem foot, then through each stem segment, screwing each onto the one below (clockwise seen from above) until the shoulders meet.
+5. Press the LED puck into the hub from the light face until it stops (the crush ribs hold it); its cable runs through the bore in the hub's mount face.
+6. Screw the hub onto the top of the stem, clockwise seen from above.
+7. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
+8. Lay the cable in the groove under the base and out through the notch in its rim.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Hub
+
+File: \`openlamp-table-lamp-hub.stl\`
+
+- Print as exported: collar ring on the bed, mount face up. No supports needed.
+- Press the puck in from below until it stops (crush ribs hold it); its cable runs up through the bore in the mount face.
+
+### Shade
+
+File: \`openlamp-table-lamp-shade.stl\`
+
+- Print as exported: open end on the bed, collar up. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+- Assembly: push the shade's lugs up into the hub's slots and turn the shade clockwise (seen from below) until it stops.
+
+### Stem segment
+
+File: \`openlamp-table-lamp-stem.stl\`
+
+- Print as exported: female thread on the bed, male thread up. No supports needed.
+- Assembly: feed the cable through the segments, then screw each one onto the one below, clockwise seen from above, until the shoulders meet.
+
+### Stem foot
+
+File: \`openlamp-table-lamp-stemFoot.stl\`
+
+- Print as exported: flange on the bed, thread up. No supports needed.
+- Screw the flange onto the base with 4 M3 × 8 screws; the heads sit on the flange.
+
+### Base
+
+File: \`openlamp-table-lamp-base.stl\`
+
+- Print as exported: top face on the bed, weight pocket and cable groove up. No supports needed.
+- Fill the pocket with steel shot, washers or sand, close it with the lid, and lay the cable in the groove under the base, out through the notch in the rim.
+- Press 4 M3 heat-set inserts into the pockets in the top face.
+
+### Base lid
+
+File: \`openlamp-table-lamp-baseLid.stl\`
+
+- Print as exported: flat, the side that faces into the pocket on the bed.
+- Press the lid into the pocket's mouth, notch over the spoke; the three crush ribs hold it.
+
+## Warnings
+
+- ℹ base does not fit on the same plate as the other parts; print it separately.
+- ℹ baseLid does not fit on the same plate as the other parts; print it separately.
+- ℹ hub does not fit on the same plate as the other parts; print it separately.
+- ℹ stemFoot does not fit on the same plate as the other parts; print it separately.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
+exports[`the print sheet of trumpet.lamp.json > matches its snapshot 1`] = `
+"# Trumpet
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Velcro strap on the ceiling; USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); hub and shade printed as one piece
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 1 STL file, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Shade (fused) | 1 | warm white \`#f4efe6\` | — | — | Open end on the bed, housing on top | — |
+| **Total** | **1** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
+- 1 × USB power adapter (5 V)
+- 1 × self-adhesive velcro (hook-and-loop) strip for the ceiling, at least 25 × 66 mm
+- 1 × strip of the mating velcro, 25 mm wide and about 130 mm long (trim the tails)
+
+## Assembly
+
+1. Stick the self-adhesive hook strip (or the loop strip, either way round) to the ceiling.
+2. Drop the LED puck into the pocket from the top, diffuser facing down into the shade, and lay its cable out through the slot in the housing wall.
+3. Thread a strip of the mating velcro down through one side tunnel, across the top of the housing (over the back of the puck) and down through the other tunnel. The strap keeps the puck in; trim the tails.
+4. Press the lamp against the ceiling strip. To take it down, peel it off.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Shade (fused)
+
+File: \`openlamp-trumpet-shade.stl\`
+
+- Print as exported: open end on the bed, housing on top. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+
+## Warnings
+
+None.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
+exports[`the print sheet of wall-lamp.lamp.json > matches its snapshot 1`] = `
+"# Wall lamp
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Wall arm (angled, 200 mm); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 4 STL files, one per part, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Hub | 1 | warm light grey \`#d9d4cb\` | — | — | Collar ring on the bed, mount face up | bayonet for the Shade; thread Ø16 × 2.5 into the Wall arm |
+| Shade | 1 | cream \`#f2e8d8\` | — | — | Open end on the bed, collar up | bayonet into the Hub |
+| Wall plate | 1 | warm light grey \`#d9d4cb\` | — | — | Back face on the bed | 4 × M3 (heat-set inserts) for the Wall arm |
+| Wall arm | 1 | warm light grey \`#d9d4cb\` | — | — | Standing on its flange, the end boss's thread lying horizontal | thread Ø16 × 2.5 for the Hub; 4 × M3 into the Wall plate |
+| **Total** | **4** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
+- 1 × USB power adapter (5 V)
+- 2 × wall screws up to Ø4 mm with heads up to Ø8.5 mm, and wall anchors, 60 mm apart on a vertical line
+- Cable Ø6 mm, at least 500 mm through the arm plus the run to the power: the puck's USB cable or a USB extension
+- 4 × M3 × 10 screws (Wall arm to Wall plate)
+- 4 × M3 heat-set inserts (and a soldering iron to set them)
+
+## Assembly
+
+1. Mark two holes 60 mm apart on a vertical line, drill them and set the wall anchors; drive the screws in, leaving their heads about 3 mm proud.
+2. Press four M3 heat-set inserts into the pockets on the wall plate's front face, flush.
+3. Feed the cable in through the arm's flange and out of the threaded bore at its end.
+4. Press the LED puck into the hub from the light face until it stops (the crush ribs hold it); its cable runs through the bore in the hub's mount face.
+5. Screw the hub onto the arm, clockwise seen from below.
+6. Screw the arm's flange to the plate with four M3 × 10 screws, the cable lying in the plate's slot.
+7. Hang the plate on the two screws (heads through the keyholes, then slide it down); the cable leaves through the slot at its bottom edge.
+8. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim on the shades (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall. The wall arm is the exception: give the tall part a brim.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Hub
+
+File: \`openlamp-wall-lamp-hub.stl\`
+
+- Print as exported: collar ring on the bed, mount face up. No supports needed.
+- Press the puck in from below until it stops (crush ribs hold it); its cable runs up through the bore in the mount face.
+
+### Shade
+
+File: \`openlamp-wall-lamp-shade.stl\`
+
+- Print as exported: open end on the bed, collar up. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+- Assembly: push the shade's lugs up into the hub's slots and turn the shade clockwise (seen from below) until it stops.
+
+### Wall plate
+
+File: \`openlamp-wall-lamp-wallPlate.stl\`
+
+- Print as exported: back face on the bed. No supports needed.
+- Hang the plate on two screws through its keyholes (heads in the channels on the back, the plate slid down onto them); the cable leaves through the slot at its bottom edge.
+- Press four M3 heat-set inserts into the pockets on the front face, flush.
+
+### Wall arm
+
+File: \`openlamp-wall-lamp-wallArm.stl\`
+
+- Print as exported: standing on its flange, the end boss's thread lying horizontal. No supports needed; a brim keeps the tall part in place.
+- Feed the cable in through the flange and out of the threaded bore, screw the hub onto the arm (clockwise seen from below), then screw the flange to the plate with four M3 × 10 screws.
+
+## Warnings
+
+None.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
+exports[`the print sheet of wide-shallow.lamp.json > matches its snapshot 1`] = `
+"# Wide \\& shallow
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Velcro strap on the ceiling; USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); hub and shade printed as one piece
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 1 STL file, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Shade (fused) | 1 | warm white \`#f4efe6\` | — | — | Open end on the bed, housing on top | — |
+| **Total** | **1** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
+- 1 × USB power adapter (5 V)
+- 1 × self-adhesive velcro (hook-and-loop) strip for the ceiling, at least 25 × 66 mm
+- 1 × strip of the mating velcro, 25 mm wide and about 130 mm long (trim the tails)
+
+## Assembly
+
+1. Stick the self-adhesive hook strip (or the loop strip, either way round) to the ceiling.
+2. Drop the LED puck into the pocket from the top, diffuser facing down into the shade, and lay its cable out through the slot in the housing wall.
+3. Thread a strip of the mating velcro down through one side tunnel, across the top of the housing (over the back of the puck) and down through the other tunnel. The strap keeps the puck in; trim the tails.
+4. Press the lamp against the ceiling strip. To take it down, peel it off.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Shade (fused)
+
+File: \`openlamp-wide-shallow-shade.stl\`
+
+- Print as exported: open end on the bed, housing on top. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+
+## Warnings
+
+None.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
