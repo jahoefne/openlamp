@@ -177,7 +177,12 @@ interface PartSpecCommon {
   instances: number;
   /** Print frame → world (assembled lamp). */
   assembledTransform: Mat4;
-  /** Print frame → bed (plate layout); bed origin at the front-left corner. */
+  /**
+   * Print frame → world of every copy (`instances` of them), e.g. the stacked
+   * stem segments; `[assembledTransform]` for a single part.
+   */
+  instanceTransforms: Mat4[];
+  /** Print frame → bed (plate layout) of the first copy; bed origin at the front-left corner. */
   printTransform: Mat4;
   bedFootprint?: Footprint;
   printNotes: string[];
@@ -225,9 +230,12 @@ export interface MountContext {
   cord?: { z0: Mm; z1: Mm; diameter: Mm };
 }
 
-/** A part placed on the bed by `layoutParts`. */
+/** One copy of a part placed on the bed by `layoutParts` (a part with `instances` has one each). */
 export interface Placement {
+  /** Part id. */
   id: string;
+  /** Which copy of the part (0 … instances − 1). */
+  instance: number;
   /** Centre of the footprint in bed coordinates. */
   x: Mm;
   y: Mm;

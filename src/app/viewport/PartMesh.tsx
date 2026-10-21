@@ -1,7 +1,9 @@
 /**
- * One printable part in the viewport, placed by its assembled transform (the
- * transform of the spec the shown geometry was built from, so a mesh never
- * moves ahead of its rebuild).
+ * One printable part in the viewport: a mesh per copy (`instanceTransforms`,
+ * e.g. the stacked stem segments), all sharing the part's geometry and
+ * material, placed by the transforms of the spec the shown geometry was built
+ * from (so a mesh never moves ahead of its rebuild). Selecting any copy
+ * selects the part, and every copy gets the outline.
  *
  * The geometry comes from the geometry registry and is re-read whenever the
  * part's build `revision` changes, so the old mesh stays on screen while a new
@@ -19,7 +21,7 @@ import { useUiStore } from '../store/uiStore.ts';
 import { geometryRegistry } from '../worker/geometryRegistry.ts';
 import { partMaterial } from './materials.ts';
 import { sectionPlanes } from './sectionPlane.ts';
-import { useMatrix } from './useMatrix.ts';
+import { useMatrices } from './useMatrix.ts';
 
 const OUTLINE_PLANES = [...sectionPlanes];
 /** Pointer travel (px) above which a click is an orbit drag, not a selection. */
@@ -27,11 +29,11 @@ const CLICK_SLOP = 4;
 
 export function PartMesh({ part }: { part: PartSpec }) {
   const revision = useBuildStore((s) => s.parts[part.id]?.revision ?? 0);
-  const shownTransform = useBuildStore((s) => s.parts[part.id]?.built?.assembledTransform);
+  const shown = useBuildStore((s) => s.parts[part.id]?.built);
   const selected = useUiStore((s) => s.selection === part.id);
   const select = useUiStore((s) => s.select);
   const invalidate = useThree((s) => s.invalidate);
-  const matrix = useMatrix(shownTransform ?? part.assembledTransform);
+  const matrices = useMatrices((shown ?? part).instanceTransforms);
   const material = partMaterial(part.colour);
   // `revision` names the registry entry this render shows.
   const geometry = revision > 0 ? geometryRegistry.get(part.id) : undefined;
@@ -45,7 +47,7 @@ export function PartMesh({ part }: { part: PartSpec }) {
     };
   }, [geometry, part.id, invalidate]);
 
-  useLayoutEffect(() => invalidate(), [material, matrix, selected, invalidate]);
+  useLayoutEffect(() => invalidate(), [material, matrices, selected, invalidate]);
 
   if (!geometry) return null;
 
@@ -55,9 +57,10 @@ export function PartMesh({ part }: { part: PartSpec }) {
     select(part.id);
   };
 
-  return (
+  return matrices.map((matrix, i) => (
     <mesh
-      name={part.id}
+      key={i}
+      name={i === 0 ? part.id : `${part.id}#${i}`}
       geometry={geometry}
       material={material}
       matrixAutoUpdate={false}
@@ -75,5 +78,5 @@ export function PartMesh({ part }: { part: PartSpec }) {
         />
       )}
     </mesh>
-  );
+  ));
 }

@@ -81,6 +81,11 @@ export interface MountPlacement {
   shadeTransforms: Record<string, Mat4>;
   /** Print frame → world for each of the mount's parts, by part id. */
   partTransforms: Record<string, Mat4>;
+  /**
+   * Print frame → world of every copy of a part with `instances` (as many as
+   * it has), by part id; without an entry every copy is at its `partTransforms` one.
+   */
+  instanceTransforms?: Record<string, Mat4[]>;
   /** World z of the lamp's lowest point (the viewport lifts the scene by −bottomZ). */
   bottomZ: number;
   /** What the lamp is mounted on, in world coordinates. */
