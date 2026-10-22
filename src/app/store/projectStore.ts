@@ -36,6 +36,7 @@ import {
   mountToParams,
   projectToClassicParams,
   shadeParamPath,
+  shadeStyleForFamily,
   withBulbPreset,
   type MountOf,
   type Project,
@@ -52,6 +53,7 @@ import {
   type HubJointParams,
   type LightChoice,
   type MountKind,
+  type ShadeFamily,
   type StandingMountParams,
 } from '@core/schema/defs.ts';
 import type { PrinterSpec } from '@core/schema/printers.ts';
@@ -131,11 +133,18 @@ export interface ProjectState {
   /** Remove the inner shade (one undo step). Nothing happens if there is none. */
   removeInnerShade(): void;
   /**
-   * Set one flat parameter (see `SHADE_PARAM_PATHS`) of the outer or the
-   * inner shade; a key that is not a shade parameter, or the inner shade's
-   * when there is none, is ignored.
+   * Set one flat parameter of the outer or the inner shade, a parameter of its
+   * style's family (see `SHADE_FAMILY_PARAM_PATHS`); a key the family does not
+   * have, or the inner shade's when there is none, is ignored.
    */
   setShadeParam(role: ShadeRole, key: string, value: number | string, options?: EditOptions): void;
+  /**
+   * Switch a shade's style family (the Style family select): the new family's
+   * defaults with the bottom and top Ø (and the height) carried over
+   * (`shadeStyleForFamily`); the wall and the colour stay. One undo step;
+   * nothing happens if it already is that family (or there is no inner shade).
+   */
+  setShadeFamily(role: ShadeRole, family: ShadeFamily): void;
   /**
    * End a transient edit without a final value (a drag released where it
    * started): one undo step if the project changed, none if it did not.
@@ -388,10 +397,23 @@ export const useProjectStore = create<ProjectState>()(
         },
 
         setShadeParam(role, key, value, options = {}) {
-          const path = shadeParamPath(role, key);
-          if (path === undefined || (role === 'inner' && !get().project.shades[1])) return;
+          const shade = get().project.shades[role === 'inner' ? 1 : 0];
+          if (!shade) return;
+          const path = shadeParamPath(role, key, shade.style.family);
+          if (path === undefined) return;
           editParam(options, (_current, draft) => {
             setAtPath(draft.project, path, value);
+          });
+        },
+
+        setShadeFamily(role, family) {
+          const shade = get().project.shades[role === 'inner' ? 1 : 0];
+          if (!shade || shade.style.family === family) return;
+          cancelTransient();
+          const style = shadeStyleForFamily(shade.style, family);
+          edit((p) => {
+            const target = role === 'inner' ? p.shades[1] : p.shades[0];
+            if (target) target.style = style;
           });
         },
 

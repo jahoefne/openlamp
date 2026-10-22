@@ -6,7 +6,7 @@
 import { Dialog } from 'radix-ui';
 import { useMemo } from 'react';
 import { canonicalJson } from '@core/hash.ts';
-import type { Project } from '@core/model/project.ts';
+import type { Project, ShadeStyle } from '@core/model/project.ts';
 import { MOUNT_LABELS } from '@core/schema/defs.ts';
 import { asNewProject } from '../persistence/identity.ts';
 import { useProjectStore } from '../store/projectStore.ts';
@@ -22,22 +22,40 @@ const EXAMPLE_KEYS: ReadonlyMap<string, string> = new Map(
   EXAMPLES.map((e) => [e.id, designKey(e)]),
 );
 
+/** The outer shade's style in a few words. */
+function styleText(s: ShadeStyle): string {
+  switch (s.family) {
+    case 'revolved': {
+      const surface = s.surface;
+      const pattern =
+        surface.style === 'smooth'
+          ? 'smooth'
+          : `${surface.style} · ${surface.patternCount} ${surface.style === 'ribbed' ? 'ribs' : 'facets'}` +
+            (surface.twist ? ` · ${surface.twist}° twist` : '');
+      const curve = s.curve > 0 ? 'bell' : s.curve < 0 ? 'trumpet' : 'straight';
+      return `${curve} profile · ${pattern}`;
+    }
+    case 'slatted':
+      return `slatted · ${s.slatCount} slats${s.twist ? ` · ${s.twist}° twist` : ''}`;
+    case 'tiered':
+      return `tiered · ${s.tiers} tiers`;
+    case 'geometric':
+      return `geometric · ${s.variant}`;
+  }
+}
+
 function describe(p: Project): { dims: string; style: string } {
-  const shade = p.shades[0];
-  const s = shade.style;
-  const surface = s.surface;
-  const pattern =
-    surface.style === 'smooth'
-      ? 'smooth'
-      : `${surface.style} · ${surface.patternCount} ${surface.style === 'ribbed' ? 'ribs' : 'facets'}` +
-        (surface.twist ? ` · ${surface.twist}° twist` : '');
-  const curve = s.curve > 0 ? 'bell' : s.curve < 0 ? 'trumpet' : 'straight';
+  const s = p.shades[0].style;
   const mount =
     p.mount.kind === 'ceilingStrap' ? '' : ` · ${MOUNT_LABELS[p.mount.kind].toLowerCase()}`;
   const inner = p.shades[1] ? ' · inner shade' : '';
+  const height =
+    s.family === 'tiered'
+      ? `${s.tiers} × ${s.tierDrop} mm`
+      : `${s.height} mm ${s.family === 'revolved' ? 'wall' : 'tall'}`;
   return {
-    dims: `Ø${s.bottomDiameter} → Ø${s.topDiameter} mm · ${s.height} mm wall`,
-    style: `${curve} profile · ${pattern}${inner}${mount}`,
+    dims: `Ø${s.bottomDiameter} → Ø${s.topDiameter} mm · ${height}`,
+    style: `${styleText(s)}${inner}${mount}`,
   };
 }
 

@@ -4,7 +4,12 @@ import { assemble } from '@core/assembly/assemble.ts';
 import { buildPart } from '@core/geometry/build.ts';
 import { dispose } from '@core/geometry/kernel.ts';
 import type { Assembly } from '@core/model/assembly.ts';
-import { PROJECT_VERSION, parseProject, serializeProject } from '@core/model/project.ts';
+import {
+  PROJECT_VERSION,
+  parseProject,
+  revolvedStyle,
+  serializeProject,
+} from '@core/model/project.ts';
 import { getKernel } from '../../helpers/kernel.ts';
 
 const dir = new URL('../../../src/examples/', import.meta.url);
@@ -117,9 +122,9 @@ describe('the two-shade example', () => {
     expect(project.joints.shadeToHub).toBe('bayonet');
     const [outer, inner] = project.shades;
     expect(outer).toMatchObject({ role: 'outer', colour: '#1f1f23' });
-    expect(outer.style.surface.style).toBe('ribbed');
+    expect(revolvedStyle(outer).surface.style).toBe('ribbed');
     expect(inner).toMatchObject({ role: 'inner', colour: '#ffffff' });
-    expect(inner!.style.surface.style).toBe('smooth');
+    expect(revolvedStyle(inner!).surface.style).toBe('smooth');
     const assembly = assemble(project, { quality: 'draft' });
     expect(assembly.parts.map((p) => [p.id, p.colour])).toEqual([
       ['hub', '#1f1f23'],

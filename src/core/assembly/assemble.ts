@@ -19,6 +19,13 @@
  *   second hub ring inside the outer one on its own joint (`innerShadeToHub`);
  *   the outer collar moves out by the radial gap (see `resolveShadeJoints`).
  *   It needs the split lamp: with the fused print it is an error (and not built).
+ * - every shade is one `ShadeModule` of its style's family (shades/): it
+ *   normalises its style, is widened to clear its hub ring, checks itself and
+ *   returns its parts (one, or several: a tiered shade's tiers and spacers),
+ *   each with its transform into the shade frame (the hub's); the mount's
+ *   placement gives every part of a shade the shade's transform. Only a
+ *   revolved outer shade is fused with the hub; any other family splits the
+ *   lamp (as every mount but the strap does).
  */
 import { canonicalJson, cyrb53 } from '../hash.ts';
 import {
@@ -28,7 +35,6 @@ import {
 } from '../geometry/parts/classicShade.ts';
 import { FIT_BASE, FIT_GRIP, FIT_SECTION, fitPieceFootprint } from '../geometry/parts/fitPair.ts';
 import { deriveHub, hubFootprint } from '../geometry/parts/hub.ts';
-import { deriveRevolvedShade, revolvedShadeFootprint } from '../geometry/parts/shades/revolved.ts';
 import type { Quality } from '../geometry/quality.ts';
 import {
   IDENTITY,
@@ -42,13 +48,7 @@ import {
   type ShadeJointType,
   type Warning,
 } from '../model/assembly.ts';
-import type {
-  CollarDims,
-  FitPieceParams,
-  FusedShadeParams,
-  HubParams,
-  RevolvedShadeParams,
-} from '../model/parts.ts';
+import type { CollarDims, FitPieceParams, FusedShadeParams, HubParams } from '../model/parts.ts';
 import {
   CLASSIC_PARAM_PATHS,
   DEFAULT_HUB_COLOUR,
@@ -58,26 +58,30 @@ import {
   mountToParams,
   projectToClassicParams,
   projectToHubParams,
-  shadeParamPath,
-  shadeToParams,
   type Joints,
+  type LightSource,
   type MountOf,
   type Project,
+  type ShadeRole,
+  type ShadeSpec,
 } from '../model/project.ts';
-import type {
-  ClassicShadeKey,
-  ClassicShadeParams,
-  FlatShadeParams,
-  HubJointKey,
-  MountKind,
+import {
+  FLAT_SHADE_KEYS,
+  type ClassicShadeKey,
+  type ClassicShadeParams,
+  type HubJointKey,
+  type MountKind,
 } from '../schema/defs.ts';
 import {
   normalizeClassicShade,
   normalizeHubJoint,
   normalizeMountParams,
-  normalizeShadeParams,
 } from '../schema/normalize.ts';
-import { minShadeTopDiameter, resolveShadeJoints } from './interfaces.ts';
+import {
+  minShadeTopDiameter,
+  resolveShadeJoints,
+  type ShadeJointResolution,
+} from './interfaces.ts';
 import { layoutParts, placementTransform } from './layout.ts';
 import {
   lightBottomZ,
@@ -90,12 +94,16 @@ import {
 } from './lights/index.ts';
 import { STRAP_CEILING_GAP, strapDerived } from './mounts/ceilingStrap.ts';
 import { mountModule } from './mounts/index.ts';
-import type { MountCtx, MountHubCtx } from './mounts/types.ts';
+import type { MountCtx, MountHubCtx, MountShade } from './mounts/types.ts';
+import { SHADE_PART_IDS, resolveShade, type ResolvedShade } from './shades/index.ts';
+import type { ShadeCtx } from './shades/types.ts';
 import { translation } from './transforms.ts';
 import { validateBedFit, validateInnerShade, validateLayout } from './validate.ts';
 
-/** The part id of the inner shade. */
-export const INNER_SHADE_ID = 'innerShade';
+/** The part id of the outer shade (its collar part; the fused print has it too). */
+export const OUTER_SHADE_ID = SHADE_PART_IDS.outer;
+/** The part id of the inner shade (its collar part). */
+export const INNER_SHADE_ID = SHADE_PART_IDS.inner;
 
 export interface AssembleOptions {
   /** Mesh quality baked into every part's params and buildKey; default the preview quality. */
@@ -154,11 +162,6 @@ function fitAdjustNote(tolerance: number): string {
   const mm = Math.round(tolerance * 100) / 100;
   return `Too tight: raise the joint clearance (Hub & joints, now ${mm} mm); too loose: lower it. Then print the pair again.`;
 }
-
-const SHADE_PRINT_NOTES = [
-  'Print as exported: open end on the bed, collar up. No supports needed.',
-  'Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.',
-];
 
 const OUTER_AFTER_INNER_NOTE = 'Hang the inner shade first, then this (outer) shade.';
 const INNER_FIRST_NOTE =
@@ -316,41 +319,6 @@ interface SplitBase {
   warnings: Warning[];
 }
 
-/** A shade's builder params from its flat parameters, collar and joint. */
-function revolvedShadeParams(
-  flat: FlatShadeParams,
-  collar: CollarDims,
-  joint: RevolvedShadeParams['joint'],
-  quality: Quality,
-): RevolvedShadeParams {
-  return {
-    variant: 'revolved',
-    bottomDiameter: flat.bottomDiameter,
-    topDiameter: flat.topDiameter,
-    height: flat.height,
-    curve: flat.curve,
-    wallThickness: flat.wallThickness,
-    shoulderAngle: flat.shoulderAngle,
-    surface: {
-      style: flat.style,
-      patternCount: flat.patternCount,
-      ribDepth: flat.ribDepth,
-      twist: flat.twist,
-    },
-    collar,
-    joint,
-    quality,
-  };
-}
-
-/** A warning about the inner shade's flat parameter `paramPath`, at its project path. */
-function innerLocated(w: Warning): Warning {
-  const path = w.paramPath === undefined ? undefined : shadeParamPath('inner', w.paramPath);
-  return path === undefined
-    ? { ...w, partId: INNER_SHADE_ID }
-    : { ...w, partId: INNER_SHADE_ID, paramPath: path };
-}
-
 function assembleSplit(
   project: Project,
   quality: Quality,
@@ -382,7 +350,7 @@ function assembleSplit(
     radialGap: h.radialGap,
     warnings,
   };
-  return assembleMounted(norm.mount.kind, norm.mount, classicIn, base);
+  return assembleMounted(norm.mount.kind, norm.mount, base);
 }
 
 /** The mount's parameters clamped to their definitions and its own rules. */
@@ -480,10 +448,55 @@ function assembleFitPair(
   );
 }
 
+/** What every shade of the lamp shares, for its `ShadeCtx`. */
+interface ShadeShared {
+  project: Project;
+  light: LightSource;
+  envelope: ShadeCtx['envelope'];
+  joints: Joints;
+  quality: Quality;
+}
+
+/** A shade through its family's module, on its collar joint. */
+function resolveShadeOf(
+  role: ShadeRole,
+  spec: ShadeSpec,
+  joint: ShadeJointResolution,
+  shared: ShadeShared,
+): ResolvedShade {
+  const id = SHADE_PART_IDS[role];
+  const { project } = shared;
+  return resolveShade({
+    role,
+    id,
+    style: spec.style,
+    wallThickness: spec.wallThickness,
+    colour: project.colours[id] ?? spec.colour,
+    colours: project.colours,
+    collar: joint.collar,
+    joint: joint.iface,
+    minTopDiameter: Math.ceil(minShadeTopDiameter(joint.collar) - 1e-9),
+    light: shared.light,
+    envelope: shared.envelope,
+    joints: shared.joints,
+    printer: project.printer,
+    quality: shared.quality,
+  });
+}
+
+/** A resolved shade as the mount's placement sees it. */
+function mountShade(shade: ResolvedShade): MountShade {
+  return {
+    id: shade.id,
+    zCollar: shade.parts.zCollar,
+    zBottom: shade.parts.zBottom,
+    parts: shade.parts.parts.map((p) => ({ id: p.draft.id, transform: p.transform })),
+  };
+}
+
 function assembleMounted<K extends MountKind>(
   kind: K,
   mountIn: MountOf<K>,
-  classicIn: ClassicShadeParams,
   base: SplitBase,
 ): Assembly {
   const { project, quality, norm, joints, warnings } = base;
@@ -515,46 +528,21 @@ function assembleMounted<K extends MountKind>(
     { collarWall: base.hub.collarWall, radialGap: base.radialGap },
     envelope,
     { outer: shadeSpec, inner: innerSpec },
-    { outer: 'shade', inner: INNER_SHADE_ID, female: 'hub' },
+    { outer: OUTER_SHADE_ID, inner: INNER_SHADE_ID, female: 'hub' },
     project.printer.nozzle,
   );
   warnings.push(...shadeJoints.warnings);
   const { iface, collar } = shadeJoints.outer;
   const innerJoint = shadeJoints.inner;
 
-  // The shade's top must clear the hub ring it hangs from.
-  let classic = classicIn;
-  const minTop = Math.ceil(minShadeTopDiameter(collar) - 1e-9);
-  if (classic.topDiameter < minTop) {
-    warnings.push({
-      severity: 'warning',
-      code: 'adjusted',
-      partId: 'shade',
-      paramPath: CLASSIC_PARAM_PATHS.topDiameter,
-      message: `topDiameter raised to ${minTop} mm so the shoulder clears the hub's collar ring`,
-    });
-    classic = { ...classic, topDiameter: minTop };
-  }
-
-  // The inner shade: its own flat parameters, clamped; its top must clear its ring.
-  let innerParams: RevolvedShadeParams | undefined;
-  if (innerSpec && innerJoint) {
-    const flat = normalizeShadeParams(shadeToParams(innerSpec));
-    warnings.push(...flat.warnings.map(innerLocated));
-    let values = flat.values;
-    const minInnerTop = Math.ceil(minShadeTopDiameter(innerJoint.collar) - 1e-9);
-    if (values.topDiameter < minInnerTop) {
-      warnings.push({
-        severity: 'warning',
-        code: 'adjusted',
-        partId: INNER_SHADE_ID,
-        paramPath: shadeParamPath('inner', 'topDiameter') ?? 'shades.1.style.topDiameter',
-        message: `The inner shade's topDiameter raised to ${minInnerTop} mm so its shoulder clears the hub's inner collar ring`,
-      });
-      values = { ...values, topDiameter: minInnerTop };
-    }
-    innerParams = revolvedShadeParams(values, innerJoint.collar, innerJoint.iface, quality);
-  }
+  // Every shade through its family's module: normalised, its top widened to
+  // clear the hub ring it hangs from, checked, its parts.
+  const shared: ShadeShared = { project, light, envelope, joints, quality };
+  const outer = resolveShadeOf('outer', shadeSpec, shadeJoints.outer, shared);
+  warnings.push(...outer.warnings);
+  const inner =
+    innerSpec && innerJoint ? resolveShadeOf('inner', innerSpec, innerJoint, shared) : undefined;
+  if (inner) warnings.push(...inner.warnings);
 
   const hubParams: HubParams = {
     insert: lightInsert(light, lightHub),
@@ -567,15 +555,17 @@ function assembleMounted<K extends MountKind>(
     ...(innerJoint ? { innerCollar: innerJoint.collar, innerJoint: innerJoint.iface } : {}),
     quality,
   };
-  const shadeParams = revolvedShadeParams(classic, collar, iface, quality);
   const hd = deriveHub(hubParams);
-  const sd = deriveRevolvedShade(shadeParams);
-  const innerD = innerParams && deriveRevolvedShade(innerParams);
   warnings.push(...validateLight(light, mountFace, envelope));
-  if (innerParams) {
+  if (inner) {
+    const check = (r: ResolvedShade) => ({
+      family: r.family,
+      depth: -r.parts.zBottom,
+      profile: r.profile,
+    });
     warnings.push(
-      ...validateInnerShade(shadeParams, innerParams, hubParams, {
-        outer: 'shade',
+      ...validateInnerShade(check(outer), check(inner), hubParams, {
+        outer: OUTER_SHADE_ID,
         inner: INNER_SHADE_ID,
         hub: 'hub',
       }),
@@ -587,13 +577,11 @@ function assembleMounted<K extends MountKind>(
     return assembleFitPair(project, iface, collar, quality, { shadeColour, hubColour }, warnings);
   }
 
+  const shades = inner ? [outer, inner] : [outer];
   const hubCtx: MountHubCtx<K> = {
     ...ctx,
     hub: { params: hubParams, derived: hd },
-    shades: [
-      { id: 'shade', zCollar: sd.zCollar },
-      ...(innerD ? [{ id: INNER_SHADE_ID, zCollar: innerD.zCollar }] : []),
-    ],
+    shades: shades.map(mountShade),
   };
   const mountParts = module.parts(hubCtx);
   warnings.push(...(mountParts.warnings ?? []));
@@ -615,36 +603,22 @@ function assembleMounted<K extends MountKind>(
       },
       assembledTransform: placement.hubTransform,
     },
-    {
-      draft: {
-        id: 'shade',
-        kind: 'shade',
-        displayName: 'Shade',
-        params: shadeParams,
-        colour: project.colours.shade ?? shadeSpec.colour,
-        footprint: revolvedShadeFootprint(shadeParams),
-        printNotes: [
-          ...SHADE_PRINT_NOTES,
-          JOINT_NOTES[joints.shadeToHub],
-          ...(innerParams ? [OUTER_AFTER_INNER_NOTE] : []),
-        ],
-      },
-      assembledTransform: placement.shadeTransforms.shade ?? translation(0, 0, -sd.zCollar),
-    },
   ];
-  if (innerSpec && innerParams && innerD) {
-    placed.push({
-      draft: {
-        id: INNER_SHADE_ID,
-        kind: 'shade',
-        displayName: 'Inner shade',
-        params: innerParams,
-        colour: project.colours[INNER_SHADE_ID] ?? innerSpec.colour,
-        footprint: revolvedShadeFootprint(innerParams),
-        printNotes: [...SHADE_PRINT_NOTES, JOINT_NOTES[joints.shadeToHub], INNER_FIRST_NOTE],
-      },
-      assembledTransform:
-        placement.shadeTransforms[INNER_SHADE_ID] ?? translation(0, 0, -innerD.zCollar),
+  for (const shade of shades) {
+    // The collar part says how the shade joins the hub (and which shade goes first).
+    const order =
+      shade.role === 'inner' ? [INNER_FIRST_NOTE] : inner ? [OUTER_AFTER_INNER_NOTE] : [];
+    shade.parts.parts.forEach(({ draft, transform }, i) => {
+      placed.push({
+        draft:
+          i === 0
+            ? {
+                ...draft,
+                printNotes: [...draft.printNotes, JOINT_NOTES[joints.shadeToHub], ...order],
+              }
+            : draft,
+        assembledTransform: placement.shadeTransforms[draft.id] ?? transform,
+      });
     });
   }
   for (const draft of mountParts.parts) {
@@ -664,10 +638,10 @@ function assembleMounted<K extends MountKind>(
       lightBottomZ(light, placement.hubTransform) ?? placement.bottomZ,
     ),
     hubHeight: hd.hubHeight,
-    zCollar: sd.zCollar,
+    zCollar: outer.parts.zCollar,
     collarDiameter: iface.nominalDiameter,
-    ...(innerJoint && innerD
-      ? { innerZCollar: innerD.zCollar, innerCollarDiameter: innerJoint.iface.nominalDiameter }
+    ...(innerJoint && inner
+      ? { innerZCollar: inner.parts.zCollar, innerCollarDiameter: innerJoint.iface.nominalDiameter }
       : {}),
   };
   // The ghost puck is the puck's (a standing lamp's placement places it too).
@@ -678,19 +652,29 @@ function assembleMounted<K extends MountKind>(
   }
   const interfaces: Record<string, JointInterface> = { [iface.id]: iface };
   if (innerJoint) interfaces[innerJoint.iface.id] = innerJoint.iface;
+  for (const shade of shades) for (const j of shade.parts.interfaces) interfaces[j.id] = j;
   for (const j of mountParts.interfaces) interfaces[j.id] = j;
   return finish(project, placed, interfaces, derived, placement.context, warnings);
 }
 
+/** The classic shade's keys that describe the outer shade itself (its shape and surface). */
+const CLASSIC_SHADE_KEYS: ReadonlySet<string> = new Set(FLAT_SHADE_KEYS);
+
 export function assemble(project: Project, options: AssembleOptions = {}): Assembly {
   const quality = options.quality ?? project.quality.preview;
   const puck = project.light.kind === 'puck';
+  const revolved = project.shades[0].style.family === 'revolved';
   const normalised = normalizeClassicShade(projectToClassicParams(project, quality), { puck });
-  // Only the strap with a puck has a single-piece print (the classic shade's tunnels).
-  if (project.hub.fused && project.mount.kind === 'ceilingStrap' && puck) {
+  // Only the strap with a puck and a revolved shade has a single-piece print
+  // (the classic shade, with its tunnels); anything else splits silently.
+  if (project.hub.fused && project.mount.kind === 'ceilingStrap' && puck && revolved) {
     const warnings = [...normalised.warnings];
     if (project.shades[1]) warnings.push({ ...INNER_FUSED_ERROR });
     return assembleFused(project, normalised.values, warnings);
   }
-  return assembleSplit(project, quality, normalised.values, normalised.warnings);
+  // Another family's outer shade is not the classic shade's: its rules do not apply to it.
+  const classicWarnings = revolved
+    ? normalised.warnings
+    : normalised.warnings.filter((w) => !CLASSIC_SHADE_KEYS.has(w.paramPath ?? ''));
+  return assembleSplit(project, quality, normalised.values, classicWarnings);
 }

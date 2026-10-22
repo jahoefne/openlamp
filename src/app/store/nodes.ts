@@ -7,11 +7,12 @@
  *   Printer      the build volume and the plate
  *   Mount        which mount and its parameters; its parts (canopy, stem, base, …)
  *   Light        which light and its parameters
- *   Outer shade  the shade (or the fused single-piece print)
- *   Inner shade  the optional second shade
+ *   Outer shade  the shade (or the fused single-piece print), all its parts
+ *   Inner shade  the optional second shade, all its parts
  *   Hub & joints the hub, the shade joint, the fit-test pair
  */
-import { INNER_SHADE_ID } from '@core/assembly/assemble.ts';
+import { INNER_SHADE_ID, OUTER_SHADE_ID } from '@core/assembly/assemble.ts';
+import { shadeRoleOfPart } from '@core/assembly/shades/common.ts';
 import type { PartSpec } from '@core/model/assembly.ts';
 
 export const NODE_IDS = [
@@ -39,19 +40,32 @@ export const NODE_LABELS: Readonly<Record<NodeId, string>> = {
 };
 
 /**
- * The node a part belongs to: the hub → Hub & joints, the shades → their
- * shade, the fit-test pieces → Hub & joints (the joint's clearance lives
- * there), every other part (canopy, cord grip, stem, base, lid, wall plate,
- * wall arm) → Mount.
+ * The shade node a part belongs to, by its id: a shade's collar part
+ * (`shade`, `innerShade`) and its further parts (`shade-tier2`, …; a tiered
+ * shade's tiers and spacers), or undefined.
+ */
+export function shadeNodeOfPart(part: Pick<PartSpec, 'id'>): NodeId | undefined {
+  const role = shadeRoleOfPart(part.id);
+  return role === 'inner' ? 'innerShade' : role === 'outer' ? 'outerShade' : undefined;
+}
+
+/**
+ * The node a part belongs to: the hub → Hub & joints, the shades and their
+ * parts → their shade, the fit-test pieces → Hub & joints (the joint's
+ * clearance lives there), every other part (canopy, cord grip, stem, base,
+ * lid, wall plate, wall arm) → Mount.
  */
 export function nodeOfPart(part: Pick<PartSpec, 'id' | 'kind'>): NodeId {
-  if (part.id === INNER_SHADE_ID) return 'innerShade';
+  const shade = shadeNodeOfPart(part);
+  if (shade) return shade;
   switch (part.kind) {
     case 'hub':
     case 'fitMale':
     case 'fitFemale':
       return 'hub';
     case 'shade':
+    case 'tier':
+    case 'spacer':
       return 'outerShade';
     default:
       return 'mount';
@@ -64,7 +78,7 @@ export function mainPartOf(node: NodeId, parts: readonly PartSpec[]): PartSpec |
     case 'hub':
       return parts.find((p) => p.kind === 'hub');
     case 'outerShade':
-      return parts.find((p) => p.kind === 'shade' && p.id !== INNER_SHADE_ID);
+      return parts.find((p) => p.id === OUTER_SHADE_ID);
     case 'innerShade':
       return parts.find((p) => p.id === INNER_SHADE_ID);
     default:
@@ -74,10 +88,22 @@ export function mainPartOf(node: NodeId, parts: readonly PartSpec[]): PartSpec |
 
 /**
  * The parts listed under their own row in the tree: everything but the hub
- * and the shades (which are nodes of their own), in assembly order.
+ * and the shades' parts (the hub and the shades are nodes of their own), in
+ * assembly order.
  */
 export function structuralParts(parts: readonly PartSpec[]): PartSpec[] {
-  return parts.filter((p) => p.kind !== 'hub' && p.kind !== 'shade');
+  return parts.filter(
+    (p) => p.kind !== 'hub' && nodeOfPart(p) !== 'outerShade' && nodeOfPart(p) !== 'innerShade',
+  );
+}
+
+/**
+ * A shade node's further parts (a tiered shade's lower tiers and spacers),
+ * listed under it in the tree; none for a shade of one part.
+ */
+export function extraShadeParts(node: NodeId, parts: readonly PartSpec[]): PartSpec[] {
+  const main = mainPartOf(node, parts);
+  return parts.filter((p) => p !== main && shadeNodeOfPart(p) === node);
 }
 
 /** The node the inspector shows: the inner shade's falls back to the outer one's when there is none. */

@@ -11,7 +11,9 @@ import { buildCordGrip } from './parts/cordGrip.ts';
 import { buildFitFemale, buildFitMale } from './parts/fitPair.ts';
 import { buildHub } from './parts/hub.ts';
 import { buildShade } from './parts/shade.ts';
+import { buildSpacer } from './parts/spacer.ts';
 import { buildStem } from './parts/stem.ts';
+import { buildTierPart } from './parts/tier.ts';
 import { buildWallArm } from './parts/wallArm.ts';
 import { buildWallPlate } from './parts/wallPlate.ts';
 import type { Quality } from './quality.ts';
@@ -29,6 +31,8 @@ export type Builder<P> = (
 export const PART_BUILDERS: { readonly [K in PartKind]: Builder<PartParamsByKind[K]> } = {
   hub: buildHub,
   shade: buildShade,
+  tier: buildTierPart,
+  spacer: buildSpacer,
   canopy: buildCanopy,
   cordGrip: buildCordGrip,
   stem: buildStem,
@@ -44,7 +48,9 @@ export const PART_BUILDERS: { readonly [K in PartKind]: Builder<PartParamsByKind
 export const PART_KIND_DESCRIPTIONS: { readonly [K in PartKind]: string } = {
   hub: 'holds the light, hangs from the mount and holds the shade (two-part lamps)',
   shade:
-    'the shade: hub and shade fused into one print (the classic shade), or a shade with a collar',
+    'the shade: hub and shade fused into one print (the classic shade), or a shade with a collar (revolved, slatted, geometric)',
+  tier: 'one tier of a tiered (PH-style) shade; the top tier carries the collar (M3b)',
+  spacer: 'a Ø5 mm rod with pins that holds two tiers of a tiered shade apart (M3b)',
   canopy: 'the ceiling canopy of a pendant: cord hole, screw slots, collet neck (grip collet)',
   cordGrip: 'the screw-on grip that clamps the cord in the canopy collet (print in PETG)',
   stem: 'a stem segment of the standing lamp: tube with cable bore, male thread on top, female thread or screw flange below',
@@ -88,6 +94,10 @@ function runBuilder(
       return PART_BUILDERS.hub(k, spec.params, quality);
     case 'shade':
       return PART_BUILDERS.shade(k, spec.params, quality);
+    case 'tier':
+      return PART_BUILDERS.tier(k, spec.params, quality);
+    case 'spacer':
+      return PART_BUILDERS.spacer(k, spec.params, quality);
     case 'canopy':
       return PART_BUILDERS.canopy(k, spec.params, quality);
     case 'cordGrip':

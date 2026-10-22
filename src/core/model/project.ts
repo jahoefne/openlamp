@@ -11,7 +11,10 @@
  * earlier version-3 file is still valid, so the version stayed 3). M2.4 added
  * the optional inner shade (`shades: [outer] | [outer, inner]`, likewise
  * additive): it hangs from a second, concentric hub collar inside the outer
- * shade's (`hub.radialGap` apart), so it needs a split lamp.
+ * shade's (`hub.radialGap` apart), so it needs a split lamp. M3a made the
+ * shade's style a union of four families (`ShadeStyle`: revolved, tiered,
+ * slatted, geometric; likewise additive). Only a revolved outer shade can be
+ * fused with the hub.
  *
  * Version 2 (M2.1) split the lamp into a hub and a shade joined by a collar
  * joint (`joints`), unless `hub.fused` kept them one print (the classic
@@ -34,11 +37,16 @@ import {
   BULB_SIZES,
   CLASSIC_SHADE_DEFAULTS,
   CORD_GRIPS,
+  GEOMETRIC_VARIANTS,
   HUB_JOINT_DEFAULTS,
+  LATTICE_HOLE_SHAPES,
   LIGHT_DEFAULTS,
   LIGHT_PARAM_PATHS,
   MOUNT_DEFAULTS,
   MOUNT_PARAM_PATHS,
+  SHADE_FAMILY_DEFAULTS,
+  SHADE_FAMILY_DEFS,
+  SHADE_FAMILY_PARAM_PATHS,
   STANDING_VARIANTS,
   type BulbFitting,
   type BulbSize,
@@ -46,7 +54,6 @@ import {
   type ClassicShadeParams,
   type FlatLightKind,
   type FlatShadeKey,
-  type FlatShadeParams,
   type HubJointKey,
   type HubJointParams,
   type LightChoice,
@@ -54,6 +61,7 @@ import {
   type LightParamsByKind,
   type MountKind,
   type MountParamsByKind,
+  type ShadeFamily,
 } from '../schema/defs.ts';
 import { normalizeClassicShade } from '../schema/normalize.ts';
 import { DEFAULT_PRINTER_ID, PRINTERS, findPrinter, type PrinterSpec } from '../schema/printers.ts';
@@ -222,7 +230,70 @@ export const RevolvedStyleSchema = z.object({
   surface: SurfaceSchema,
 });
 
-export const ShadeStyleSchema = z.discriminatedUnion('family', [RevolvedStyleSchema]);
+/**
+ * PH-style tiers (M3b): `tiers` curved shells from the top tier (Ø
+ * `topDiameter`, it carries the collar) down to the widest (Ø
+ * `bottomDiameter`), `tierDrop` apart, each reaching `overlap` in under the
+ * one above; `spacers` rods per gap hold them.
+ */
+export const TieredStyleSchema = z.object({
+  family: z.literal('tiered'),
+  tiers: z.number(),
+  topDiameter: Mm,
+  bottomDiameter: Mm,
+  tierDrop: Mm,
+  overlap: Mm,
+  curve: z.number(),
+  /** 3 or 4 (a number in the file, rounded by normalisation). */
+  spacers: z.number(),
+});
+
+/**
+ * A bottom and a top ring joined by `slatCount` flat slats: each runs
+ * `twist` degrees around the shade from the bottom ring to the top ring and
+ * is turned `louvreAngle` about its own long axis.
+ */
+export const SlattedStyleSchema = z.object({
+  family: z.literal('slatted'),
+  topDiameter: Mm,
+  bottomDiameter: Mm,
+  height: Mm,
+  slatCount: z.number(),
+  slatWidth: Mm,
+  slatThickness: Mm,
+  louvreAngle: z.number(),
+  twist: z.number(),
+  ringHeight: Mm,
+});
+
+/**
+ * Polyhedral (a twisted polygon: `sides`, `twist`), pleated (Yoshimura:
+ * `pleatCount`, `pleatDepth`, `bands`) or a lattice of holes (`holeShape`,
+ * `holeSize`, `holePitch`) between the bottom and the top Ø (M3b). Every
+ * field is stored, whatever the variant, so switching keeps the others.
+ */
+export const GeometricStyleSchema = z.object({
+  family: z.literal('geometric'),
+  variant: z.enum(GEOMETRIC_VARIANTS),
+  bottomDiameter: Mm,
+  topDiameter: Mm,
+  height: Mm,
+  sides: z.number(),
+  twist: z.number(),
+  pleatCount: z.number(),
+  pleatDepth: Mm,
+  bands: z.number(),
+  holeShape: z.enum(LATTICE_HOLE_SHAPES),
+  holeSize: Mm,
+  holePitch: Mm,
+});
+
+export const ShadeStyleSchema = z.discriminatedUnion('family', [
+  RevolvedStyleSchema,
+  TieredStyleSchema,
+  SlattedStyleSchema,
+  GeometricStyleSchema,
+]);
 
 /** The outer shade (`shades[0]`). */
 export const ShadeSchema = z.object({
@@ -298,6 +369,12 @@ export type InnerShadeSpec = z.infer<typeof InnerShadeSchema>;
 export type ShadeSpec = OuterShadeSpec | InnerShadeSpec;
 export type ShadeRole = ShadeSpec['role'];
 export type ShadeStyle = z.infer<typeof ShadeStyleSchema>;
+/** One family's style. */
+export type ShadeStyleOf<F extends ShadeFamily> = Extract<ShadeStyle, { family: F }>;
+export type RevolvedStyle = ShadeStyleOf<'revolved'>;
+export type TieredStyle = ShadeStyleOf<'tiered'>;
+export type SlattedStyle = ShadeStyleOf<'slatted'>;
+export type GeometricStyle = ShadeStyleOf<'geometric'>;
 export type SurfaceStyle = z.infer<typeof SurfaceSchema>;
 export type Joints = z.infer<typeof JointsSchema>;
 
@@ -553,33 +630,104 @@ function copyLight(light: LightSource): LightSource {
 export const SHADE_INDEX: Readonly<Record<ShadeRole, 0 | 1>> = { outer: 0, inner: 1 };
 
 /**
- * Where each flat shade parameter (`SHADE_DEFS`) lives inside a `ShadeSpec`,
- * as a dotted path (the same keys as the classic shade's shape and surface).
+ * Where each flat parameter of a revolved shade (`SHADE_DEFS`) lives inside a
+ * `ShadeSpec`, as a dotted path (the same keys as the classic shade's shape and
+ * surface). The other families' are `SHADE_FAMILY_PARAM_PATHS[family]`.
  */
-export const SHADE_PARAM_PATHS: Readonly<Record<FlatShadeKey, string>> = {
-  bottomDiameter: 'style.bottomDiameter',
-  topDiameter: 'style.topDiameter',
-  height: 'style.height',
-  curve: 'style.curve',
-  wallThickness: 'wallThickness',
-  shoulderAngle: 'style.shoulderAngle',
-  style: 'style.surface.style',
-  patternCount: 'style.surface.patternCount',
-  ribDepth: 'style.surface.ribDepth',
-  twist: 'style.surface.twist',
-};
+export const SHADE_PARAM_PATHS: Readonly<Record<FlatShadeKey, string>> =
+  SHADE_FAMILY_PARAM_PATHS.revolved;
 
-/** The project path of a flat shade parameter of the shade with this role, e.g. `shades.1.style.height`. */
-export function shadeParamPath(role: ShadeRole, key: string): string | undefined {
-  const paths: Readonly<Record<string, string>> = SHADE_PARAM_PATHS;
+/**
+ * The project path of a flat parameter of the shade with this role and family
+ * (default revolved), e.g. `shades.1.style.height`; undefined for a key the
+ * family does not have.
+ */
+export function shadeParamPath(
+  role: ShadeRole,
+  key: string,
+  family: ShadeFamily = 'revolved',
+): string | undefined {
+  const paths: Readonly<Record<string, string>> = SHADE_FAMILY_PARAM_PATHS[family];
   return Object.hasOwn(paths, key) ? `shades.${SHADE_INDEX[role]}.${paths[key]}` : undefined;
 }
 
-/** The flat parameters of a shade (see `SHADE_PARAM_PATHS`). Not normalised. */
-export function shadeToParams(shade: ShadeSpec): FlatShadeParams {
-  const out: Record<string, unknown> = {};
-  for (const [key, path] of Object.entries(SHADE_PARAM_PATHS)) out[key] = getAtPath(shade, path);
-  return out as FlatShadeParams;
+/**
+ * The flat parameters of a shade, those of its style's family (see
+ * `SHADE_FAMILY_PARAM_PATHS`; a revolved shade's are `FlatShadeParams`). Not
+ * normalised.
+ */
+export function shadeToParams(
+  shade: Pick<ShadeSpec, 'style' | 'wallThickness'>,
+): Record<string, number | string> {
+  const paths: Readonly<Record<string, string>> = SHADE_FAMILY_PARAM_PATHS[shade.style.family];
+  const out: Record<string, number | string> = {};
+  for (const [key, path] of Object.entries(paths)) {
+    out[key] = getAtPath(shade, path) as number | string;
+  }
+  return out;
+}
+
+/** A shade style of this family holding these flat parameters (see `SHADE_FAMILY_PARAM_PATHS`). Not normalised. */
+export function shadeStyleFromParams(
+  family: ShadeFamily,
+  params: Readonly<Record<string, unknown>>,
+): ShadeStyle {
+  const holder: Record<string, unknown> = { style: { family } };
+  const paths: Readonly<Record<string, string>> = SHADE_FAMILY_PARAM_PATHS[family];
+  for (const [key, path] of Object.entries(paths)) {
+    if (path.startsWith('style.')) setAtPath(holder, path, params[key]);
+  }
+  // The paths cover every field of the family's style (the schema tests check it).
+  return holder.style as ShadeStyle;
+}
+
+/** A style of this family with every parameter at its default. */
+export function defaultShadeStyle<F extends ShadeFamily>(family: F): ShadeStyleOf<F> {
+  return shadeStyleFromParams(family, SHADE_FAMILY_DEFAULTS[family]) as ShadeStyleOf<F>;
+}
+
+/** The style's height, if its family has one (a tiered shade's follows from its tiers). */
+function styleHeight(style: ShadeStyle): number | undefined {
+  return style.family === 'tiered' ? undefined : style.height;
+}
+
+/** `v` clamped to the range of the family's number parameter `key`. */
+function clampFamily(family: ShadeFamily, key: string, v: number): number {
+  const def = SHADE_FAMILY_DEFS[family].find((d) => d.key === key);
+  if (!def || def.type === 'select') return v;
+  return Math.min(def.max, Math.max(def.min, v));
+}
+
+/**
+ * The style after picking `family` in the Style family select: the same style
+ * when nothing changes, else the new family's defaults with the bottom and top
+ * diameters carried over (and the height, when both families have one),
+ * clamped to the new family's ranges. The wall thickness is the shade's, not
+ * the style's, so it stays as it is.
+ */
+export function shadeStyleForFamily<F extends ShadeFamily>(
+  current: ShadeStyle,
+  family: F,
+): ShadeStyleOf<F> {
+  if (current.family === family) return current as ShadeStyleOf<F>;
+  const next: ShadeStyle = {
+    ...defaultShadeStyle(family),
+    bottomDiameter: clampFamily(family, 'bottomDiameter', current.bottomDiameter),
+    topDiameter: clampFamily(family, 'topDiameter', current.topDiameter),
+  };
+  const height = styleHeight(current);
+  if (next.family !== 'tiered' && height !== undefined) {
+    next.height = clampFamily(family, 'height', height);
+  }
+  return next as ShadeStyleOf<F>;
+}
+
+/** A revolved shade's style; throws for any other family (for code that only handles revolved shades). */
+export function revolvedStyle(shade: Pick<ShadeSpec, 'style'>): RevolvedStyle {
+  if (shade.style.family !== 'revolved') {
+    throw new Error(`Expected a revolved shade, got a ${shade.style.family} one`);
+  }
+  return shade.style;
 }
 
 /** A deep copy of a shade (plain JSON data). */
@@ -640,18 +788,20 @@ export function projectToClassicParams(
   const mount =
     project.mount.kind === 'ceilingStrap' ? project.mount : defaultMount('ceilingStrap');
   const shade = project.shades[0];
-  const { style } = shade;
+  // Another family's outer shade is not the classic shade's: its shape keys read as the defaults.
+  const d = CLASSIC_SHADE_DEFAULTS;
+  const style = shade.style.family === 'revolved' ? shade.style : undefined;
   return {
-    bottomDiameter: style.bottomDiameter,
-    topDiameter: style.topDiameter,
-    height: style.height,
-    curve: style.curve,
-    wallThickness: shade.wallThickness,
-    shoulderAngle: style.shoulderAngle,
-    style: style.surface.style,
-    patternCount: style.surface.patternCount,
-    ribDepth: style.surface.ribDepth,
-    twist: style.surface.twist,
+    bottomDiameter: style ? style.bottomDiameter : d.bottomDiameter,
+    topDiameter: style ? style.topDiameter : d.topDiameter,
+    height: style ? style.height : d.height,
+    curve: style ? style.curve : d.curve,
+    wallThickness: style ? shade.wallThickness : d.wallThickness,
+    shoulderAngle: style ? style.shoulderAngle : d.shoulderAngle,
+    style: style ? style.surface.style : d.style,
+    patternCount: style ? style.surface.patternCount : d.patternCount,
+    ribDepth: style ? style.surface.ribDepth : d.ribDepth,
+    twist: style ? style.surface.twist : d.twist,
     puckDiameter: light.diameter,
     puckHeight: light.height,
     puckClearance: light.clearance,
@@ -673,8 +823,9 @@ export function projectToClassicParams(
  * A project holding these flat classic-shade parameters. Everything the flat
  * parameters do not describe (id, name, printer, colours, shade id, colour and
  * collar, an inner shade, the hub and the joints, export quality, a mount
- * other than the strap, a light other than the puck) comes from `base`, or
- * from a new default project. Without a base,
+ * other than the strap, a light other than the puck, an outer shade of
+ * another family than the revolved one) comes from `base`, or from a new
+ * default project. Without a base,
  * `params.quality` is used for both preview and export, as in the first app.
  */
 export function classicParamsToProject(
@@ -724,29 +875,31 @@ export function classicParamsToProject(
           },
     hub: base ? { ...base.hub } : defaultHub(),
     shades: withInner(
-      {
-        id: baseShade?.id ?? 'outer',
-        role: 'outer',
-        colour: baseShade?.colour ?? DEFAULT_SHADE_COLOUR,
-        wallThickness: p.wallThickness,
-        ...(baseShade?.collarDiameter !== undefined
-          ? { collarDiameter: baseShade.collarDiameter }
-          : {}),
-        style: {
-          family: 'revolved',
-          bottomDiameter: p.bottomDiameter,
-          topDiameter: p.topDiameter,
-          height: p.height,
-          curve: p.curve,
-          shoulderAngle: p.shoulderAngle,
-          surface: {
-            style: p.style,
-            patternCount: p.patternCount,
-            ribDepth: p.ribDepth,
-            twist: p.twist,
+      baseShade && baseShade.style.family !== 'revolved'
+        ? copyShade(baseShade)
+        : {
+            id: baseShade?.id ?? 'outer',
+            role: 'outer',
+            colour: baseShade?.colour ?? DEFAULT_SHADE_COLOUR,
+            wallThickness: p.wallThickness,
+            ...(baseShade?.collarDiameter !== undefined
+              ? { collarDiameter: baseShade.collarDiameter }
+              : {}),
+            style: {
+              family: 'revolved',
+              bottomDiameter: p.bottomDiameter,
+              topDiameter: p.topDiameter,
+              height: p.height,
+              curve: p.curve,
+              shoulderAngle: p.shoulderAngle,
+              surface: {
+                style: p.style,
+                patternCount: p.patternCount,
+                ribDepth: p.ribDepth,
+                twist: p.twist,
+              },
+            },
           },
-        },
-      },
       baseInner && copyShade(baseInner),
     ),
     joints: base ? { ...base.joints } : defaultJoints(),

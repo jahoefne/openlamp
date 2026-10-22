@@ -1,14 +1,15 @@
 /**
  * Adding and removing the inner shade (`project.shades[1]`). Pure, no WASM.
  *
- * A new inner shade copies the outer shade's revolved style, scaled to fit
- * inside it with the radial gap (and the outer wall) to spare all round,
- * 10 mm shorter and smooth, in white; its top is at least what its collar
- * ring needs. Adding one turns the single-piece print off: the inner shade
+ * A new inner shade copies the outer shade's revolved style (another
+ * family's outer shade lends its diameters and height to a revolved one),
+ * scaled to fit inside it with the radial gap (and the outer wall) to spare
+ * all round, 10 mm shorter and smooth, in white; its top is at least what its
+ * collar ring needs. Adding one turns the single-piece print off: the inner shade
  * hangs from a second ring of a separate hub.
  */
 import type { InnerShadeSpec, Project } from '../model/project.ts';
-import { DEFAULT_INNER_SHADE_COLOUR } from '../model/project.ts';
+import { DEFAULT_INNER_SHADE_COLOUR, shadeStyleForFamily } from '../model/project.ts';
 import { SHADE_DEFS, type FlatShadeKey } from '../schema/defs.ts';
 import { minShadeTopDiameter, resolveShadeJoint } from './interfaces.ts';
 import { lightEnvelope } from './lights/index.ts';
@@ -31,7 +32,8 @@ function clampShade(key: FlatShadeKey, v: number): number {
  */
 export function defaultInnerShade(project: Project): InnerShadeSpec {
   const outer = project.shades[0];
-  const s = outer.style;
+  // A revolved shade, whatever the outer shade's family (its diameters and height carried over).
+  const s = shadeStyleForFamily(outer.style, 'revolved');
   const inset = 2 * project.hub.radialGap + 2 * outer.wallThickness;
   const envelope = lightEnvelope(project.light, {
     wallThickness: project.hub.wallThickness,

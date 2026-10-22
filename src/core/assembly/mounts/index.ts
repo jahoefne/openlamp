@@ -17,6 +17,7 @@ export type {
   MountParts,
   MountPlacement,
   MountShade,
+  MountShadePart,
 } from './types.ts';
 
 export const MOUNT_MODULES: { readonly [K in MountKind]: MountModule<K> } = {

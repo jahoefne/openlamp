@@ -5,11 +5,22 @@ import type { Hex, Mat4, PartKind, Warning } from '../../model/assembly.ts';
 import { DEFAULT_HUB_COLOUR } from '../../model/project.ts';
 import { MOUNT_LABELS, type MountKind } from '../../schema/defs.ts';
 import { identity, translation } from '../transforms.ts';
-import type { MountCtx, MountHubCtx } from './types.ts';
+import type { MountCtx, MountHubCtx, MountShade, MountShadePart } from './types.ts';
+
+/** A shade's parts with their transforms into the shade frame (the collar part alone by default). */
+export function mountShadeParts(shade: MountShade): readonly MountShadePart[] {
+  return shade.parts ?? [{ id: shade.id, transform: translation(0, 0, -shade.zCollar) }];
+}
+
+/** A shade's lowest point in the shade frame (the hub's). */
+export function mountShadeBottom(shade: MountShade): number {
+  return shade.zBottom ?? -shade.zCollar;
+}
 
 /**
  * A hanging lamp: the hub's print frame is the world (collar plane at z 0,
- * mount face up), each shade hangs below it with its collar plane at z 0.
+ * mount face up), each shade hangs below it with its collar plane at z 0:
+ * the shade frame is the world, so every shade part keeps its own transform.
  */
 export function hangingTransforms(ctx: Pick<MountHubCtx, 'shades'>): {
   hubTransform: Mat4;
@@ -19,8 +30,8 @@ export function hangingTransforms(ctx: Pick<MountHubCtx, 'shades'>): {
   const shadeTransforms: Record<string, Mat4> = {};
   let bottomZ = 0;
   for (const shade of ctx.shades) {
-    shadeTransforms[shade.id] = translation(0, 0, -shade.zCollar);
-    bottomZ = Math.min(bottomZ, -shade.zCollar);
+    for (const part of mountShadeParts(shade)) shadeTransforms[part.id] = part.transform;
+    bottomZ = Math.min(bottomZ, mountShadeBottom(shade));
   }
   return { hubTransform: identity(), shadeTransforms, bottomZ };
 }

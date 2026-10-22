@@ -17,7 +17,7 @@
 import { M3 } from '../geometry/joints/screw.ts';
 import type { JointInterface, Warning } from '../model/assembly.ts';
 import type { CollarDims, LightEnvelope } from '../model/parts.ts';
-import type { Hub, Joints, ShadeSpec } from '../model/project.ts';
+import type { Hub, Joints, ShadeRole, ShadeSpec, ShadeStyle } from '../model/project.ts';
 
 /** Length of a collar joint along the axis, mm. */
 export const COLLAR_JOINT_LENGTH = 8;
@@ -87,6 +87,45 @@ export function collarDims(iface: JointInterface, collarWall: number): CollarDim
  */
 export function minShadeTopDiameter(collar: CollarDims): number {
   return 2 * collar.seatRadius + 2;
+}
+
+/**
+ * The widening rule of every shade family: the top the body presents to the
+ * collar (its module's `collarTop`) must be at least `minTop`
+ * (`minShadeTopDiameter` of its collar, whole mm). If it is not, the style is
+ * widened, by `widen` (the module's `widenTop`) or by growing `topDiameter`
+ * by the difference (exactly `minTop` when the collar top is the top
+ * diameter), and a warning says so at `shades.<i>.style.topDiameter`.
+ */
+export function widenShadeTop<S extends ShadeStyle>(
+  style: S,
+  collarTop: number,
+  minTop: number,
+  at: { role: ShadeRole; partId: string },
+  widen?: (minCollarTop: number) => S,
+): { style: S; warning?: Warning } {
+  if (collarTop >= minTop) return { style };
+  const next: S =
+    widen?.(minTop) ??
+    ({
+      ...style,
+      topDiameter:
+        collarTop === style.topDiameter ? minTop : style.topDiameter + (minTop - collarTop),
+    } as S);
+  const top = mm(next.topDiameter);
+  const inner = at.role === 'inner';
+  return {
+    style: next,
+    warning: {
+      severity: 'warning',
+      code: 'adjusted',
+      partId: at.partId,
+      paramPath: `shades.${inner ? 1 : 0}.style.topDiameter`,
+      message: inner
+        ? `The inner shade's topDiameter raised to ${top} mm so its shoulder clears the hub's inner collar ring`
+        : `topDiameter raised to ${top} mm so the shoulder clears the hub's collar ring`,
+    },
+  };
 }
 
 export interface ShadeJointResolution {

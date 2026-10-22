@@ -1221,6 +1221,489 @@ export const LIGHT_DEFAULTS: { readonly [K in FlatLightKind]: Readonly<LightPara
 /** The hub's vents a light starts with (`hub.ventCount`): eight for a bulb, none otherwise. */
 export const DEFAULT_VENTS: Readonly<Record<LightKind, number>> = { puck: 0, bulb: 8, strip: 0 };
 
+// ---------------------------------------------------------------- shade families
+
+/** The shade style families (`ShadeSpec.style.family`), in the order the form offers them. */
+export const SHADE_FAMILIES = ['revolved', 'tiered', 'slatted', 'geometric'] as const;
+export type ShadeFamily = (typeof SHADE_FAMILIES)[number];
+
+/** The Style family select's labels. */
+export const SHADE_FAMILY_LABELS: Readonly<Record<ShadeFamily, string>> = {
+  revolved: 'Revolved',
+  tiered: 'Tiered',
+  slatted: 'Slatted',
+  geometric: 'Geometric',
+};
+
+/** One line per family for the form and the CLI. */
+export const SHADE_FAMILY_DESCRIPTIONS: Readonly<Record<ShadeFamily, string>> = {
+  revolved:
+    'A turned wall with its own shoulder: smooth, ribbed or faceted, the pattern optionally twisted.',
+  tiered:
+    'PH-style tiers that overlap so the light is never seen directly; every tier prints on its own and spacers hold them apart.',
+  slatted:
+    'A bottom and a top ring joined by flat slats, optionally twisted around the shade and turned like louvres.',
+  geometric:
+    'Folded and pierced forms: a twisted polygon (polyhedral), Yoshimura pleats or a lattice of holes.',
+};
+
+/** The geometric family's forms (`style.variant`). */
+export const GEOMETRIC_VARIANTS = ['polyhedral', 'pleated', 'lattice'] as const;
+export type GeometricVariant = (typeof GEOMETRIC_VARIANTS)[number];
+/** The lattice's hole shapes. */
+export const LATTICE_HOLE_SHAPES = ['hex', 'round'] as const;
+
+/** The shade's wall in the family forms (the same range as the classic shade's). */
+const FAMILY_WALL = {
+  key: 'wallThickness',
+  label: 'Wall thickness',
+  unit: 'mm',
+  min: 0.4,
+  max: 3,
+  step: 0.1,
+  default: 0.8,
+  help: 'Two 0.4 mm perimeters (0.8 mm) diffuse the light best.',
+} as const;
+
+// Each family's parameters as flat keys: a key that means the same as the
+// revolved family's (bottomDiameter, topDiameter, height, wallThickness) keeps
+// its name and path; the others are unique across all forms (they are element
+// ids: `slatTwist`, not `twist`, which is the revolved surface's).
+// `SHADE_FAMILY_PARAM_PATHS` says where each lives inside a `ShadeSpec`.
+const TIERED_SHADE_SCHEMA = [
+  {
+    id: 'tiers',
+    label: 'Tiers',
+    params: [
+      {
+        key: 'tiers',
+        label: 'Tiers',
+        unit: '',
+        min: 2,
+        max: 8,
+        step: 1,
+        default: 4,
+        help: 'How many overlapping tiers, each printed on its own.',
+      },
+      {
+        key: 'topDiameter',
+        label: 'Top tier Ø',
+        unit: 'mm',
+        min: 60,
+        max: 320,
+        step: 1,
+        default: 120,
+        help: 'Outer diameter of the top tier, which carries the collar.',
+      },
+      {
+        key: 'bottomDiameter',
+        label: 'Bottom tier Ø',
+        unit: 'mm',
+        min: 80,
+        max: 400,
+        step: 1,
+        default: 320,
+        help: 'Outer diameter of the widest, lowest tier.',
+      },
+      {
+        key: 'tierDrop',
+        label: 'Tier drop',
+        unit: 'mm',
+        min: 5,
+        max: 80,
+        step: 1,
+        default: 28,
+        help: 'Vertical distance from one tier to the next.',
+      },
+      {
+        key: 'tierOverlap',
+        label: 'Overlap',
+        unit: 'mm',
+        min: 0,
+        max: 60,
+        step: 0.5,
+        default: 12,
+        help: 'How far each tier reaches in under the one above it, so the light is never seen directly.',
+      },
+      {
+        key: 'tierCurve',
+        label: 'Tier curve',
+        unit: '',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        default: 0.3,
+        help: '0 makes every tier a straight cone, 1 a strongly curved bowl.',
+      },
+      {
+        key: 'tierSpacers',
+        label: 'Spacers per gap',
+        unit: '',
+        min: 3,
+        max: 4,
+        step: 1,
+        default: 3,
+        help: 'Ø5 mm rods between the tiers.',
+      },
+      FAMILY_WALL,
+    ],
+  },
+] as const satisfies readonly ParamGroup[];
+
+const SLATTED_SHADE_SCHEMA = [
+  {
+    id: 'slattedShape',
+    label: 'Shade shape',
+    params: [
+      {
+        key: 'bottomDiameter',
+        label: 'Bottom ring Ø',
+        unit: 'mm',
+        min: 60,
+        max: 320,
+        step: 1,
+        default: 200,
+        help: 'Outer diameter of the bottom ring, the open end that faces the room.',
+      },
+      {
+        key: 'topDiameter',
+        label: 'Top ring Ø',
+        unit: 'mm',
+        min: 60,
+        max: 320,
+        step: 1,
+        default: 120,
+        help: 'Outer diameter of the top ring; a 45° shoulder rises from it to the collar.',
+      },
+      {
+        key: 'height',
+        label: 'Height',
+        unit: 'mm',
+        min: 40,
+        max: 300,
+        step: 1,
+        default: 180,
+        help: 'From the bottom of the bottom ring to the top of the top ring (the shoulder and the collar add on top).',
+      },
+      {
+        key: 'ringHeight',
+        label: 'Ring height',
+        unit: 'mm',
+        min: 3,
+        max: 30,
+        step: 0.5,
+        default: 8,
+        help: 'Height of the bottom and the top ring the slats are held in.',
+      },
+      { ...FAMILY_WALL, help: "Wall of the top ring's shoulder cone up to the collar." },
+    ],
+  },
+  {
+    id: 'slats',
+    label: 'Slats',
+    params: [
+      {
+        key: 'slatCount',
+        label: 'Slats',
+        unit: '',
+        min: 6,
+        max: 96,
+        step: 1,
+        default: 24,
+        help: 'Reduced if the slats would touch at the narrowest ring.',
+      },
+      {
+        key: 'slatWidth',
+        label: 'Slat width',
+        unit: 'mm',
+        min: 3,
+        max: 30,
+        step: 0.5,
+        default: 12,
+      },
+      {
+        key: 'slatThickness',
+        label: 'Slat thickness',
+        unit: 'mm',
+        min: 0.8,
+        max: 6,
+        step: 0.1,
+        default: 2.4,
+        help: 'At least two nozzle widths, so a slat gets two perimeters.',
+      },
+      {
+        key: 'louvreAngle',
+        label: 'Louvre angle',
+        unit: '°',
+        min: -80,
+        max: 80,
+        step: 5,
+        default: 0,
+        help: 'Turns every slat about its own long axis: 0 lies along the rings like a barrel stave, larger angles turn it like a louvre toward a radial fin.',
+      },
+      {
+        key: 'slatTwist',
+        label: 'Twist',
+        unit: '°',
+        min: -120,
+        max: 120,
+        step: 5,
+        default: 0,
+        help: 'How far each slat runs around the shade from the bottom ring to the top ring. Keep the lean under 50° (a short shade leans faster).',
+      },
+    ],
+  },
+] as const satisfies readonly ParamGroup[];
+
+const polyhedral = (v: ParamValues) => v.geometricVariant === 'polyhedral';
+const pleated = (v: ParamValues) => v.geometricVariant === 'pleated';
+const lattice = (v: ParamValues) => v.geometricVariant === 'lattice';
+
+const GEOMETRIC_SHADE_SCHEMA = [
+  {
+    id: 'geometricShape',
+    label: 'Shade shape',
+    params: [
+      {
+        key: 'geometricVariant',
+        label: 'Form',
+        type: 'select',
+        options: GEOMETRIC_VARIANTS,
+        default: 'polyhedral',
+        optionLabels: {
+          polyhedral: 'Polyhedral (twisted polygon)',
+          pleated: 'Pleated (Yoshimura)',
+          lattice: 'Lattice of holes',
+        },
+      },
+      {
+        key: 'bottomDiameter',
+        label: 'Bottom opening Ø',
+        unit: 'mm',
+        min: 70,
+        max: 320,
+        step: 1,
+        default: 180,
+      },
+      {
+        key: 'topDiameter',
+        label: 'Top Ø',
+        unit: 'mm',
+        min: 60,
+        max: 320,
+        step: 1,
+        default: 110,
+      },
+      {
+        key: 'height',
+        label: 'Height',
+        unit: 'mm',
+        min: 20,
+        max: 300,
+        step: 1,
+        default: 140,
+      },
+      FAMILY_WALL,
+    ],
+  },
+  {
+    id: 'polyhedral',
+    label: 'Facets',
+    params: [
+      {
+        key: 'sides',
+        label: 'Sides',
+        unit: '',
+        min: 3,
+        max: 24,
+        step: 1,
+        default: 8,
+        visibleWhen: polyhedral,
+      },
+      {
+        key: 'geometricTwist',
+        label: 'Twist',
+        unit: '°',
+        min: -180,
+        max: 180,
+        step: 5,
+        default: 20,
+        help: 'Rotation of the top polygon against the bottom one; the facets fold like origami.',
+        visibleWhen: polyhedral,
+      },
+    ],
+  },
+  {
+    id: 'pleated',
+    label: 'Pleats',
+    params: [
+      {
+        key: 'pleatCount',
+        label: 'Pleats',
+        unit: '',
+        min: 6,
+        max: 48,
+        step: 1,
+        default: 16,
+        visibleWhen: pleated,
+      },
+      {
+        key: 'pleatDepth',
+        label: 'Pleat depth',
+        unit: 'mm',
+        min: 1,
+        max: 20,
+        step: 0.5,
+        default: 6,
+        visibleWhen: pleated,
+      },
+      {
+        key: 'bands',
+        label: 'Bands',
+        unit: '',
+        min: 1,
+        max: 12,
+        step: 1,
+        default: 5,
+        help: 'Rows of pleats up the shade; each band is offset by half a pleat.',
+        visibleWhen: pleated,
+      },
+    ],
+  },
+  {
+    id: 'lattice',
+    label: 'Lattice',
+    params: [
+      {
+        key: 'holeShape',
+        label: 'Hole shape',
+        type: 'select',
+        options: LATTICE_HOLE_SHAPES,
+        default: 'hex',
+        optionLabels: { hex: 'Hexagon', round: 'Round' },
+        visibleWhen: lattice,
+      },
+      {
+        key: 'holeSize',
+        label: 'Hole size',
+        unit: 'mm',
+        min: 2,
+        max: 20,
+        step: 0.5,
+        default: 6,
+        visibleWhen: lattice,
+      },
+      {
+        key: 'holePitch',
+        label: 'Hole pitch',
+        unit: 'mm',
+        min: 4,
+        max: 30,
+        step: 0.5,
+        default: 11,
+        help: 'Distance between neighbouring holes.',
+        visibleWhen: lattice,
+      },
+    ],
+  },
+] as const satisfies readonly ParamGroup[];
+
+export type TieredFlatParams = FlatParamsOf<typeof TIERED_SHADE_SCHEMA>;
+export type SlattedFlatParams = FlatParamsOf<typeof SLATTED_SHADE_SCHEMA>;
+export type GeometricFlatParams = FlatParamsOf<typeof GEOMETRIC_SHADE_SCHEMA>;
+
+/** Every family's flat parameters, by family (the revolved family's are the classic shade's shape and surface). */
+export interface ShadeParamsByFamily {
+  revolved: FlatShadeParams;
+  tiered: TieredFlatParams;
+  slatted: SlattedFlatParams;
+  geometric: GeometricFlatParams;
+}
+
+/** The form groups of each family (the revolved family's are `SHADE_GROUPS`). */
+export const SHADE_FAMILY_GROUPS: Readonly<Record<ShadeFamily, readonly ParamGroup[]>> = {
+  revolved: SHADE_GROUPS,
+  tiered: TIERED_SHADE_SCHEMA,
+  slatted: SLATTED_SHADE_SCHEMA,
+  geometric: GEOMETRIC_SHADE_SCHEMA,
+};
+
+/** Every parameter definition of each family. */
+export const SHADE_FAMILY_DEFS: Readonly<Record<ShadeFamily, readonly ParamDef[]>> = {
+  revolved: SHADE_DEFS,
+  tiered: defsOf(TIERED_SHADE_SCHEMA),
+  slatted: defsOf(SLATTED_SHADE_SCHEMA),
+  geometric: defsOf(GEOMETRIC_SHADE_SCHEMA),
+};
+
+/**
+ * Where each flat shade parameter lives inside a `ShadeSpec`, by family, as a
+ * dotted path (the project path is `shades.<index>.<path>`).
+ */
+export const SHADE_FAMILY_PARAM_PATHS: {
+  readonly [F in ShadeFamily]: Readonly<Record<keyof ShadeParamsByFamily[F], string>>;
+} = {
+  revolved: {
+    bottomDiameter: 'style.bottomDiameter',
+    topDiameter: 'style.topDiameter',
+    height: 'style.height',
+    curve: 'style.curve',
+    wallThickness: 'wallThickness',
+    shoulderAngle: 'style.shoulderAngle',
+    style: 'style.surface.style',
+    patternCount: 'style.surface.patternCount',
+    ribDepth: 'style.surface.ribDepth',
+    twist: 'style.surface.twist',
+  },
+  tiered: {
+    tiers: 'style.tiers',
+    topDiameter: 'style.topDiameter',
+    bottomDiameter: 'style.bottomDiameter',
+    tierDrop: 'style.tierDrop',
+    tierOverlap: 'style.overlap',
+    tierCurve: 'style.curve',
+    tierSpacers: 'style.spacers',
+    wallThickness: 'wallThickness',
+  },
+  slatted: {
+    bottomDiameter: 'style.bottomDiameter',
+    topDiameter: 'style.topDiameter',
+    height: 'style.height',
+    ringHeight: 'style.ringHeight',
+    wallThickness: 'wallThickness',
+    slatCount: 'style.slatCount',
+    slatWidth: 'style.slatWidth',
+    slatThickness: 'style.slatThickness',
+    louvreAngle: 'style.louvreAngle',
+    slatTwist: 'style.twist',
+  },
+  geometric: {
+    geometricVariant: 'style.variant',
+    bottomDiameter: 'style.bottomDiameter',
+    topDiameter: 'style.topDiameter',
+    height: 'style.height',
+    wallThickness: 'wallThickness',
+    sides: 'style.sides',
+    geometricTwist: 'style.twist',
+    pleatCount: 'style.pleatCount',
+    pleatDepth: 'style.pleatDepth',
+    bands: 'style.bands',
+    holeShape: 'style.holeShape',
+    holeSize: 'style.holeSize',
+    holePitch: 'style.holePitch',
+  },
+};
+
+/** The default flat parameters of each family, from its definitions. */
+export const SHADE_FAMILY_DEFAULTS: {
+  readonly [F in ShadeFamily]: Readonly<ShadeParamsByFamily[F]>;
+} = {
+  revolved: defaultsOf<FlatShadeParams>(SHADE_DEFS),
+  tiered: defaultsOf<TieredFlatParams>(SHADE_FAMILY_DEFS.tiered),
+  slatted: defaultsOf<SlattedFlatParams>(SHADE_FAMILY_DEFS.slatted),
+  geometric: defaultsOf<GeometricFlatParams>(SHADE_FAMILY_DEFS.geometric),
+};
+
 /** Whether a parameter is shown for the given values (see `ParamDefBase.visibleWhen`). */
 export function isParamVisible(def: ParamDef, values: ParamValues): boolean {
   return def.visibleWhen ? def.visibleWhen(values) : true;

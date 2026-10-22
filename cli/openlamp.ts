@@ -9,7 +9,7 @@
  *   node cli/openlamp.ts part canopy                # a part of a mount, with its defaults
  *   node cli/openlamp.ts project my.lamp.json --out prints/
  *   node cli/openlamp.ts samples            # every src/examples/*.lamp.json → samples/
- *   node cli/openlamp.ts list               # printers, examples, parameters
+ *   node cli/openlamp.ts list               # printers, examples, shade families, parameters
  */
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -32,7 +32,12 @@ import {
   PART_KIND_DESCRIPTIONS,
   PRINTERS,
   QUALITIES,
+  SHADE_FAMILIES,
+  SHADE_FAMILY_DEFS,
+  SHADE_FAMILY_DESCRIPTIONS,
+  SHADE_FAMILY_LABELS,
   SHADE_JOINT_TYPES,
+  SHADE_MODULES,
   assemble,
   buildPart,
   classicParamsToProject,
@@ -45,6 +50,7 @@ import {
   parseProject,
   partFileName,
   printerLabel,
+  shadeParamPath,
   type BuildableSpec,
   type Kernel,
   type MountKind,
@@ -80,7 +86,8 @@ Commands:
   project   Build every part of a .lamp.json project at its export quality into
             <dir> (default: the current directory) as openlamp-<project>-<part>.stl.
   samples   Build every example in src/examples into samples/ (git-ignored).
-  list      Show the part kinds, printers, examples, lights, mounts and every parameter.
+  list      Show the part kinds, printers, examples, shade style families, lights,
+            mounts and every parameter.
 
 Options:
   -o, --out <path>     Output file (part) or directory (project, samples)
@@ -356,6 +363,23 @@ async function cmdList(): Promise<number> {
   }
   console.log('\nClassic-shade parameters (part shade|hub --<param> <value>):');
   for (const p of CLASSIC_SHADE_DEFS) console.log(paramLine(p, `--${p.key}`, true));
+  console.log(
+    '\nShade style families (shades.<i>.style.family; set in the project file, shown for the outer shade):',
+  );
+  for (const family of SHADE_FAMILIES) {
+    const parts = SHADE_MODULES[family].partKinds;
+    console.log(
+      `\n  ${family} – ${SHADE_FAMILY_LABELS[family]} (parts: ${parts.join(', ')})${SHADE_MODULES[family].pending ? ' – a revolved stand-in for now' : ''}`,
+    );
+    console.log(`    ${SHADE_FAMILY_DESCRIPTIONS[family]}`);
+    if (family === 'revolved') {
+      console.log('    the classic-shade shape and surface parameters above');
+      continue;
+    }
+    for (const p of SHADE_FAMILY_DEFS[family]) {
+      console.log(`  ${paramLine(p, shadeParamPath('outer', p.key, family) ?? p.key, false)}`);
+    }
+  }
   console.log(
     '\nHub & joint parameters of a two-part lamp (hub.fused: false; set in the project file):',
   );

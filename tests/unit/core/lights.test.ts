@@ -23,6 +23,7 @@ import {
   lightParamPath,
   lightToParams,
   parseProject,
+  revolvedStyle,
   serializeProject,
   withBulbPreset,
   type LightOf,
@@ -579,7 +580,7 @@ describe('world-frame numbers for the ghosts', () => {
       stripThickness: 2,
     });
     const p = lamp({ ...lightDefaults('bulb'), bulbLength: 250 });
-    p.shades[0].style.height = 60;
+    revolvedStyle(p.shades[0]).height = 60;
     const a = assemble(p);
     expect(a.derived.bottomZ).toBeCloseTo(-250, 9);
   });
