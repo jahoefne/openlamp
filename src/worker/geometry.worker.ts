@@ -13,12 +13,20 @@ import wasmUrl from 'manifold-3d/manifold.wasm?url';
 import { validateGeometry } from '@core/assembly/validate.ts';
 import { archiveFileName, partFileName } from '@core/export/naming.ts';
 import { meshToBinaryStl } from '@core/export/stl.ts';
+import {
+  IMPLEMENTED_SLICER_FLAVOURS,
+  THREEMF_MIME,
+  meshFor3mf,
+  writeLamp3mf,
+  type Built3mfPart,
+} from '@core/export/threemf.ts';
 import { zipFiles } from '@core/export/zip.ts';
 import { buildPart } from '@core/geometry/build.ts';
 import { PartCache } from '@core/geometry/cache.ts';
 import type { Kernel, Manifold } from '@core/geometry/kernel.ts';
 import { renderBuffers } from '@core/geometry/mesh.ts';
 import type { PartSpec, PartStats } from '@core/model/assembly.ts';
+import { printerLabel } from '@core/schema/printers.ts';
 import type { ExportFile, ExportMessage, FromWorker, ToWorker } from './protocol.ts';
 
 /** Triangles the part cache may hold before it evicts least recently used parts. */
@@ -161,14 +169,50 @@ async function exportZip(
   return [{ name: archiveFileName(msg.meta, 'zip'), data, mime: 'application/zip' }];
 }
 
+/**
+ * One 3MF of every part: one object per part (a part with several copies
+ * once, one build item per copy), coloured, laid out on the bed by
+ * `msg.layout` in print orientation; a `progress` per part.
+ */
+async function export3mf(
+  k: Kernel,
+  msg: ExportMessage,
+  job: { cancelled: boolean },
+): Promise<ExportFile[]> {
+  const { jobId, parts, meta, layout, printer } = msg;
+  const flavour = msg.slicerFlavour ?? 'generic';
+  if (!IMPLEMENTED_SLICER_FLAVOURS.includes(flavour)) {
+    throw new Error(`The ${flavour} 3MF flavour is not implemented yet`);
+  }
+  const built: Built3mfPart[] = [];
+  for (const [i, part] of parts.entries()) {
+    await yieldToEvents();
+    if (job.cancelled) throw new Error('Export cancelled');
+    const { manifold, stats } = getOrBuild(k, part);
+    if (stats.status !== 'NoError') {
+      throw new Error(`${part.displayName} is not a valid solid (manifold status ${stats.status})`);
+    }
+    // A copy in plain JS arrays: the cached manifold may be evicted at the next yield.
+    built.push({ part, mesh: meshFor3mf(manifold.getMesh()), bbox: stats.bbox });
+    post({ t: 'progress', jobId, done: i + 1, total: parts.length, label: part.displayName });
+  }
+  const { buffer: data } = writeLamp3mf(built, layout, {
+    title: meta.name,
+    printerName: printerLabel(printer),
+    shareUrl: meta.shareUrl,
+  });
+  return [{ name: archiveFileName(meta, '3mf'), data, mime: THREEMF_MIME }];
+}
+
+const EXPORTERS = { stl: exportStl, 'zip-stl': exportZip, '3mf': export3mf } as const;
+
 async function runExport(msg: ExportMessage): Promise<void> {
   const { jobId } = msg;
   const job = { cancelled: false };
   exportJobs.set(jobId, job);
   try {
-    if (msg.format === '3mf') throw new Error('3mf export is not implemented yet');
     const k = await init();
-    const files = await (msg.format === 'zip-stl' ? exportZip : exportStl)(k, msg, job);
+    const files = await EXPORTERS[msg.format](k, msg, job);
     post(
       { t: 'export-done', jobId, files },
       files.map((f) => f.data),
