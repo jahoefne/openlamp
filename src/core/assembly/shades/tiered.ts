@@ -22,11 +22,11 @@
  *   of their normals) where that keeps both sockets inside the overlap, else
  *   more upright; their end faces sit on the tiers' faces, their pins go
  *   through sockets bored along their axes; every other gap is turned half a
- *   step. Each spacer is its own part (`<id>-spacer1a` …: the seam gives a
- *   shade's part one transform, so copies cannot be `instances`), all spacers
- *   of a gap with the same params (one buildKey), each pin a `snap` joint with
- *   its tier (radial clearance `joints.tolerance / 2`: Ø4.3 sockets for the Ø4
- *   pins at the default 0.3).
+ *   step. The spacers of a gap are one part (`<id>-spacer1` …, "Spacer 1 ×3")
+ *   with `instances = spacers` and one transform per copy
+ *   (`ShadePart.instanceTransforms`, turned about the lamp's axis), each pin
+ *   a `snap` joint with its tier (radial clearance `joints.tolerance / 2`:
+ *   Ø4.3 sockets for the Ø4 pins at the default 0.3).
  *
  * Every tier prints the way up its overhang analysis prefers (`flipped`):
  * the top tier collar up, the others on their rims (a shell overhangs the
@@ -102,8 +102,6 @@ const END_SAMPLES: readonly (readonly [number, number])[] = [
     return [r * Math.cos(a), r * Math.sin(a)];
   }),
 ];
-
-const SPACER_LETTERS = 'abcd';
 
 const mm = (n: number) => (Math.round(n * 10) / 10).toString();
 const deg = (n: number) => Math.round(n).toString();
@@ -225,8 +223,9 @@ interface TieredLayout {
 
 const tierId = (ctx: Pick<ShadeCtx, 'id'>, i: number) =>
   i === 0 ? ctx.id : shadePartId(ctx.id, `tier${i + 1}`);
-const spacerId = (ctx: Pick<ShadeCtx, 'id'>, gap: number, j: number) =>
-  shadePartId(ctx.id, `spacer${gap + 1}${SPACER_LETTERS[j] ?? j}`);
+/** The spacers between tier `gap + 1` and tier `gap + 2`: one part, a copy per socket. */
+const spacerId = (ctx: Pick<ShadeCtx, 'id'>, gap: number) =>
+  shadePartId(ctx.id, `spacer${gap + 1}`);
 
 /** The tiers and spacers of a (normalised) tiered shade. Pure, no WASM. */
 function tieredLayout(ctx: ShadeCtx<'tiered'>): TieredLayout {
@@ -486,8 +485,9 @@ function tierPrintNotes(tier: PlacedTier): string[] {
 
 const tierName = (ctx: Pick<ShadeCtx, 'role'>, i: number) =>
   `${ctx.role === 'inner' ? 'Inner tier' : 'Tier'} ${i + 1}`;
-const spacerName = (ctx: Pick<ShadeCtx, 'role'>, gap: number, j: number) =>
-  `${ctx.role === 'inner' ? 'Inner spacer' : 'Spacer'} ${gap + 1}${SPACER_LETTERS[j] ?? j}`;
+/** "Spacer 1 ×3": the gap's number and how many copies print (as the stem's segments). */
+const spacerName = (ctx: Pick<ShadeCtx, 'role'>, gap: number, count: number) =>
+  `${ctx.role === 'inner' ? 'Inner spacer' : 'Spacer'} ${gap + 1} ×${count}`;
 
 export const tieredShade: ShadeModule<'tiered'> = {
   family: 'tiered',
@@ -573,7 +573,7 @@ export const tieredShade: ShadeModule<'tiered'> = {
         warnings.push({
           severity: 'warning',
           code: 'spacer-length',
-          partId: spacerId(ctx, g.gap, 0),
+          partId: spacerId(ctx, g.gap),
           paramPath: stylePath(ctx, 'tierDrop'),
           message: `The spacers between tier ${g.gap + 1} and tier ${g.gap + 2} are only ${mm(g.params.length)} mm long (at least ${MIN_SPACER_LENGTH} mm hold well): a larger tier drop.`,
         });
@@ -631,7 +631,7 @@ export const tieredShade: ShadeModule<'tiered'> = {
         tier.index === 0
           ? []
           : [
-              `Assembly: hang it from tier ${tier.index} on spacers ${tier.index}${SPACER_LETTERS[0]}–${tier.index}${SPACER_LETTERS[count - 1]}, their pins through both tiers' sockets.`,
+              `Assembly: hang it from tier ${tier.index} on its ${count} spacers (${spacerName(ctx, tier.index - 1, count)}), their pins through both tiers' sockets.`,
             ];
       return {
         draft: {
@@ -649,38 +649,42 @@ export const tieredShade: ShadeModule<'tiered'> = {
     const interfaces: JointInterface[] = [];
     const tolerance = ctx.joints.tolerance / 2;
     for (const g of layout.gaps) {
+      // The gap's spacers: one part, a copy in each socket around the lamp's axis.
       const count = layout.tiers[g.gap]!.params.spacerSockets.count;
-      for (let j = 0; j < count; j++) {
-        const id = spacerId(ctx, g.gap, j);
-        parts.push({
-          draft: {
-            id,
-            kind: 'spacer',
-            displayName: spacerName(ctx, g.gap, j),
-            params: g.params,
-            colour: shadePartColour(ctx, id, 'spacer'),
-            footprint: spacerFootprint(g.params),
-            printNotes: [
-              'Print as exported: standing on its lower pin. No supports needed.',
-              `Assembly: its pins go through the sockets of tier ${g.gap + 1} (top) and tier ${g.gap + 2} (bottom); a drop of glue holds them.`,
-            ],
-          },
-          transform: spacerTransform(g, spacerAngleDeg(g.gap, j, count)),
+      const id = spacerId(ctx, g.gap);
+      const copies = Array.from({ length: count }, (_, j) =>
+        spacerTransform(g, spacerAngleDeg(g.gap, j, count)),
+      );
+      parts.push({
+        draft: {
+          id,
+          kind: 'spacer',
+          displayName: spacerName(ctx, g.gap, count),
+          params: g.params,
+          colour: shadePartColour(ctx, id, 'spacer'),
+          footprint: spacerFootprint(g.params),
+          printNotes: [
+            'Print as exported: standing on its lower pin. No supports needed.',
+            `Assembly: their pins go through the sockets of tier ${g.gap + 1} (top) and tier ${g.gap + 2} (bottom); a drop of glue holds them.`,
+          ],
+          instances: count,
+        },
+        transform: copies[0]!,
+        instanceTransforms: copies,
+      });
+      for (const [end, tier] of [
+        ['top', g.gap],
+        ['bottom', g.gap + 1],
+      ] as const) {
+        interfaces.push({
+          id: `${id}-${end}`,
+          type: 'snap',
+          nominalDiameter: SPACER_PIN_DIAMETER,
+          length: SPACER_PIN_LENGTH,
+          tolerance,
+          male: id,
+          female: tierId(ctx, tier),
         });
-        for (const [end, tier] of [
-          ['top', g.gap],
-          ['bottom', g.gap + 1],
-        ] as const) {
-          interfaces.push({
-            id: `${id}-${end}`,
-            type: 'snap',
-            nominalDiameter: SPACER_PIN_DIAMETER,
-            length: SPACER_PIN_LENGTH,
-            tolerance,
-            male: id,
-            female: tierId(ctx, tier),
-          });
-        }
       }
     }
     return { parts, interfaces, zCollar: layout.zCollar, zBottom: layout.zBottom };

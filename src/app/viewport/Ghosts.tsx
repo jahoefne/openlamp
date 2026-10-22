@@ -8,12 +8,17 @@
  * the display lift (see Viewport). In the exploded view they follow their
  * part: the light and the strap the hub (the fused shade), the cord the hub
  * at its lower end and the canopy at its upper end.
+ *
+ * In the light-on view the light is the light source: drawn lit (an opaque
+ * warm glow, `glowMaterial`) even with the ghosts hidden; LightOn.tsx adds
+ * its point light.
  */
 import { useMemo } from 'react';
-import { DoubleSide, MeshStandardMaterial, Vector2 } from 'three';
+import { DoubleSide, MeshStandardMaterial, Vector2, type Material } from 'three';
 import { shownLightOf, useShownContext, useShownDerived } from './sceneDerived.ts';
 import { useUiStore } from '../store/uiStore.ts';
-import { cordMaterial, puckMaterial, strapMaterial } from './materials.ts';
+import { cordMaterial, glowMaterial, puckMaterial, strapMaterial } from './materials.ts';
+import { useLightMode } from './useLightMode.ts';
 
 /** The bulb ghost: warm, translucent glass. */
 const bulbMaterial = new MeshStandardMaterial({
@@ -36,10 +41,24 @@ const stripMaterial = new MeshStandardMaterial({
   side: DoubleSide,
 });
 
-function Puck({ z, diameter, height }: { z: number; diameter: number; height: number }) {
+function Puck({
+  z,
+  diameter,
+  height,
+  lit,
+}: {
+  z: number;
+  diameter: number;
+  height: number;
+  lit: boolean;
+}) {
   const r = diameter / 2;
   return (
-    <mesh material={puckMaterial} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, z + height / 2]}>
+    <mesh
+      material={lit ? glowMaterial : puckMaterial}
+      rotation={[Math.PI / 2, 0, 0]}
+      position={[0, 0, z + height / 2]}
+    >
       <cylinderGeometry args={[r, r, height, 64]} />
     </mesh>
   );
@@ -90,12 +109,14 @@ function Bulb({
   diameter,
   length,
   capDiameter,
+  material = bulbMaterial,
 }: {
   z: number;
   capZ: number;
   diameter: number;
   length: number;
   capDiameter: number;
+  material?: Material;
 }) {
   const r = diameter / 2;
   const dir = capZ >= z ? 1 : -1; // from the glass toward the cap
@@ -105,12 +126,12 @@ function Bulb({
   const neckR = Math.max(capR, r * 0.6);
   return (
     <>
-      <mesh material={bulbMaterial} position={[0, 0, sphereZ]}>
+      <mesh material={material} position={[0, 0, sphereZ]}>
         <sphereGeometry args={[r, 48, 24]} />
       </mesh>
       {neck > 0 ? (
         <mesh
-          material={bulbMaterial}
+          material={material}
           rotation={[Math.PI / 2, 0, 0]}
           position={[0, 0, (sphereZ + capZ) / 2]}
         >
@@ -128,11 +149,13 @@ function StripRing({
   ringDiameter,
   width,
   thickness,
+  material = stripMaterial,
 }: {
   z: number;
   ringDiameter: number;
   width: number;
   thickness: number;
+  material?: Material;
 }) {
   const rIn = ringDiameter / 2;
   const rOut = rIn + width;
@@ -148,7 +171,7 @@ function StripRing({
     [rIn, rOut, h],
   );
   return (
-    <mesh material={stripMaterial} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, z]}>
+    <mesh material={material} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, z]}>
       <latheGeometry args={[profile, 128]} />
     </mesh>
   );
@@ -171,9 +194,10 @@ const NO_OFFSETS: PartOffsets = new Map();
 
 export function Ghosts({ offsets = NO_OFFSETS }: { offsets?: PartOffsets }) {
   const visible = useUiStore((s) => s.ghosts);
+  const lit = useLightMode() !== 'off';
   const d = useShownDerived();
   const cord = useShownContext()?.cord;
-  if (!visible || !d) return null;
+  if ((!visible && !lit) || !d) return null;
   const light = shownLightOf(d);
   const { ceilingZ, rBoss } = d;
   const { strapWidth, strapThickness, loopLength } = d;
@@ -184,12 +208,17 @@ export function Ghosts({ offsets = NO_OFFSETS }: { offsets?: PartOffsets }) {
     <>
       <group position={[0, 0, hubDz]}>
         {light?.kind === 'puck' ? (
-          <Puck z={light.z} diameter={light.diameter} height={light.height} />
+          <Puck z={light.z} diameter={light.diameter} height={light.height} lit={lit} />
         ) : null}
-        {light?.kind === 'bulb' ? <Bulb {...light} /> : null}
-        {light?.kind === 'strip' ? <StripRing {...light} /> : null}
+        {light?.kind === 'bulb' ? (
+          <Bulb {...light} material={lit ? glowMaterial : bulbMaterial} />
+        ) : null}
+        {light?.kind === 'strip' ? (
+          <StripRing {...light} material={lit ? glowMaterial : stripMaterial} />
+        ) : null}
       </group>
-      {ceilingZ !== undefined &&
+      {visible &&
+      ceilingZ !== undefined &&
       rBoss !== undefined &&
       strapWidth !== undefined &&
       strapThickness !== undefined &&
@@ -202,7 +231,7 @@ export function Ghosts({ offsets = NO_OFFSETS }: { offsets?: PartOffsets }) {
           loopLength={loopLength}
         />
       ) : null}
-      {cord && cord.z1 + canopyDz > cord.z0 + hubDz ? (
+      {visible && cord && cord.z1 + canopyDz > cord.z0 + hubDz ? (
         <Cord z0={cord.z0 + hubDz} z1={cord.z1 + canopyDz} diameter={cord.diameter} />
       ) : null}
     </>

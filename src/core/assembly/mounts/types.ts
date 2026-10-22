@@ -50,6 +50,12 @@ export interface MountShadePart {
   id: string;
   /** Print frame → shade frame (the hub's frame: the collar plane at z 0, the shade below it). */
   transform: Mat4;
+  /**
+   * Print frame → shade frame of every copy of a part with instances (a
+   * tiered shade's spacers); `placement` gives each copy the shade's transform
+   * too, in `MountPlacement.instanceTransforms`.
+   */
+  instanceTransforms?: readonly Mat4[];
 }
 
 /**
@@ -98,7 +104,10 @@ export interface MountPlacement {
   partTransforms: Record<string, Mat4>;
   /**
    * Print frame → world of every copy of a part with `instances` (as many as
-   * it has), by part id; without an entry every copy is at its `partTransforms` one.
+   * it has), by part id: the mount's own parts (the stacked stem segments) and
+   * the shades' parts with copies (`MountShadePart.instanceTransforms` with the
+   * shade's transform applied, see `hangingTransforms`); without an entry
+   * every copy is at its `partTransforms` / `shadeTransforms` one.
    */
   instanceTransforms?: Record<string, Mat4[]>;
   /** World z of the lamp's lowest point (the viewport lifts the scene by −bottomZ). */

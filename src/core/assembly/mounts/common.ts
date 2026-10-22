@@ -4,7 +4,7 @@
 import type { Hex, Mat4, PartKind, Warning } from '../../model/assembly.ts';
 import { DEFAULT_HUB_COLOUR } from '../../model/project.ts';
 import { MOUNT_LABELS, type MountKind } from '../../schema/defs.ts';
-import { identity, translation } from '../transforms.ts';
+import { compose, identity, translation } from '../transforms.ts';
 import type { MountCtx, MountHubCtx, MountShade, MountShadePart } from './types.ts';
 
 /** A shade's parts with their transforms into the shade frame (the collar part alone by default). */
@@ -18,13 +18,38 @@ export function mountShadeBottom(shade: MountShade): number {
 }
 
 /**
+ * Print frame → world of every copy of the shades' parts that have copies
+ * (a tiered shade's spacers), by part id: `shadeToWorld` (the shade frame →
+ * the world, the same for every shade) applied after each copy's own
+ * transform; without it the shade frame is the world (a hanging lamp).
+ */
+export function shadeInstanceTransforms(
+  shades: readonly MountShade[],
+  shadeToWorld?: Mat4,
+): Record<string, Mat4[]> {
+  const out: Record<string, Mat4[]> = {};
+  for (const shade of shades) {
+    for (const part of mountShadeParts(shade)) {
+      if (part.instanceTransforms) {
+        out[part.id] = part.instanceTransforms.map((m) =>
+          shadeToWorld ? compose(shadeToWorld, m) : [...m],
+        );
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * A hanging lamp: the hub's print frame is the world (collar plane at z 0,
  * mount face up), each shade hangs below it with its collar plane at z 0:
- * the shade frame is the world, so every shade part keeps its own transform.
+ * the shade frame is the world, so every shade part (and every copy of one)
+ * keeps its own transform.
  */
 export function hangingTransforms(ctx: Pick<MountHubCtx, 'shades'>): {
   hubTransform: Mat4;
   shadeTransforms: Record<string, Mat4>;
+  instanceTransforms: Record<string, Mat4[]>;
   bottomZ: number;
 } {
   const shadeTransforms: Record<string, Mat4> = {};
@@ -33,7 +58,12 @@ export function hangingTransforms(ctx: Pick<MountHubCtx, 'shades'>): {
     for (const part of mountShadeParts(shade)) shadeTransforms[part.id] = part.transform;
     bottomZ = Math.min(bottomZ, mountShadeBottom(shade));
   }
-  return { hubTransform: identity(), shadeTransforms, bottomZ };
+  return {
+    hubTransform: identity(),
+    shadeTransforms,
+    instanceTransforms: shadeInstanceTransforms(ctx.shades),
+    bottomZ,
+  };
 }
 
 /** A mount part's colour: an override by part id, else by kind, else the hub's colour. */

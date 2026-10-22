@@ -1,8 +1,8 @@
 /**
  * The project node: what the lamp is, reset, the output options (preview and
- * export mesh quality, fit-test mode) and the view options (section, ghosts,
- * mounted, exploded view, bed view). The project's name and the printer chip
- * are in the project bar.
+ * export mesh quality, fit-test mode) and the view options (bed view,
+ * explode, section, light on and its simple preview, ghosts, mounted). The
+ * project's name and the printer chip are in the project bar.
  */
 import { QUALITIES, type Quality } from '@core/geometry/quality.ts';
 import { createDefaultProject } from '@core/model/project.ts';
@@ -61,8 +61,18 @@ function ViewOptions() {
   const mounted = useUiStore((s) => s.mounted);
   const explode = useUiStore((s) => s.explode);
   const bedView = useUiStore((s) => s.viewMode === 'bed');
-  const { setSection, setSectionAxis, setGhosts, setMounted, setExplode, setViewMode } =
-    useUiStore.getState();
+  const lightOn = useUiStore((s) => s.lightOn);
+  const simpleLight = useUiStore((s) => s.simpleLight);
+  const {
+    setSection,
+    setSectionAxis,
+    setGhosts,
+    setMounted,
+    setExplode,
+    setViewMode,
+    setLightOn,
+    setSimpleLight,
+  } = useUiStore.getState();
   return (
     <fieldset>
       <legend>View</legend>
@@ -105,6 +115,26 @@ function ViewOptions() {
         </div>
       )}
       <ToggleField
+        id="v-light"
+        label="Light on · L"
+        checked={lightOn}
+        help={
+          bedView
+            ? 'Shows in the assembled view (the bed view shows the parts as printed).'
+            : 'Dims the room and lights the lamp: a warm light at the light source, shining through the shades; a light-coloured inner shade reflects it.'
+        }
+        onChange={setLightOn}
+      />
+      {lightOn && (
+        <ToggleField
+          id="v-simple-light"
+          label="Simple light preview"
+          checked={simpleLight}
+          help="Translucent shades instead of light passing through them: faster on slow graphics (on by default with 4 or fewer CPU cores)."
+          onChange={setSimpleLight}
+        />
+      )}
+      <ToggleField
         id="v-ghosts"
         label="Show the light, strap and cord"
         checked={ghosts}
@@ -117,7 +147,8 @@ function ViewOptions() {
         onChange={setMounted}
       />
       <p className={styles.hint}>
-        F frames the lamp · drag to orbit · click a part to select it, empty space for the project
+        F frames the lamp · L lights it · drag to orbit · click a part to select it, empty space for
+        the project
       </p>
     </fieldset>
   );

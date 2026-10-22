@@ -1,6 +1,6 @@
 /**
  * App-wide keys: ⌘/Ctrl+Z undo, ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y redo, F frames
- * the lamp, X toggles the section view, B the bed view, ⌘/Ctrl+O open, ⌘/Ctrl+S save,
+ * the lamp, X toggles the section view, B the bed view, L the light-on view, ⌘/Ctrl+O open, ⌘/Ctrl+S save,
  * ⇧⌘S / Ctrl+Shift+S save as. Text fields keep their own undo and typing,
  * open menus and select lists their typeahead; the file keys work everywhere
  * (they would otherwise open or save the web page).
@@ -62,6 +62,8 @@ export function useKeyboardShortcuts(files: FileShortcuts = {}): void {
         useUiStore.getState().toggleSection();
       } else if (!mod && !e.shiftKey && key === 'b') {
         useUiStore.getState().toggleViewMode();
+      } else if (!mod && !e.shiftKey && key === 'l') {
+        useUiStore.getState().toggleLightOn();
       }
     };
     window.addEventListener('keydown', onKeyDown);

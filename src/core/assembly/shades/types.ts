@@ -17,8 +17,9 @@
  *   (a family without one gets an info instead of the check).
  *
  * The shade frame is the hub's frame: the collar plane at z 0, the shade
- * hanging below it (z < 0). The mount places every part of a shade with the
- * shade's transform (`hangingTransforms`, the standing lamp's flip).
+ * hanging below it (z < 0). The mount places every part of a shade, and
+ * every copy of a part with instances, with the shade's transform
+ * (`hangingTransforms`, the standing lamp's flip).
  */
 import type { Quality } from '../../geometry/quality.ts';
 import type {
@@ -72,6 +73,13 @@ export interface ShadePart {
   draft: PartDraft;
   /** Print frame → shade frame (the collar plane at z 0, the shade hanging below it). */
   transform: Mat4;
+  /**
+   * Print frame → shade frame of every copy of a part with `draft.instances`
+   * (as many as it has, e.g. the spacers of one gap of a tiered shade, turned
+   * about the lamp's axis); `transform` is the first one. Without it every
+   * copy is at `transform`.
+   */
+  instanceTransforms?: Mat4[];
 }
 
 export interface ShadeParts {
