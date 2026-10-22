@@ -31,6 +31,7 @@ import type { HubParams, RevolvedShadeParams } from '@core/model/parts.ts';
 import {
   createDefaultProject,
   parseProject,
+  revolvedStyle,
   serializeProject,
   type Project,
 } from '@core/model/project.ts';
@@ -89,14 +90,14 @@ describe('the project with an inner shade', () => {
   it('gets a default inner shade scaled to fit inside the outer one, smooth and white', () => {
     const base = example('pendant-cord');
     const inner = defaultInnerShade(base);
-    const outer = base.shades[0].style;
+    const outer = revolvedStyle(base.shades[0]);
     const inset = 2 * base.hub.radialGap + 2 * base.shades[0].wallThickness;
     expect(inner).toMatchObject({ role: 'inner', colour: '#ffffff', wallThickness: 0.8 });
     expect(inner.style.bottomDiameter).toBe(Math.floor(outer.bottomDiameter - inset));
     expect(inner.style.topDiameter).toBe(Math.floor(outer.topDiameter - inset));
-    expect(inner.style.height).toBe(outer.height - 10);
-    expect(inner.style.surface.style).toBe('smooth');
-    expect(inner.style.curve).toBe(outer.curve);
+    expect(revolvedStyle(inner).height).toBe(outer.height - 10);
+    expect(revolvedStyle(inner).surface.style).toBe('smooth');
+    expect(revolvedStyle(inner).curve).toBe(outer.curve);
     // Adding one splits a fused lamp; removing it keeps the rest.
     const fused = createDefaultProject();
     expect(fused.hub.fused).toBe(true);
@@ -264,7 +265,7 @@ describe('assemble with an inner shade', () => {
   it('clamps the inner shade’s parameters with their project paths', () => {
     const a = assemble(
       pendantWithInner((p) => {
-        p.shades[1]!.style.height = 1000;
+        revolvedStyle(p.shades[1]!).height = 1000;
       }),
       { quality: 'draft' },
     );
@@ -333,14 +334,21 @@ describe('the checks between the shades', () => {
     pendantWithInner((p) => {
       const [outer, inner] = p.shades;
       outer.style = {
-        ...outer.style,
+        ...revolvedStyle(outer),
         bottomDiameter: 140,
         topDiameter: 140,
         height: 100,
         curve: 0,
       };
-      outer.style.surface = { ...outer.style.surface, style: 'smooth' };
-      inner!.style = { ...inner!.style, bottomDiameter: d, topDiameter: d, height: 90, curve: 0 };
+      const surface = revolvedStyle(outer).surface;
+      revolvedStyle(outer).surface = { ...surface, style: 'smooth' };
+      inner!.style = {
+        ...revolvedStyle(inner!),
+        bottomDiameter: d,
+        topDiameter: d,
+        height: 90,
+        curve: 0,
+      };
     });
 
   it('samples a straight drum’s radii exactly', () => {
@@ -368,15 +376,15 @@ describe('the checks between the shades', () => {
     expect(close.warnings.find((w) => w.code === 'shade-clearance')!.message).toContain('1 mm');
     // Ribs count: 1.6 mm deep ribs on the outer shade's inside reach 0.8 mm closer.
     const ribbed = drums(134);
-    ribbed.shades[0].style.surface.style = 'ribbed';
-    ribbed.shades[0].style.surface.ribDepth = 1.6;
+    revolvedStyle(ribbed.shades[0]).surface.style = 'ribbed';
+    revolvedStyle(ribbed.shades[0]).surface.ribDepth = 1.6;
     expect(codes(assemble(ribbed, { quality: 'draft' }))).toContain('shade-clearance');
   });
 
   it('says so when the inner shade hangs out below the outer one', () => {
     const a = assemble(
       pendantWithInner((p) => {
-        p.shades[1]!.style.height = p.shades[0].style.height + 20;
+        revolvedStyle(p.shades[1]!).height = revolvedStyle(p.shades[0]).height + 20;
         p.shades[1]!.style.bottomDiameter -= 20;
       }),
       { quality: 'draft' },
@@ -393,7 +401,7 @@ describe('the checks between the shades', () => {
     expect(fits.warnings.filter((w) => w.severity !== 'info')).toEqual([]);
     const narrow = withInnerShade(example('e27-pendant'));
     narrow.shades[1]!.style = {
-      ...narrow.shades[1]!.style,
+      ...revolvedStyle(narrow.shades[1]!),
       bottomDiameter: 80,
       topDiameter: 80,
       curve: 0,

@@ -70,10 +70,19 @@ export const lightEdits = editSession<string, number | string>(
   () => useProjectStore.getState().setLightParam,
 );
 
-/** Edits of the inner shade's flat parameters (see `SHADE_PARAM_PATHS`). */
+/** Edits of the inner shade's flat parameters (its family's, see `SHADE_FAMILY_PARAM_PATHS`). */
 export const innerShadeEdits = editSession<string, number | string>(
   () => (key, value, options) =>
     useProjectStore.getState().setShadeParam('inner', key, value, options),
+);
+
+/**
+ * Edits of the outer shade's flat parameters when its family is not the
+ * revolved one (a revolved outer shade is edited as the classic shade).
+ */
+export const outerShadeEdits = editSession<string, number | string>(
+  () => (key, value, options) =>
+    useProjectStore.getState().setShadeParam('outer', key, value, options),
 );
 
 /** Edits of the hub & joint parameters. */

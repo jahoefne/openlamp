@@ -33,8 +33,8 @@ the viewport at half the screen height.
 
 - **Examples** opens a gallery of starting points: the classic shades (bell, drum, faceted,
   fluted twist, straight cone, trumpet, wide & shallow), the pendant on a cord, the E27 pendant,
-  the strip-ring drum, the two-tone bell (with an inner shade), the table lamp and the wall
-  lamp. Picking one replaces the current lamp, which stays one undo away.
+  the strip-ring drum, the two-tone bell (with an inner shade), the slatted drum, the table lamp
+  and the wall lamp. Picking one replaces the current lamp, which stays one undo away.
 - **The lamp tree** lists the lamp's nodes: **Project**, **Printer**, **Mount** (its kind),
   **Light** (its kind), **Outer shade**, **Inner shade** (or _Add inner shade_), **Hub &
   joints**, then one row per further part of the lamp (canopy, cord grip, stem segments, stem
@@ -55,9 +55,15 @@ the viewport at half the screen height.
     wall arm (wall plate and arm) or a standing lamp (base, lid and a segmented stem), each with
     its own parameters.
   - **Light**: a USB LED puck, an E27 or E14 bulb in a lampholder or an LED strip ring.
-  - **Outer shade** / **Inner shade**: shape, surface and colour; the inner shade hangs from a
-    second collar ring of the hub (_Remove inner shade_ takes it away).
-  - **Hub & joints**: the single-piece print (velcro strap with a puck only) or the two-part
+  - **Outer shade** / **Inner shade**: the **Style family** first — _Revolved_ (a turned wall,
+    smooth, ribbed or faceted), _Slatted_ (a bottom and a top ring joined by flat slats that can
+    twist around the shade and turn like louvres), _Tiered_ (PH-style overlapping tiers) or
+    _Geometric_ (polyhedral, pleated or a lattice of holes); switching keeps the diameters and
+    the height, and the lamp tree names each shade's family. Tiered and geometric shades build a
+    plain revolved stand-in for now (an info says so). Then the family's shape and the colour;
+    the inner shade hangs from a second collar ring of the hub (_Remove inner shade_ takes it
+    away). Only a revolved outer shade can be printed in one piece with the hub.
+  - **Hub & joints**: the single-piece print (velcro strap, puck and revolved shade only) or the two-part
     lamp, and for that the shade joint (bayonet, press fit, thread), its clearance, the thread
     pitch and depth, the collar wall, the radial gap between two collars, the hub's shoulder
     and, for bulbs, the vents.
@@ -197,7 +203,7 @@ The default shade was additionally cross-checked by slicing the STL numerically:
 The CLI builds STLs with the same core as the app (Node runs the TypeScript directly):
 
 ```bash
-node cli/openlamp.ts list                      # part kinds, printers, examples and all parameters
+node cli/openlamp.ts list                      # part kinds, printers, examples, shade families, all parameters
 node cli/openlamp.ts part shade                # default single-piece shade → samples/openlamp-shade.stl
 node cli/openlamp.ts part shade --bottomDiameter 200 --height 150 --style ribbed \
   --patternCount 48 --twist 60 --quality fine -o big.stl

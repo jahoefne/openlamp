@@ -12,7 +12,9 @@ import type {
   FitPieceParams,
   HubParams,
   ShadeParams,
+  SpacerParams,
   StemParams,
+  TierParams,
   WallArmParams,
   WallPlateParams,
 } from './parts.ts';
@@ -40,14 +42,16 @@ export interface Warning {
 }
 
 /**
- * Part kinds with a builder (tiers and spacers join with the shade families of
- * M3): the hub and the shade, the pendant's canopy and cord grip, the standing
- * lamp's stem, base and base lid, the wall lamp's wall plate and arm, and the
- * fit-test pair (`fitMale`, `fitFemale`) that tests the shade joint.
+ * Part kinds with a builder: the hub and the shade, a tiered shade's tiers and
+ * spacers (their builders arrive in M3b), the pendant's canopy and cord grip,
+ * the standing lamp's stem, base and base lid, the wall lamp's wall plate and
+ * arm, and the fit-test pair (`fitMale`, `fitFemale`) that tests the shade joint.
  */
 export type PartKind =
   | 'hub'
   | 'shade'
+  | 'tier'
+  | 'spacer'
   | 'canopy'
   | 'cordGrip'
   | 'stem'
@@ -66,6 +70,8 @@ export type PartKind =
 export interface PartParamsByKind {
   hub: HubParams;
   shade: ShadeParams;
+  tier: TierParams;
+  spacer: SpacerParams;
   canopy: CanopyParams;
   cordGrip: CordGripParams;
   stem: StemParams;

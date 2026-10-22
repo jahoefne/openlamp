@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { standingDefaults } from '@core/assembly/mounts/standing.ts';
-import { createDefaultProject, defaultMount, parseProject } from '@core/model/project.ts';
+import {
+  createDefaultProject,
+  defaultMount,
+  parseProject,
+  revolvedStyle,
+} from '@core/model/project.ts';
 import { findPrinter } from '@core/schema/printers.ts';
 import {
   HISTORY_THROTTLE_MS,
@@ -16,7 +21,7 @@ import {
 const store = () => useProjectStore.getState();
 const project = () => store().project;
 const steps = () => useProjectStore.temporal.getState().pastStates.length;
-const height = () => project().shades[0].style.height;
+const height = () => revolvedStyle(project().shades[0]).height;
 /** Let the history throttle window pass, so the next commit opens a new step. */
 const pause = () => vi.advanceTimersByTime(HISTORY_THROTTLE_MS + 50);
 
@@ -66,7 +71,7 @@ describe('slider drags', () => {
     store().endTransient();
     expect(steps()).toBe(1);
     undo();
-    expect(project().shades[0].style.curve).toBe(0.25);
+    expect(revolvedStyle(project().shades[0]).curve).toBe(0.25);
   });
 
   it('keeps the history running after a drag', () => {
@@ -161,7 +166,7 @@ describe('mutations', () => {
     store().setClassicParam('quality', 'draft');
     store().setClassicParam('strapWidth', 20);
     const p = project();
-    expect(p.shades[0].style.surface.style).toBe('faceted');
+    expect(revolvedStyle(p.shades[0]).surface.style).toBe('faceted');
     expect(p.fitTest).toBe(true);
     expect(p.quality).toEqual({ preview: 'draft', export: 'normal' });
     expect(p.mount).toMatchObject({ kind: 'ceilingStrap', strapWidth: 20 });
@@ -289,7 +294,7 @@ describe('the inner shade', () => {
     expect(project().hub.fused).toBe(true);
     store().addInnerShade();
     expect(inner()).toMatchObject({ role: 'inner', colour: '#ffffff' });
-    expect(inner()!.style.surface.style).toBe('smooth');
+    expect(revolvedStyle(inner()!).surface.style).toBe('smooth');
     expect(project().hub.fused).toBe(false);
     expect(steps()).toBe(1);
     store().addInnerShade(); // already there: nothing happens
@@ -315,13 +320,13 @@ describe('the inner shade', () => {
     store().setShadeParam('inner', 'height', 80);
     store().setShadeParam('inner', 'style', 'faceted');
     store().setShadeParam('inner', 'nope', 1); // not a shade key: ignored
-    expect(inner()!.style.height).toBe(80);
-    expect(inner()!.style.surface.style).toBe('faceted');
+    expect(revolvedStyle(inner()!).height).toBe(80);
+    expect(revolvedStyle(inner()!).surface.style).toBe('faceted');
     pause();
     store().setShadeParam('outer', 'bottomDiameter', 200);
     store().setClassicParam('height', 140);
     expect(project().shades[0].style).toMatchObject({ bottomDiameter: 200, height: 140 });
-    expect(inner()!.style.height).toBe(80);
+    expect(revolvedStyle(inner()!).height).toBe(80);
     store().setShadeColour('#123456', 'inner');
     expect(inner()!.colour).toBe('#123456');
     expect(project().shades[0].colour).toBe('#f4efe6');
@@ -330,12 +335,12 @@ describe('the inner shade', () => {
   it('makes a drag of an inner shade slider one undo step', () => {
     store().addInnerShade();
     pause();
-    const before = inner()!.style.height;
+    const before = revolvedStyle(inner()!).height;
     for (const h of [100, 102, 104])
       store().setShadeParam('inner', 'height', h, { transient: true });
     store().setShadeParam('inner', 'height', 105);
     expect(steps()).toBe(2);
     undo();
-    expect(inner()!.style.height).toBe(before);
+    expect(revolvedStyle(inner()!).height).toBe(before);
   });
 });

@@ -2,6 +2,8 @@
  * The inner shade: the lamp tree's "Add inner shade" builds it as a part of
  * its own (hanging from the hub's second collar ring) and shows its
  * inspector, "Remove inner shade" takes it away; the two-tone example has one.
+ * The style families: the outer shade's Style family select builds a slatted
+ * shade, and a tiered one as its revolved stand-in with an info.
  * One page, draft previews.
  */
 import { expect, test, type Page } from '@playwright/test';
@@ -14,6 +16,8 @@ import {
   selectNode,
   sharedPage,
   showProject,
+  shownTriangles,
+  statsOf,
   statusOf,
   treeNode,
   watchForBuilding,
@@ -65,5 +69,42 @@ test('the two-tone bell has an inner shade node with its own inspector', async (
   await expect(page.getByRole('button', { name: 'Remove inner shade', exact: true })).toBeVisible();
   await expect(page.locator('#p-inner-bottomDiameter')).toBeVisible();
   await expect(page.locator('#p-bottomDiameter')).toHaveCount(0);
+  expect(problems).toEqual([]);
+});
+
+async function chooseFamily(label: string): Promise<void> {
+  await page.locator('#p-shadeFamily').click();
+  await page.getByRole('option', { name: label, exact: true }).click();
+  await expect(page.locator('#p-shadeFamily')).toHaveText(new RegExp(label));
+}
+
+test('Outer shade → Style family Slatted builds slats; Tiered stands in with an info', async () => {
+  await showProject(page, exampleProject('pendant-cord'));
+  await selectNode(page, 'outerShade');
+  await expect(page.locator('#p-shadeFamily')).toHaveText(/Revolved/);
+  await expect(treeNode(page, 'outerShade')).toContainText('Revolved');
+  const before = await shownTriangles(page);
+
+  let sawBuilding = await watchForBuilding(page);
+  await chooseFamily('Slatted');
+  await sawBuilding();
+  await expectReady(page);
+  await expect(statusOf(page)).not.toHaveText(/Error/);
+  await expect(statsOf(page).getByText(/^⚠/)).toHaveCount(0);
+  await expect(partNames(page)).toHaveText(['Hub', 'Shade', 'Canopy']);
+  await expect(treeNode(page, 'outerShade')).toContainText('Slatted');
+  await expect(page.locator('#p-slatCount')).toHaveValue('24');
+  await expect(page.locator('#p-bottomDiameter')).toHaveValue('150');
+  await expect(page.locator('#p-patternCount')).toHaveCount(0);
+  expect(await shownTriangles(page)).not.toBe(before);
+
+  sawBuilding = await watchForBuilding(page);
+  await chooseFamily('Tiered');
+  await sawBuilding();
+  await expectReady(page);
+  await expect(statusOf(page)).not.toHaveText(/Error/);
+  await expect(statsOf(page)).toContainText("this family's parts arrive in the next step");
+  await expect(page.locator('#p-tiers')).toHaveValue('4');
+  await expect(treeNode(page, 'outerShade')).toContainText('Tiered');
   expect(problems).toEqual([]);
 });

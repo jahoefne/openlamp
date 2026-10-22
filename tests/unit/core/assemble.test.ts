@@ -14,7 +14,12 @@ import {
   type Placement,
 } from '@core/model/assembly.ts';
 import type { FusedShadeParams, HubParams, RevolvedShadeParams } from '@core/model/parts.ts';
-import { createDefaultProject, projectToClassicParams, type Project } from '@core/model/project.ts';
+import {
+  createDefaultProject,
+  projectToClassicParams,
+  revolvedStyle,
+  type Project,
+} from '@core/model/project.ts';
 import { normalizeClassicShade } from '@core/schema/normalize.ts';
 import { findPrinter } from '@core/schema/printers.ts';
 
@@ -123,7 +128,7 @@ describe('assemble', () => {
   it('reports a part that is too tall', () => {
     const a = assemble(
       project('bambu-a1-mini', (p) => {
-        p.shades[0].style.height = 160;
+        revolvedStyle(p.shades[0]).height = 160;
       }),
     );
     expect(a.warnings.find((w) => w.code === 'bed-fit')?.message).toContain('too large in Z');

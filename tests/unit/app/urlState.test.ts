@@ -5,6 +5,7 @@ import {
   PROJECT_VERSION,
   createDefaultProject,
   parseProject,
+  revolvedStyle,
   type Project,
 } from '@core/model/project.ts';
 import {
@@ -84,7 +85,7 @@ describe('legacy ?key=value links', () => {
     expect(project).not.toBeNull();
     const shade = project!.shades[0];
     expect(shade.style.bottomDiameter).toBe(200);
-    expect(shade.style.surface.style).toBe('smooth');
+    expect(revolvedStyle(shade).surface.style).toBe('smooth');
     expect(project!.quality.preview).toBe('draft');
     expect(project!.version).toBe(PROJECT_VERSION);
   });
@@ -92,8 +93,8 @@ describe('legacy ?key=value links', () => {
   it('clamps out-of-range values and ignores unknown keys', () => {
     const project = readLegacyQuery('bottomDiameter=9999&style=bogus&utm_source=x');
     expect(project!.shades[0].style.bottomDiameter).toBe(320);
-    expect(project!.shades[0].style.surface.style).toBe(
-      createDefaultProject().shades[0].style.surface.style,
+    expect(revolvedStyle(project!.shades[0]).surface.style).toBe(
+      revolvedStyle(createDefaultProject().shades[0]).surface.style,
     );
   });
 
@@ -116,7 +117,7 @@ describe('startup project', () => {
     });
     const legacy = resolveStartupProject({ hash: '#p=broken', search: '?height=150' }, () => saved);
     expect(legacy.source).toBe('legacy');
-    expect(legacy.project.shades[0].style.height).toBe(150);
+    expect(revolvedStyle(legacy.project.shades[0]).height).toBe(150);
     expect(resolveStartupProject({ hash: '', search: '' }, () => saved)).toEqual({
       project: saved,
       source: 'autosave',

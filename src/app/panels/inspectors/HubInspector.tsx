@@ -19,10 +19,12 @@ const asHubValue = (value: number | string) => value as HubJointParams[HubJointK
 
 export function HubInspector() {
   const project = useProjectStore((s) => s.project);
-  // Only the strap with a puck has a single-piece print; everything else splits the lamp.
+  // Only the strap with a puck and a revolved shade has a single-piece print;
+  // everything else splits the lamp.
   const strap = project.mount.kind === 'ceilingStrap';
   const puck = project.light.kind === 'puck';
-  const fused = strap && puck && project.hub.fused;
+  const revolved = project.shades[0].style.family === 'revolved';
+  const fused = strap && puck && revolved && project.hub.fused;
   const lightKind = project.light.kind;
   const innerShade = project.shades.length > 1;
   const values = useMemo(
@@ -44,7 +46,7 @@ export function HubInspector() {
       onCommit={(key, v) => hubEdits.commit(asHubKey(key), asHubValue(v))}
       onEnd={hubEdits.end}
       lead={() =>
-        strap && puck ? (
+        strap && puck && revolved ? (
           <ToggleField
             id="p-fused"
             label="Single-piece print (fused)"
@@ -54,8 +56,8 @@ export function HubInspector() {
           />
         ) : (
           <p className={styles.hint}>
-            With this {puck ? 'mount' : 'light'} the hub and the shade print separately; the shade
-            hangs from the hub on a bayonet, press fit or thread.
+            With this {!puck ? 'light' : !strap ? 'mount' : 'shade style'} the hub and the shade
+            print separately; the shade hangs from the hub on a bayonet, press fit or thread.
           </p>
         )
       }

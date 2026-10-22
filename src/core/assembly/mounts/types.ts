@@ -44,12 +44,29 @@ export interface MountCtx<K extends MountKind = MountKind> {
   quality: Quality;
 }
 
-/** A shade hanging from the hub, for `placement`. */
-export interface MountShade {
+/** One part of a shade, for `placement`. */
+export interface MountShadePart {
   /** Part id. */
   id: string;
-  /** Height of its collar plane in its own print frame; it meets the hub's collar plane (z 0). */
+  /** Print frame → shade frame (the hub's frame: the collar plane at z 0, the shade below it). */
+  transform: Mat4;
+}
+
+/**
+ * A shade hanging from the hub, for `placement`. Its frame is the hub's (the
+ * collar planes meet at z 0); `placement` gives every one of its parts the
+ * shade's transform (`hangingTransforms`, or the standing lamp's flip) applied
+ * after the part's own (`mountShadeParts`).
+ */
+export interface MountShade {
+  /** Part id of its collar part. */
+  id: string;
+  /** Height of its collar plane in its collar part's print frame; it meets the hub's collar plane (z 0). */
   zCollar: number;
+  /** Its lowest point in the shade frame (≤ 0); default −zCollar (a part standing on its open end). */
+  zBottom?: number;
+  /** Its parts; default the collar part alone, hanging at −zCollar. */
+  parts?: readonly MountShadePart[];
 }
 
 /** `MountCtx` once the hub is resolved. */
@@ -75,7 +92,7 @@ export interface MountParts {
 export interface MountPlacement {
   /** Hub print frame → world. */
   hubTransform: Mat4;
-  /** Shade print frame → world, by shade id. */
+  /** Print frame → world of every shade part, by part id. */
   shadeTransforms: Record<string, Mat4>;
   /** Print frame → world for each of the mount's parts, by part id. */
   partTransforms: Record<string, Mat4>;

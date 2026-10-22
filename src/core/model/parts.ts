@@ -14,6 +14,8 @@ import type {
   BulbFitting,
   BulbSize,
   ClassicShadeParams,
+  GeometricVariant,
+  LATTICE_HOLE_SHAPES,
 } from '../schema/defs.ts';
 import type { Deg, JointInterface, Mm } from './assembly.ts';
 
@@ -237,10 +239,115 @@ export interface RevolvedShadeParams {
   quality: Quality;
 }
 
+/**
+ * A slatted shade that ends in a collar (M3a, `parts/shades/slatted.ts`): a
+ * bottom ring on the bed, `slatCount` flat slats (each the hull of its two
+ * end rectangles, held `ringHeight / 2` deep in the rings), a top ring and a
+ * 45° shoulder cone up to the collar's seat.
+ */
+export interface SlattedShadeParams {
+  variant: 'slatted';
+  /** Outer Ø of the bottom ring (on the bed). */
+  bottomDiameter: Mm;
+  /** Outer Ø of the top ring. */
+  topDiameter: Mm;
+  /** From the bed to the top of the top ring. */
+  height: Mm;
+  ringHeight: Mm;
+  /** Wall of the shoulder cone. */
+  wallThickness: Mm;
+  slatCount: number;
+  slatWidth: Mm;
+  slatThickness: Mm;
+  /** Turn of each slat about its own long axis (0 = along the rings). */
+  louvreAngle: Deg;
+  /** How far each slat runs around the axis from the bottom ring to the top ring. */
+  twist: Deg;
+  collar: CollarDims;
+  /** The shade joint; the shade is its male side. */
+  joint: JointInterface;
+  quality: Quality;
+}
+
+/**
+ * A geometric shade that ends in a collar (M3b, `parts/shades/geometric.ts`):
+ * `pattern` polyhedral (`sides`, `twist`), pleated (`pleatCount`,
+ * `pleatDepth`, `bands`) or lattice (`holeShape`, `holeSize`, `holePitch`);
+ * the other patterns' fields may be left out (so they do not change the
+ * buildKey).
+ */
+export interface GeometricShadeParams {
+  variant: 'geometric';
+  pattern: GeometricVariant;
+  bottomDiameter: Mm;
+  topDiameter: Mm;
+  height: Mm;
+  wallThickness: Mm;
+  sides?: number;
+  twist?: Deg;
+  pleatCount?: number;
+  pleatDepth?: Mm;
+  bands?: number;
+  holeShape?: (typeof LATTICE_HOLE_SHAPES)[number];
+  holeSize?: Mm;
+  holePitch?: Mm;
+  collar: CollarDims;
+  /** The shade joint; the shade is its male side. */
+  joint: JointInterface;
+  quality: Quality;
+}
+
 /** Hub and outer shade as one print: the classic shade's flat parameters. */
 export type FusedShadeParams = ClassicShadeParams & { variant: 'fused' };
 
-export type ShadeParams = FusedShadeParams | RevolvedShadeParams;
+/**
+ * A `shade` part: the fused print, or a shade of one family that ends in a
+ * collar (revolved, slatted, geometric; a tiered shade is `tier` parts).
+ */
+export type ShadeParams =
+  FusedShadeParams | RevolvedShadeParams | SlattedShadeParams | GeometricShadeParams;
+
+// ---------------------------------------------------------------- tiered shade parts (M3b)
+
+/**
+ * One tier of a tiered (PH-style) shade (part kind `tier`, built by
+ * `parts/shades/tiered.ts`): the revolve of a curved shell from its inner,
+ * upper edge (Ø `2·rInner`) down and out to its outer, lower edge (Ø
+ * `2·rOuter`), `drop` tall, bowed by `curve`; tiers overlap so the light is
+ * never seen directly. The top tier carries the collar and the joint's male
+ * side; the others hang from spacers. Each prints the way up its overhang
+ * analysis chose (`flipped`).
+ */
+export interface TierParams {
+  /** 0 = the top tier, counting down. */
+  index: number;
+  /** Tiers in the shade. */
+  count: number;
+  /** The shell's profile. */
+  profile: { rInner: Mm; rOuter: Mm; drop: Mm; curve: number };
+  wallThickness: Mm;
+  /** Role flags: the top tier carries the collar, the bottom one has no tier below it. */
+  role: { top: boolean; bottom: boolean };
+  /** Printed upside down (its overhang is smaller that way). */
+  flipped: boolean;
+  /** Ø4.3 sockets for the spacers to the tier above / below: how many, and on which radius. */
+  spacerSockets: { count: number; diameter: Mm; above?: { radius: Mm }; below?: { radius: Mm } };
+  /** The top tier's collar and joint (male side). */
+  collar?: CollarDims;
+  joint?: JointInterface;
+  quality: Quality;
+}
+
+/** A spacer between two tiers (part kind `spacer`): a Ø5 rod with a Ø4 × 3 pin at each end. */
+export interface SpacerParams {
+  /** Rod Ø. */
+  diameter: Mm;
+  /** Rod length between the pins. */
+  length: Mm;
+  /** The pins at both ends: Ø × length. */
+  pin: { diameter: Mm; length: Mm };
+  quality: Quality;
+}
 
 // ---------------------------------------------------------------- mount parts
 

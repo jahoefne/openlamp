@@ -18,6 +18,7 @@ import {
   parseProject,
   projectToClassicParams,
   projectToHubParams,
+  revolvedStyle,
   serializeProject,
   type Project,
 } from '@core/model/project.ts';
@@ -184,7 +185,7 @@ describe('migration v1 → v2', () => {
     });
     expect('bossWall' in project.hub).toBe(false);
     // Copied: the shade gets the shoulder angle, the hub keeps its own.
-    expect(project.shades[0].style.shoulderAngle).toBe(v1Hub.shoulderAngle);
+    expect(revolvedStyle(project.shades[0]).shoulderAngle).toBe(v1Hub.shoulderAngle);
     expect(project.hub.shoulderAngle).toBe(v1Hub.shoulderAngle);
     // Added with their defaults; still one print.
     expect(project.hub).toMatchObject({

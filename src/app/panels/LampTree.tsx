@@ -1,7 +1,8 @@
 /**
  * The lamp tree (left column): the project, the printer, the mount (its
- * kind), the light (its kind), the outer shade, the inner shade (or a row
- * that adds one), the hub & joints, and one row per further part of the
+ * kind), the light (its kind), the outer shade and the inner shade (their
+ * style families; a shade of several parts lists them under it), or a row
+ * that adds the inner shade, the hub & joints, and one row per further part of the
  * current assembly (canopy, cord grip, stem segments, base, lid, wall plate,
  * wall arm; the fit-test pieces), each part with its colour and whether it
  * fits the bed.
@@ -16,10 +17,11 @@ import type { ReactNode } from 'react';
 import { INNER_SHADE_ID } from '@core/assembly/assemble.ts';
 import type { PartSpec } from '@core/model/assembly.ts';
 import { lightChoiceOf } from '@core/model/project.ts';
-import { LIGHT_CHOICE_LABELS, MOUNT_LABELS } from '@core/schema/defs.ts';
+import { LIGHT_CHOICE_LABELS, MOUNT_LABELS, SHADE_FAMILY_LABELS } from '@core/schema/defs.ts';
 import { printerLabel } from '@core/schema/printers.ts';
 import {
   NODE_LABELS,
+  extraShadeParts,
   mainPartOf,
   nodeOfPart,
   structuralParts,
@@ -193,6 +195,29 @@ export function LampTree({ expanded, collapsible, onToggle, onPick }: LampTreePr
     );
   };
 
+  /** A part's own row (a mount part, a test piece, a shade's further part). */
+  const partRow = (part: PartSpec) => (
+    <Row
+      key={part.id}
+      testId={`tree-part-${part.id}`}
+      icon={
+        <span className={styles.partDot} style={{ background: part.colour }} aria-hidden="true" />
+      }
+      label={part.displayName}
+      detail={expanded ? undefined : NODE_LABELS[nodeOfPart(part)]}
+      current={selectedPart === part.id}
+      child
+      expanded={expanded}
+      badges={<PartBadges part={part} fits={!tooBig.has(part.id)} />}
+      onClick={() => pickPart(part)}
+    />
+  );
+  /** A shade's node with its style family, and the rows of its further parts. */
+  const shadeRows = (node: 'outerShade' | 'innerShade', family: string, note?: string) => [
+    nodeRow(node, note ? `${family} · ${note}` : family),
+    ...extraShadeParts(node, parts).map(partRow),
+  ];
+
   const others = structuralParts(parts);
   const joint = JOINT_LABELS[project.joints.shadeToHub] ?? project.joints.shadeToHub;
 
@@ -218,9 +243,13 @@ export function LampTree({ expanded, collapsible, onToggle, onPick }: LampTreePr
         {nodeRow('printer', `${printerLabel(project.printer)} · ${project.printer.bed.join('×')}`)}
         {nodeRow('mount', MOUNT_LABELS[project.mount.kind])}
         {nodeRow('light', LIGHT_CHOICE_LABELS[lightChoiceOf(project.light)])}
-        {nodeRow('outerShade', fused ? 'one print with the hub' : undefined)}
+        {shadeRows(
+          'outerShade',
+          SHADE_FAMILY_LABELS[project.shades[0].style.family],
+          fused ? 'one print with the hub' : undefined,
+        )}
         {inner ? (
-          nodeRow('innerShade')
+          shadeRows('innerShade', SHADE_FAMILY_LABELS[inner.style.family])
         ) : (
           <Row
             key="add-inner"
@@ -241,28 +270,7 @@ export function LampTree({ expanded, collapsible, onToggle, onPick }: LampTreePr
           ) : (
             <hr className={styles.divider} />
           )}
-          <ul className={styles.rows}>
-            {others.map((part) => (
-              <Row
-                key={part.id}
-                testId={`tree-part-${part.id}`}
-                icon={
-                  <span
-                    className={styles.partDot}
-                    style={{ background: part.colour }}
-                    aria-hidden="true"
-                  />
-                }
-                label={part.displayName}
-                detail={expanded ? undefined : NODE_LABELS[nodeOfPart(part)]}
-                current={selectedPart === part.id}
-                child
-                expanded={expanded}
-                badges={<PartBadges part={part} fits={!tooBig.has(part.id)} />}
-                onClick={() => pickPart(part)}
-              />
-            ))}
-          </ul>
+          <ul className={styles.rows}>{others.map(partRow)}</ul>
         </>
       ) : null}
     </nav>
