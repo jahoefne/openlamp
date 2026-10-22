@@ -336,6 +336,13 @@ export interface TierParams {
   collar?: CollarDims;
   joint?: JointInterface;
   quality: Quality;
+  /**
+   * The spacers' axes to the tier above / below, tilted from vertical toward
+   * the rim (perpendicular to the shells), degrees; the sockets are bored
+   * along them, centred where they cross the shell's mid-surface (the
+   * `spacerSockets` radii). Vertical without.
+   */
+  spacerTiltDeg?: { above?: Deg; below?: Deg };
 }
 
 /** A spacer between two tiers (part kind `spacer`): a Ø5 rod with a Ø4 × 3 pin at each end. */
@@ -347,6 +354,12 @@ export interface SpacerParams {
   /** The pins at both ends: Ø × length. */
   pin: { diameter: Mm; length: Mm };
   quality: Quality;
+  /**
+   * The slopes of its end faces (dz/dx, falling toward +x of its print
+   * frame), so they sit flush on the tiers' faces; square ends without.
+   * `length` is measured on the axis.
+   */
+  endSlopes?: { top: number; bottom: number };
 }
 
 // ---------------------------------------------------------------- mount parts

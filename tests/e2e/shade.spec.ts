@@ -3,7 +3,7 @@
  * its own (hanging from the hub's second collar ring) and shows its
  * inspector, "Remove inner shade" takes it away; the two-tone example has one.
  * The style families: the outer shade's Style family select builds a slatted
- * shade, and a tiered one as its revolved stand-in with an info.
+ * shade, and a tiered one with its tiers and spacers.
  * One page, draft previews.
  */
 import { expect, test, type Page } from '@playwright/test';
@@ -78,7 +78,7 @@ async function chooseFamily(label: string): Promise<void> {
   await expect(page.locator('#p-shadeFamily')).toHaveText(new RegExp(label));
 }
 
-test('Outer shade → Style family Slatted builds slats; Tiered stands in with an info', async () => {
+test('Outer shade → Style family Slatted builds slats; Tiered builds tiers and spacers', async () => {
   await showProject(page, exampleProject('pendant-cord'));
   await selectNode(page, 'outerShade');
   await expect(page.locator('#p-shadeFamily')).toHaveText(/Revolved/);
@@ -103,7 +103,16 @@ test('Outer shade → Style family Slatted builds slats; Tiered stands in with a
   await sawBuilding();
   await expectReady(page);
   await expect(statusOf(page)).not.toHaveText(/Error/);
-  await expect(statsOf(page)).toContainText("this family's parts arrive in the next step");
+  await expect(partNames(page)).toHaveText([
+    'Hub',
+    'Tier 1',
+    'Tier 2',
+    'Tier 3',
+    'Tier 4',
+    ...['1', '2', '3'].flatMap((gap) => ['a', 'b', 'c'].map((j) => `Spacer ${gap}${j}`)),
+    'Canopy',
+  ]);
+  await expect(statsOf(page)).not.toContainText("this family's parts arrive in the next step");
   await expect(page.locator('#p-tiers')).toHaveValue('4');
   await expect(treeNode(page, 'outerShade')).toContainText('Tiered');
   expect(problems).toEqual([]);
