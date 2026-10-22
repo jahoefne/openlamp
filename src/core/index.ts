@@ -16,6 +16,7 @@ export * from './assembly/validate.ts';
 export * from './export/naming.ts';
 export * from './export/printSheet.ts';
 export * from './export/stl.ts';
+export * from './export/threemf.ts';
 export * from './export/zip.ts';
 export * from './geometry/build.ts';
 export * from './geometry/cache.ts';

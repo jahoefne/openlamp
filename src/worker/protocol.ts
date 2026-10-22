@@ -8,10 +8,17 @@
  * and the client drops `part` / `part-error` / `build-done` messages of any
  * generation but the latest. Export jobs are correlated by `jobId`.
  */
+import type { SlicerFlavour } from '@core/export/threemf.ts';
 import type { Layout, PartSpec, PartStats, Warning } from '@core/model/assembly.ts';
 import type { PrinterSpec } from '@core/schema/printers.ts';
 
+/**
+ * `stl`: one binary STL per part; `zip-stl`: those STLs and `meta.extraFiles`
+ * in one ZIP; `3mf`: one 3MF of every part, coloured, laid out on the bed.
+ */
 export type ExportFormat = 'stl' | 'zip-stl' | '3mf';
+
+export type { SlicerFlavour };
 
 /** A text file the main thread adds to an archive export (e.g. the print sheet). */
 export interface ExportTextFile {
@@ -48,6 +55,12 @@ export type ToWorker =
       layout: Layout;
       printer: PrinterSpec;
       meta: ExportMeta;
+      /**
+       * The slicer a `3mf` export is tailored to (default `generic`: the core
+       * spec every slicer reads). `bambu` and `prusa` are not implemented yet
+       * and answer with `export-error`.
+       */
+      slicerFlavour?: SlicerFlavour;
     }
   | { t: 'cancel-export'; jobId: string };
 

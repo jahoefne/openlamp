@@ -1,9 +1,10 @@
 /**
  * Exports. Download STL writes a well-formed binary STL: an 80-byte header,
  * the triangle count n (little-endian uint32 at offset 80) and n 50-byte
- * records. The ZIP holds one such STL per part plus print-sheet.md. The print
- * sheet dialog shows the same sheet. One page for the file (the print-sheet
- * test, last, leaves the examples dialog open).
+ * records. The ZIP holds one such STL per part plus print-sheet.md. The 3MF
+ * is a ZIP too: content types, relationships and one model with an object
+ * per part. The print sheet dialog shows the same sheet. One page for the
+ * file (the print-sheet test, last, leaves the examples dialog open).
  */
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
@@ -85,6 +86,37 @@ test('Export → ZIP downloads one STL per part and the print sheet', async () =
   const sheet = strFromU8(files['print-sheet.md']!);
   expect(sheet.startsWith('# Pendant on a cord\n')).toBe(true);
   for (const name of stls) expect(sheet).toContain(`\`${name}\``);
+});
+
+test('Export → 3MF downloads one model with an object per part, laid out on the bed', async () => {
+  // The ZIP test built these parts at export quality: the worker's cache has them.
+  await showProject(page, exampleProject('pendant-cord'));
+  const rows = page.getByTestId('part-rows').locator('tbody tr');
+  await expect(rows).toHaveCount(3);
+  const parts = await rows.count();
+
+  await openExportMenu();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page
+      .getByRole('menuitem', { name: /^3MF \(all parts, coloured, laid out on the bed\)/ })
+      .click(),
+  ]);
+
+  expect(download.suggestedFilename()).toMatch(/^openlamp-.*\.3mf$/);
+  await expect(page.getByTestId('notice')).toContainText(download.suggestedFilename());
+  await expect(page.getByTestId('notice')).toContainText('laid out on the Bambu Lab A1 bed');
+  const bytes = await readFile(await download.path());
+  expect([...bytes.subarray(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04]);
+  const files = unzipSync(new Uint8Array(bytes));
+  expect(Object.keys(files)).toEqual(['[Content_Types].xml', '_rels/.rels', '3D/3dmodel.model']);
+  const model = strFromU8(files['3D/3dmodel.model']!);
+  expect(model).toContain('<model unit="millimeter"');
+  // One object per distinct part, one build item per copy (one each here), two colours.
+  expect(model.match(/<object\s/g)).toHaveLength(parts);
+  expect(model.match(/<item\s/g)).toHaveLength(parts);
+  expect(model.match(/<base\s/g)).toHaveLength(2);
+  expect(model).toContain('<metadata name="Title">Pendant on a cord</metadata>');
 });
 
 test('Export → Print sheet… shows the parts table and downloads the sheet', async () => {
