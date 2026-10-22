@@ -534,26 +534,20 @@ Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.githu
 
 - **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); E27 LED bulb in a lampholder (shade ring); shade on a bayonet joint
 - **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
-- **Export:** 15 STL files, one per part, at normal quality
+- **Export:** 9 STL files, one per part, at normal quality
 
 ## Parts
 
 | Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
 | :-- | --: | :-- | --: | --: | :-- | :-- |
 | Hub | 1 | warm light grey \`#d9d4cb\` | — | — | Collar ring on the bed, mount face up | bayonet for the Tier 1 |
-| Tier 1 | 1 | warm white \`#f3ede4\` | — | — | Rim on the bed, collar up | bayonet into the Hub; press fit for the Spacer 1a; press fit for the Spacer 1b; press fit for the Spacer 1c |
-| Tier 2 | 1 | warm white \`#f3ede4\` | — | — | Rim on the bed, inner edge up | press fit for the Spacer 1a; press fit for the Spacer 1b; press fit for the Spacer 1c; press fit for the Spacer 2a; press fit for the Spacer 2b; press fit for the Spacer 2c |
-| Tier 3 | 1 | warm white \`#f3ede4\` | — | — | Rim on the bed, inner edge up | press fit for the Spacer 2a; press fit for the Spacer 2b; press fit for the Spacer 2c; press fit for the Spacer 3a; press fit for the Spacer 3b; press fit for the Spacer 3c |
-| Tier 4 | 1 | warm white \`#f3ede4\` | — | — | Rim on the bed, inner edge up | press fit for the Spacer 3a; press fit for the Spacer 3b; press fit for the Spacer 3c |
-| Spacer 1a | 1 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 1; press fit into the Tier 2 |
-| Spacer 1b | 1 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 1; press fit into the Tier 2 |
-| Spacer 1c | 1 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 1; press fit into the Tier 2 |
-| Spacer 2a | 1 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 2; press fit into the Tier 3 |
-| Spacer 2b | 1 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 2; press fit into the Tier 3 |
-| Spacer 2c | 1 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 2; press fit into the Tier 3 |
-| Spacer 3a | 1 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 3; press fit into the Tier 4 |
-| Spacer 3b | 1 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 3; press fit into the Tier 4 |
-| Spacer 3c | 1 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 3; press fit into the Tier 4 |
+| Tier 1 | 1 | warm white \`#f3ede4\` | — | — | Rim on the bed, collar up | bayonet into the Hub; press fit for the Spacer 1 |
+| Tier 2 | 1 | warm white \`#f3ede4\` | — | — | Rim on the bed, inner edge up | press fit for the Spacer 1; press fit for the Spacer 2 |
+| Tier 3 | 1 | warm white \`#f3ede4\` | — | — | Rim on the bed, inner edge up | press fit for the Spacer 2; press fit for the Spacer 3 |
+| Tier 4 | 1 | warm white \`#f3ede4\` | — | — | Rim on the bed, inner edge up | press fit for the Spacer 3 |
+| Spacer 1 ×3 | 3 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 1; press fit into the Tier 2 |
+| Spacer 2 ×3 | 3 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 2; press fit into the Tier 3 |
+| Spacer 3 ×3 | 3 | warm white \`#f3ede4\` | — | — | Standing on its lower pin | press fit into the Tier 3; press fit into the Tier 4 |
 | Canopy | 1 | warm light grey \`#d9d4cb\` | — | — | Ceiling face on the bed | — |
 | **Total** | **15** |  | — |  |  |  |
 
@@ -605,7 +599,7 @@ File: \`openlamp-layered-pendant-shade-tier2.stl\`
 
 - Print as exported: rim on the bed, inner edge up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
-- Assembly: hang it from tier 1 on spacers 1a–1c, their pins through both tiers' sockets.
+- Assembly: hang it from tier 1 on its 3 spacers (Spacer 1 ×3), their pins through both tiers' sockets.
 
 ### Tier 3
 
@@ -613,7 +607,7 @@ File: \`openlamp-layered-pendant-shade-tier3.stl\`
 
 - Print as exported: rim on the bed, inner edge up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
-- Assembly: hang it from tier 2 on spacers 2a–2c, their pins through both tiers' sockets.
+- Assembly: hang it from tier 2 on its 3 spacers (Spacer 2 ×3), their pins through both tiers' sockets.
 
 ### Tier 4
 
@@ -621,70 +615,28 @@ File: \`openlamp-layered-pendant-shade-tier4.stl\`
 
 - Print as exported: rim on the bed, inner edge up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
-- Assembly: hang it from tier 3 on spacers 3a–3c, their pins through both tiers' sockets.
+- Assembly: hang it from tier 3 on its 3 spacers (Spacer 3 ×3), their pins through both tiers' sockets.
 
-### Spacer 1a
+### Spacer 1 ×3
 
-File: \`openlamp-layered-pendant-shade-spacer1a.stl\`
-
-- Print as exported: standing on its lower pin. No supports needed.
-- Assembly: its pins go through the sockets of tier 1 (top) and tier 2 (bottom); a drop of glue holds them.
-
-### Spacer 1b
-
-File: \`openlamp-layered-pendant-shade-spacer1b.stl\`
+File: \`openlamp-layered-pendant-shade-spacer1.stl\` · print 3 copies
 
 - Print as exported: standing on its lower pin. No supports needed.
-- Assembly: its pins go through the sockets of tier 1 (top) and tier 2 (bottom); a drop of glue holds them.
+- Assembly: their pins go through the sockets of tier 1 (top) and tier 2 (bottom); a drop of glue holds them.
 
-### Spacer 1c
+### Spacer 2 ×3
 
-File: \`openlamp-layered-pendant-shade-spacer1c.stl\`
-
-- Print as exported: standing on its lower pin. No supports needed.
-- Assembly: its pins go through the sockets of tier 1 (top) and tier 2 (bottom); a drop of glue holds them.
-
-### Spacer 2a
-
-File: \`openlamp-layered-pendant-shade-spacer2a.stl\`
+File: \`openlamp-layered-pendant-shade-spacer2.stl\` · print 3 copies
 
 - Print as exported: standing on its lower pin. No supports needed.
-- Assembly: its pins go through the sockets of tier 2 (top) and tier 3 (bottom); a drop of glue holds them.
+- Assembly: their pins go through the sockets of tier 2 (top) and tier 3 (bottom); a drop of glue holds them.
 
-### Spacer 2b
+### Spacer 3 ×3
 
-File: \`openlamp-layered-pendant-shade-spacer2b.stl\`
-
-- Print as exported: standing on its lower pin. No supports needed.
-- Assembly: its pins go through the sockets of tier 2 (top) and tier 3 (bottom); a drop of glue holds them.
-
-### Spacer 2c
-
-File: \`openlamp-layered-pendant-shade-spacer2c.stl\`
+File: \`openlamp-layered-pendant-shade-spacer3.stl\` · print 3 copies
 
 - Print as exported: standing on its lower pin. No supports needed.
-- Assembly: its pins go through the sockets of tier 2 (top) and tier 3 (bottom); a drop of glue holds them.
-
-### Spacer 3a
-
-File: \`openlamp-layered-pendant-shade-spacer3a.stl\`
-
-- Print as exported: standing on its lower pin. No supports needed.
-- Assembly: its pins go through the sockets of tier 3 (top) and tier 4 (bottom); a drop of glue holds them.
-
-### Spacer 3b
-
-File: \`openlamp-layered-pendant-shade-spacer3b.stl\`
-
-- Print as exported: standing on its lower pin. No supports needed.
-- Assembly: its pins go through the sockets of tier 3 (top) and tier 4 (bottom); a drop of glue holds them.
-
-### Spacer 3c
-
-File: \`openlamp-layered-pendant-shade-spacer3c.stl\`
-
-- Print as exported: standing on its lower pin. No supports needed.
-- Assembly: its pins go through the sockets of tier 3 (top) and tier 4 (bottom); a drop of glue holds them.
+- Assembly: their pins go through the sockets of tier 3 (top) and tier 4 (bottom); a drop of glue holds them.
 
 ### Canopy
 
@@ -701,15 +653,9 @@ File: \`openlamp-layered-pendant-canopy.stl\`
 - ℹ shade does not fit on the same plate as the other parts; print it separately.
 - ℹ canopy does not fit on the same plate as the other parts; print it separately.
 - ℹ hub does not fit on the same plate as the other parts; print it separately.
-- ℹ shade-spacer1a does not fit on the same plate as the other parts; print it separately.
-- ℹ shade-spacer1b does not fit on the same plate as the other parts; print it separately.
-- ℹ shade-spacer1c does not fit on the same plate as the other parts; print it separately.
-- ℹ shade-spacer2a does not fit on the same plate as the other parts; print it separately.
-- ℹ shade-spacer2b does not fit on the same plate as the other parts; print it separately.
-- ℹ shade-spacer2c does not fit on the same plate as the other parts; print it separately.
-- ℹ shade-spacer3a does not fit on the same plate as the other parts; print it separately.
-- ℹ shade-spacer3b does not fit on the same plate as the other parts; print it separately.
-- ℹ shade-spacer3c does not fit on the same plate as the other parts; print it separately.
+- ℹ shade-spacer1 does not fit on the same plate as the other parts; print it separately.
+- ℹ shade-spacer2 does not fit on the same plate as the other parts; print it separately.
+- ℹ shade-spacer3 does not fit on the same plate as the other parts; print it separately.
 
 ---
 

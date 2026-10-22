@@ -19,7 +19,7 @@ import {
   minTierOverlap,
   tierSlope,
 } from '@core/assembly/shades/tiered.ts';
-import { applyToPoint, compose, flipX, translation } from '@core/assembly/transforms.ts';
+import { applyToPoint, compose, flipX, rotationZ, translation } from '@core/assembly/transforms.ts';
 import { buildPart } from '@core/geometry/build.ts';
 import { dispose, scoped, type Kernel, type Manifold } from '@core/geometry/kernel.ts';
 import {
@@ -148,20 +148,28 @@ describe('the parts of a tiered shade', () => {
   const a = assemble(p, { quality: 'draft' });
   const style = p.shades[0].style as TieredStyle;
 
-  it('are `tiers` tiers and (tiers − 1) · spacers spacers, the top tier with the shade’s id', () => {
+  it('are `tiers` tiers and one spacer part per gap with `spacers` copies, the top tier with the shade’s id', () => {
     expect(a.parts.map((x) => x.id)).toEqual([
       'hub',
       'shade',
       'shade-tier2',
       'shade-tier3',
       'shade-tier4',
-      ...['1', '2', '3'].flatMap((g) => ['a', 'b', 'c'].map((j) => `shade-spacer${g}${j}`)),
+      'shade-spacer1',
+      'shade-spacer2',
+      'shade-spacer3',
       'canopy',
     ]);
     expect(tiers(a).map((x) => x.displayName)).toEqual(['Tier 1', 'Tier 2', 'Tier 3', 'Tier 4']);
-    expect(part(a, 'shade-spacer2b').displayName).toBe('Spacer 2b');
-    expect(spacers(a)).toHaveLength((style.tiers - 1) * style.spacers);
-    expect(spacers(a).every((x) => x.instances === 1)).toBe(true);
+    expect(spacers(a).map((x) => x.displayName)).toEqual([
+      'Spacer 1 ×3',
+      'Spacer 2 ×3',
+      'Spacer 3 ×3',
+    ]);
+    expect(spacers(a)).toHaveLength(style.tiers - 1);
+    expect(spacers(a).every((x) => x.instances === style.spacers)).toBe(true);
+    // Every copy is laid out on the bed.
+    expect(a.layout.placements.filter((x) => x.id === 'shade-spacer2')).toHaveLength(style.spacers);
     // The top tier carries the collar and the joint, the others hang on spacers.
     const top = tierOf(a, 'shade');
     expect(top.role).toEqual({ top: true, bottom: false });
@@ -191,26 +199,43 @@ describe('the parts of a tiered shade', () => {
     expect(a.derived.bottomZ).toBeLessThan(z[z.length - 1]! + 1e-9);
   });
 
-  it('have one buildKey per gap for its spacers, each pin a snap joint with its tier', () => {
-    for (const g of ['1', '2', '3']) {
-      const keys = new Set(['a', 'b', 'c'].map((j) => part(a, `shade-spacer${g}${j}`).buildKey));
-      expect(keys.size).toBe(1);
+  it('place each gap’s spacer copies around the axis, each pin a snap joint with its tier', () => {
+    for (const x of spacers(a)) {
+      const gap = Number(x.id.replace('shade-spacer', '')) - 1;
+      expect(x.instanceTransforms, x.id).toHaveLength(style.spacers);
+      expect(x.instanceTransforms[0], x.id).toEqual(x.assembledTransform);
+      // The copies are the first one turned about the lamp's axis by the spacers' angles.
+      x.instanceTransforms.forEach((m, j) => {
+        const turn = rotationZ(
+          spacerAngleDeg(gap, j, style.spacers) - spacerAngleDeg(gap, 0, style.spacers),
+        );
+        const expected = compose(turn, x.assembledTransform);
+        m.forEach((v, i) => expect(v, `${x.id} #${j}`).toBeCloseTo(expected[i]!, 9));
+      });
+      // … at distinct places.
+      const origins = x.instanceTransforms.map((m) => applyToPoint(m, [0, 0, 0]));
+      for (let i = 0; i < origins.length; i++) {
+        for (let j = i + 1; j < origins.length; j++) {
+          const [p0, p1] = [origins[i]!, origins[j]!];
+          expect(Math.hypot(p0[0]! - p1[0]!, p0[1]! - p1[1]!), x.id).toBeGreaterThan(10);
+        }
+      }
     }
     const tolerance = p.joints.tolerance / 2;
-    expect(a.interfaces['shade-spacer1a-top']).toEqual({
-      id: 'shade-spacer1a-top',
+    expect(a.interfaces['shade-spacer1-top']).toEqual({
+      id: 'shade-spacer1-top',
       type: 'snap',
       nominalDiameter: SPACER_PIN_DIAMETER,
       length: SPACER_PIN_LENGTH,
       tolerance,
-      male: 'shade-spacer1a',
+      male: 'shade-spacer1',
       female: 'shade',
     });
-    expect(a.interfaces['shade-spacer3c-bottom']).toMatchObject({
-      male: 'shade-spacer3c',
+    expect(a.interfaces['shade-spacer3-bottom']).toMatchObject({
+      male: 'shade-spacer3',
       female: 'shade-tier4',
     });
-    expect(Object.keys(a.interfaces).filter((id) => id.includes('spacer'))).toHaveLength(18);
+    expect(Object.keys(a.interfaces).filter((id) => id.includes('spacer'))).toHaveLength(6);
     // The sockets: the pin plus the clearance on both sides.
     const sockets = tierOf(a, 'shade-tier2').spacerSockets;
     expect(sockets).toMatchObject({ count: 3, diameter: SPACER_PIN_DIAMETER + 2 * tolerance });
@@ -229,8 +254,11 @@ describe('the parts of a tiered shade', () => {
       { quality: 'draft' },
     );
     expect(tiers(b)).toHaveLength(4);
-    expect(spacers(b)).toHaveLength(12);
-    expect(part(b, 'shade-spacer1d').displayName).toBe('Spacer 1d');
+    expect(spacers(b)).toHaveLength(3);
+    expect(spacers(b).every((x) => x.instances === 4 && x.instanceTransforms.length === 4)).toBe(
+      true,
+    );
+    expect(part(b, 'shade-spacer1').displayName).toBe('Spacer 1 ×4');
     expect(errors(b)).toEqual([]);
   });
 
@@ -266,7 +294,8 @@ describe('every tier and spacer builds', () => {
       );
       expect(errors(a)).toEqual([]);
       expect(tiers(a)).toHaveLength(n);
-      expect(spacers(a)).toHaveLength((n - 1) * 3);
+      expect(spacers(a)).toHaveLength(n - 1);
+      expect(spacers(a).reduce((sum, x) => sum + x.instances, 0)).toBe((n - 1) * 3);
       withBuilt(k, tracker, shadeParts(a), q, (built) => {
         for (const { part: x, stats } of built) {
           expect(stats.status, x.id).toBe('NoError');
@@ -286,10 +315,15 @@ describe('every tier and spacer builds', () => {
 });
 
 describe('the tiers and the spacers fit together', () => {
-  /** Every pair of the shade's parts in the lamp: their intersection's volume. */
+  /** Every pair of the shade's parts (every copy of each) in the lamp: their intersection's volume. */
   function overlaps(built: readonly Built[]): { a: string; b: string; volume: number }[] {
     return scoped(k, (s) => {
-      const placed = built.map((b) => ({ id: b.part.id, m: s.add(assembled(b)) }));
+      const placed = built.flatMap((b) =>
+        b.part.instanceTransforms.map((m, i) => ({
+          id: i === 0 ? b.part.id : `${b.part.id}#${i}`,
+          m: s.add(b.manifold.transform(asManifoldMat(m))),
+        })),
+      );
       const out: { a: string; b: string; volume: number }[] = [];
       for (let i = 0; i < placed.length; i++) {
         for (let j = i + 1; j < placed.length; j++) {
@@ -323,12 +357,13 @@ describe('the tiers and the spacers fit together', () => {
     (q) => {
       const p0 = layered();
       const a = assemble(p0, { quality: q });
-      const iface = a.interfaces['shade-spacer1b-top']!;
-      const sp = part(a, 'shade-spacer1b');
+      const iface = a.interfaces['shade-spacer1-top']!;
+      const sp = part(a, 'shade-spacer1');
       const upper = part(a, 'shade');
       const lower = part(a, 'shade-tier2');
       withBuilt(k, tracker, [sp, upper, lower], q, ([spacer, top, second]) => {
-        const toSpacer = inverse(sp.assembledTransform);
+        // The second copy ("b"), in its socket at the spacers' second angle.
+        const toSpacer = inverse(sp.instanceTransforms[1]!);
         const d = deriveSpacer(spacerOf(a, sp.id));
         // The pin and the bore are regular polygons with the same corners (vertex for vertex),
         // so their radii follow from their sections' areas.
@@ -380,7 +415,7 @@ describe('the tiers and the spacers fit together', () => {
         expect(clearanceTop).toBeCloseTo(iface.tolerance, 6);
         expect(clearanceBottom).toBeCloseTo(iface.tolerance, 6);
         expect(iface.tolerance).toBeCloseTo(p0.joints.tolerance / 2, 9);
-        expect(iface.tolerance).toBeCloseTo(a.interfaces['shade-spacer1b-bottom']!.tolerance, 9);
+        expect(iface.tolerance).toBeCloseTo(a.interfaces['shade-spacer1-bottom']!.tolerance, 9);
       });
     },
   );
@@ -554,6 +589,19 @@ describe('a standing lamp', () => {
       // The pendant's hub is the world, so its shade parts' transforms are the shade frame's.
       const expected = compose(hub.assembledTransform, x.assembledTransform);
       y.assembledTransform.forEach((v, i) => expect(v, x.id).toBeCloseTo(expected[i]!, 9));
+      // Every copy (each gap's spacers) turns over with it.
+      expect(y.instanceTransforms, x.id).toHaveLength(x.instances);
+      y.instanceTransforms.forEach((m, j) => {
+        const copy = compose(hub.assembledTransform, x.instanceTransforms[j]!);
+        m.forEach((v, i) => expect(v, `${x.id} #${j}`).toBeCloseTo(copy[i]!, 9));
+      });
+    }
+    // The spacers' copies stand between the turned-over tiers, above the hub too.
+    const hubZ0 = applyToPoint(hub.assembledTransform, [0, 0, 0])[2]!;
+    for (const x of spacers(a)) {
+      for (const m of x.instanceTransforms) {
+        expect(applyToPoint(m, [0, 0, 0])[2]!, x.id).toBeGreaterThan(hubZ0);
+      }
     }
     // Open end up: every tier above the hub's light face, each lower tier higher up.
     const hubZ = applyToPoint(hub.assembledTransform, [0, 0, 0])[2]!;
@@ -621,11 +669,11 @@ describe('the rules', () => {
     );
     expect(short.warnings.find((w) => w.code === 'spacer-length')).toMatchObject({
       severity: 'warning',
-      partId: 'shade-spacer1a',
+      partId: 'shade-spacer1',
       paramPath: 'shades.0.style.tierDrop',
     });
     expect(errors(short)).toEqual([]);
-    expect(spacerOf(short, 'shade-spacer1a').length).toBeLessThan(MIN_SPACER_LENGTH);
+    expect(spacerOf(short, 'shade-spacer1').length).toBeLessThan(MIN_SPACER_LENGTH);
     const touching = assemble(
       layered((s, p) => {
         Object.assign(s, { tiers: 2, bottomDiameter: 400, tierDrop: 5, overlap: 10, curve: 0 });
@@ -700,8 +748,9 @@ describe('the clearance profile', () => {
     expect(part(a, INNER_SHADE_ID).kind).toBe('tier');
     expect(part(a, INNER_SHADE_ID).displayName).toBe('Inner tier 1');
     expect(part(a, 'innerShade-tier3').displayName).toBe('Inner tier 3');
-    expect(part(a, 'innerShade-spacer2c').displayName).toBe('Inner spacer 2c');
-    expect(a.interfaces['innerShade-spacer1a-top']).toMatchObject({ female: 'innerShade' });
+    expect(part(a, 'innerShade-spacer2').displayName).toBe('Inner spacer 2 ×3');
+    expect(part(a, 'innerShade-spacer2').instanceTransforms).toHaveLength(3);
+    expect(a.interfaces['innerShade-spacer1-top']).toMatchObject({ female: 'innerShade' });
     for (const x of a.parts.filter((y) => y.id.startsWith('innerShade'))) {
       const { manifold, stats } = buildPart(k, x, 'draft');
       try {
@@ -759,7 +808,8 @@ describe('the Layered pendant example', () => {
     expect(a.warnings.filter((w) => w.severity !== 'info')).toEqual([]);
     expect(a.parts.map((x) => x.id).slice(0, 2)).toEqual(['hub', 'shade']);
     expect(tiers(a)).toHaveLength(4);
-    expect(spacers(a)).toHaveLength(9);
+    expect(spacers(a)).toHaveLength(3);
+    expect(spacers(a).reduce((sum, x) => sum + x.instances, 0)).toBe(9);
     withBuilt(k, tracker, a.parts, 'draft', (built) => {
       for (const b of built) {
         expect(b.stats.status, b.part.id).toBe('NoError');

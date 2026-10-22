@@ -18,7 +18,7 @@ import {
   type ShadeModule,
   type ShadePart,
 } from '@core/assembly/shades/index.ts';
-import { applyToPoint, compose, translation } from '@core/assembly/transforms.ts';
+import { applyToPoint, compose, rotationZ, translation } from '@core/assembly/transforms.ts';
 import { buildPart } from '@core/geometry/build.ts';
 import { dispose, type Kernel } from '@core/geometry/kernel.ts';
 import { deriveHub } from '@core/geometry/parts/hub.ts';
@@ -413,6 +413,82 @@ describe('a shade of several parts', () => {
       expect(applyToPoint(t, [0, 0, 0])[2]).toBeCloseTo(hubZ + zCollar + drop, 9);
     }
     expect(a.derived.topZ).toBeCloseTo(hubZ + zCollar + 30, 9);
+  });
+
+  describe('with copies of a part', () => {
+    /** The fake family's second ring as three copies turned 0°, 120° and 240° about the axis. */
+    const turns = [0, 120, 240];
+    const copied: ShadeModule<'tiered'> = {
+      ...fake,
+      parts(ctx) {
+        const base = fake.parts(ctx);
+        const [first, second] = base.parts as [ShadePart, ShadePart];
+        const copies = turns.map((deg) => compose(rotationZ(deg), second.transform));
+        return {
+          ...base,
+          parts: [
+            first,
+            {
+              draft: { ...second.draft, instances: copies.length },
+              transform: copies[0]!,
+              instanceTransforms: copies,
+            },
+          ],
+        };
+      },
+    };
+    function withCopied<T>(run: () => T): T {
+      const real = modules.tiered!;
+      modules.tiered = copied as unknown as ShadeModule;
+      try {
+        return run();
+      } finally {
+        modules.tiered = real;
+      }
+    }
+
+    it('hangs every copy from a pendant and a wall arm in the shade frame', () => {
+      for (const mount of ['ceilingCord', 'wallArm', 'ceilingStrap'] as const) {
+        const p = tiered(example('pendant-cord'));
+        p.mount = defaultMount(mount);
+        const a = withCopied(() => assemble(p, { quality: 'draft' }));
+        const ring = part(a, 'shade-tier2');
+        const zCollar = a.derived.zCollar!;
+        expect(ring.instances, mount).toBe(3);
+        expect(ring.instanceTransforms, mount).toEqual(
+          turns.map((deg) => compose(rotationZ(deg), translation(0, 0, -zCollar - 30))),
+        );
+        expect(ring.instanceTransforms[0], mount).toEqual(ring.assembledTransform);
+        // The collar part has none.
+        expect(part(a, 'shade').instanceTransforms, mount).toEqual([
+          part(a, 'shade').assembledTransform,
+        ]);
+        expect(
+          a.layout.placements.filter((x) => x.id === 'shade-tier2'),
+          mount,
+        ).toHaveLength(3);
+      }
+    });
+
+    it('turns every copy over with the hub on a standing lamp', () => {
+      const p = tiered(createDefaultProject({ id: 'test', updatedAt: '2026-10-21T00:00:00.000Z' }));
+      p.mount = defaultMount('standing');
+      const a = withCopied(() => assemble(p, { quality: 'draft' }));
+      const hub = part(a, 'hub');
+      const zCollar = a.derived.zCollar!;
+      const ring = part(a, 'shade-tier2');
+      expect(ring.instanceTransforms).toHaveLength(3);
+      ring.instanceTransforms.forEach((m, j) => {
+        const expected = compose(
+          hub.assembledTransform,
+          rotationZ(turns[j]!),
+          translation(0, 0, -zCollar - 30),
+        );
+        m.forEach((v, i) => expect(v, `copy ${j}`).toBeCloseTo(expected[i]!, 9));
+      });
+      // The stem's own copies are still there.
+      expect(part(a, 'stem').instanceTransforms.length).toBe(part(a, 'stem').instances);
+    });
   });
 
   it('belongs to its shade’s node in the lamp tree', () => {

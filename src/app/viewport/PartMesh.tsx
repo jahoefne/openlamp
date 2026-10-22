@@ -6,6 +6,8 @@
  * exploded view's `offsetZ`; in the bed view by the bed scene's `transforms`
  * instead (red when the part does not fit the bed). Clicking any copy picks
  * the part (and selects its node in the lamp tree); every copy gets the outline.
+ * In the light-on view a shade's parts take its light material (transmission,
+ * the simple fallback or the reflective inner shade, see lightMode.ts).
  *
  * The geometry comes from the geometry registry and is re-read whenever the
  * part's build `revision` changes, so the old mesh stays on screen while a new
@@ -17,17 +19,26 @@
 import { Outlines } from '@react-three/drei';
 import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { useLayoutEffect } from 'react';
+import { shadeRoleOfPart } from '@core/assembly/shades/common.ts';
 import type { Mat4, PartSpec } from '@core/model/assembly.ts';
 import { useBuildStore } from '../store/buildStore.ts';
 import { useUiStore } from '../store/uiStore.ts';
 import { geometryRegistry } from '../worker/geometryRegistry.ts';
-import { overflowMaterial, partMaterial } from './materials.ts';
+import { lightMaterialKind } from './lightMode.ts';
+import { lightMaterial, overflowMaterial } from './materials.ts';
 import { sectionPlanes } from './sectionPlane.ts';
+import { useLightMode } from './useLightMode.ts';
 import { useMatrices } from './useMatrix.ts';
 
 const OUTLINE_PLANES = [...sectionPlanes];
 /** Pointer travel (px) above which a click is an orbit drag, not a selection. */
 const CLICK_SLOP = 4;
+
+/** How thick the light-on view's transmission takes a part to be: its wall (a spacer: its rod). */
+function wallOf(part: PartSpec): number {
+  if (part.kind === 'spacer') return part.params.diameter;
+  return 'wallThickness' in part.params ? part.params.wallThickness : 1;
+}
 
 export interface PartMeshProps {
   part: PartSpec;
@@ -46,7 +57,9 @@ export function PartMesh({ part, transforms, offsetZ = 0, overflow = false }: Pa
   const selectPart = useUiStore((s) => s.selectPart);
   const invalidate = useThree((s) => s.invalidate);
   const matrices = useMatrices(transforms ?? (shown ?? part).instanceTransforms, offsetZ);
-  const material = overflow ? overflowMaterial : partMaterial(part.colour);
+  const mode = useLightMode();
+  const kind = lightMaterialKind(mode, shadeRoleOfPart(part.id), part.colour);
+  const material = overflow ? overflowMaterial : lightMaterial(kind, part.colour, wallOf(part));
   // `revision` names the registry entry this render shows.
   const geometry = revision > 0 ? geometryRegistry.get(part.id) : undefined;
 

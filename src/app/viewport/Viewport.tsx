@@ -9,6 +9,8 @@
  *   orientation where the plate layout puts it on the printer's bed
  *   (`bedScene`), parts that do not fit beside the bed in red; the bed with
  *   its height limit, no ghosts, no context planes.
+ * - Light on (`lightOn`, assembled only): the room dimmed, the light source
+ *   glowing with a point light, the shades letting it through (`LightOn`).
  *
  * A click on a part picks it (and selects its lamp-tree node); a click on
  * empty space goes back to the project node.
@@ -24,10 +26,12 @@ import { bedScene, type BedScene } from './bedView.ts';
 import { CameraRig } from './CameraRig.tsx';
 import { BedPlate, BedVolume, ContextPlanes } from './ContextPlanes.tsx';
 import { Ghosts } from './Ghosts.tsx';
+import { LightOn } from './LightOn.tsx';
 import { PartMesh } from './PartMesh.tsx';
 import { useDisplayLift } from './sceneDerived.ts';
 import { SectionPlane } from './SectionPlane.tsx';
 import { useExplode } from './useExplode.ts';
+import { useLightMode } from './useLightMode.ts';
 import styles from './Viewport.module.css';
 
 /** The bed view's layout of the current parts, or null in the assembled view. */
@@ -41,12 +45,17 @@ function useBedScene(on: boolean): BedScene | null {
   );
 }
 
+/** How much of the room's light is left in the light-on view. */
+const DUSK = 0.2;
+
+/** The room's light: daylight, or dimmed to dusk while the lamp is lit. */
 function Lights() {
+  const dim = useLightMode() !== 'off' ? DUSK : 1;
   return (
     <>
-      <hemisphereLight args={['#ffffff', '#404060', 1.1]} />
-      <directionalLight color="#ffffff" intensity={1.6} position={[200, -300, 400]} />
-      <directionalLight color="#ffe9c4" intensity={0.5} position={[-300, 200, 100]} />
+      <hemisphereLight args={['#ffffff', '#404060', 1.1 * dim]} />
+      <directionalLight color="#ffffff" intensity={1.6 * dim} position={[200, -300, 400]} />
+      <directionalLight color="#ffe9c4" intensity={0.5 * dim} position={[-300, 200, 100]} />
     </>
   );
 }
@@ -84,6 +93,7 @@ function Scene() {
         <>
           <group position={[0, 0, lift]}>
             <Ghosts offsets={offsets} />
+            <LightOn offsets={offsets} />
           </group>
           <ContextPlanes />
         </>

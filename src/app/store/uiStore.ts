@@ -31,6 +31,16 @@ export interface Notice {
 /** How long a notice stays, by tone. */
 export const NOTICE_MS: Readonly<Record<Notice['tone'], number>> = { info: 2000, error: 6000 };
 
+/**
+ * Whether the light-on view should start with the simple materials (opacity
+ * and emissive instead of transmission, which renders the scene twice per
+ * frame): on machines with 4 or fewer logical cores, as a proxy for a weak GPU.
+ */
+export function prefersSimpleLight(): boolean {
+  const cores = typeof navigator === 'undefined' ? undefined : navigator.hardwareConcurrency;
+  return typeof cores === 'number' && cores > 0 && cores <= 4;
+}
+
 export interface UiState {
   /** The lamp-tree node whose inspector is shown (`project` when nothing is picked). */
   selection: NodeId;
@@ -49,6 +59,13 @@ export interface UiState {
   sectionAxis: SectionAxis;
   /** Show the LED puck and strap as translucent ghosts. */
   ghosts: boolean;
+  /**
+   * Light-on view: the light source glows with a warm point light, the shades
+   * let it through (the inner shade reflects it when light), the room is dim.
+   */
+  lightOn: boolean;
+  /** Light-on with the cheap materials (opacity + emissive, no transmission); see `prefersSimpleLight`. */
+  simpleLight: boolean;
   /** Show the lamp mounted on the ceiling instead of on the print bed. */
   mounted: boolean;
   /** Assembled lamp, or the parts laid out on the print bed as exported. */
@@ -76,6 +93,9 @@ export interface UiState {
   toggleSection(): void;
   setSectionAxis(axis: SectionAxis): void;
   setGhosts(on: boolean): void;
+  setLightOn(on: boolean): void;
+  toggleLightOn(): void;
+  setSimpleLight(on: boolean): void;
   setMounted(on: boolean): void;
   setViewMode(mode: ViewMode): void;
   toggleViewMode(): void;
@@ -97,6 +117,8 @@ export const useUiStore = create<UiState>()((set, get) => ({
   section: false,
   sectionAxis: 'y',
   ghosts: true,
+  lightOn: false,
+  simpleLight: prefersSimpleLight(),
   mounted: false,
   viewMode: 'assembled',
   previewQuality: null,
@@ -113,6 +135,9 @@ export const useUiStore = create<UiState>()((set, get) => ({
   toggleSection: () => set((s) => ({ section: !s.section })),
   setSectionAxis: (sectionAxis) => set({ sectionAxis }),
   setGhosts: (ghosts) => set({ ghosts }),
+  setLightOn: (lightOn) => set({ lightOn }),
+  toggleLightOn: () => set((s) => ({ lightOn: !s.lightOn })),
+  setSimpleLight: (simpleLight) => set({ simpleLight }),
   setMounted: (mounted) => set({ mounted }),
   setViewMode: (viewMode) => set({ viewMode }),
   toggleViewMode: () => set((s) => ({ viewMode: s.viewMode === 'bed' ? 'assembled' : 'bed' })),

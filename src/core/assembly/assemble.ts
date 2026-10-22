@@ -21,9 +21,10 @@
  *   It needs the split lamp: with the fused print it is an error (and not built).
  * - every shade is one `ShadeModule` of its style's family (shades/): it
  *   normalises its style, is widened to clear its hub ring, checks itself and
- *   returns its parts (one, or several: a tiered shade's tiers and spacers),
- *   each with its transform into the shade frame (the hub's); the mount's
- *   placement gives every part of a shade the shade's transform. Only a
+ *   returns its parts (one, or several: a tiered shade's tiers and spacers,
+ *   one spacer part per gap with a copy per socket), each with its transform
+ *   (and its copies' transforms) into the shade frame (the hub's); the mount's
+ *   placement gives every part and copy of a shade the shade's transform. Only a
  *   revolved outer shade is fused with the hub; any other family splits the
  *   lamp (as every mount but the strap does).
  */
@@ -490,7 +491,11 @@ function mountShade(shade: ResolvedShade): MountShade {
     id: shade.id,
     zCollar: shade.parts.zCollar,
     zBottom: shade.parts.zBottom,
-    parts: shade.parts.parts.map((p) => ({ id: p.draft.id, transform: p.transform })),
+    parts: shade.parts.parts.map((p) => ({
+      id: p.draft.id,
+      transform: p.transform,
+      ...(p.instanceTransforms ? { instanceTransforms: p.instanceTransforms } : {}),
+    })),
   };
 }
 
@@ -618,6 +623,9 @@ function assembleMounted<K extends MountKind>(
               }
             : draft,
         assembledTransform: placement.shadeTransforms[draft.id] ?? transform,
+        // Every copy of a part with copies (`ShadePart.instanceTransforms`), with the
+        // shade's transform composed onto each by the mount (`shadeInstanceTransforms`).
+        instanceTransforms: placement.instanceTransforms?.[draft.id],
       });
     });
   }

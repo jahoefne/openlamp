@@ -109,9 +109,13 @@ test('Outer shade → Style family Slatted builds slats; Tiered builds tiers and
     'Tier 2',
     'Tier 3',
     'Tier 4',
-    ...['1', '2', '3'].flatMap((gap) => ['a', 'b', 'c'].map((j) => `Spacer ${gap}${j}`)),
+    'Spacer 1 ×3',
+    'Spacer 2 ×3',
+    'Spacer 3 ×3',
     'Canopy',
   ]);
+  // The spacers of a gap are one part printed three times, one row in the tree too.
+  await expect(page.getByTestId('tree-part-shade-spacer1')).toContainText('Spacer 1 ×3');
   await expect(statsOf(page)).not.toContainText("this family's parts arrive in the next step");
   await expect(page.locator('#p-tiers')).toHaveValue('4');
   await expect(treeNode(page, 'outerShade')).toContainText('Tiered');

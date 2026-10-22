@@ -33,13 +33,16 @@ the viewport at half the screen height.
 
 - **Examples** opens a gallery of starting points: the classic shades (bell, drum, faceted,
   fluted twist, straight cone, trumpet, wide & shallow), the pendant on a cord, the E27 pendant,
-  the strip-ring drum, the two-tone bell (with an inner shade), the slatted drum, the table lamp
-  and the wall lamp. Picking one replaces the current lamp, which stays one undo away.
+  the strip-ring drum, the two-tone bell (with an inner shade), the slatted drum, the layered
+  pendant (tiered, PH-style), the origami pendant (pleated) and the lattice drum (geometric), the
+  table lamp and the wall lamp. Picking one replaces the current lamp, which stays one undo away.
 - **The lamp tree** lists the lamp's nodes: **Project**, **Printer**, **Mount** (its kind),
   **Light** (its kind), **Outer shade**, **Inner shade** (or _Add inner shade_), **Hub &
   joints**, then one row per further part of the lamp (canopy, cord grip, stem segments, stem
   foot, base, base lid, wall plate, wall arm, or the fit-test pieces), each part with its colour
-  and a bed-fit mark (✓ fits, ⚠ too big for the printer). Selecting a node shows only its
+  and a bed-fit mark (✓ fits, ⚠ too big for the printer). A shade of several parts lists them
+  under its node (a tiered shade's lower tiers and its spacers); a part printed several times
+  says how often ("Stem segment ×2", "Spacer 1 ×3"). Selecting a node shows only its
   parameters in the inspector; selecting a part row selects the node it belongs to (its mount,
   or Hub & joints for the test pieces) and outlines the part.
 - **The inspector** shows the selected node's parameters, generated from the core schema. Each
@@ -59,8 +62,13 @@ the viewport at half the screen height.
     smooth, ribbed or faceted), _Slatted_ (a bottom and a top ring joined by flat slats that can
     twist around the shade and turn like louvres), _Tiered_ (PH-style overlapping tiers) or
     _Geometric_ (polyhedral, pleated or a lattice of holes); switching keeps the diameters and
-    the height, and the lamp tree names each shade's family. Tiered and geometric shades build a
-    plain revolved stand-in for now (an info says so). Then the family's shape and the colour;
+    the height, and the lamp tree names each shade's family. A tiered shade is a stack of
+    curved saucers, each its own print, stepped by the tier drop and overlapping so the light is
+    not seen directly (a warning says when it is, or when a tier is too flat to print without
+    supports); the tiers hang on short spacer rods with pins, three or four per gap, printed as
+    copies of one part. A geometric shade is a twisted polygon prism (polyhedral), an origami
+    Yoshimura pleat (pleated) or a wall with hexagonal or round holes (lattice). Then the
+    family's shape and the colour;
     the inner shade hangs from a second collar ring of the hub (_Remove inner shade_ takes it
     away). Only a revolved outer shade can be printed in one piece with the hub.
   - **Hub & joints**: the single-piece print (velcro strap, puck and revolved shade only) or the two-part
@@ -72,9 +80,13 @@ the viewport at half the screen height.
   options: **Explode** moves the parts apart along the lamp's axis (nothing is rebuilt, the
   camera stays); **Bed view** (**B**) lays every part out in its print orientation on the
   printer's bed as the export does, with the height limit as a wire box and parts that do not
-  fit beside the bed in red; the section view (**X**, across X or Y) cuts the lamp in half; the
-  light, strap and cord show as ghosts; _Show as mounted_ shows the ceiling, the wall or the
-  floor.
+  fit beside the bed in red (every copy of a part printed several times gets its own place);
+  the section view (**X**, across X or Y) cuts the lamp in half; **Light on** (**L**) dims the
+  room and switches the lamp on: the light source glows with a warm light, the shades let it
+  through and a light-coloured inner shade reflects it like a polished reflector (the section
+  view still cuts it); _Simple light preview_ uses plain translucent shades instead, for slow
+  graphics (on by default on machines with 4 or fewer cores); the light, strap and cord show as
+  ghosts; _Show as mounted_ shows the ceiling, the wall or the floor.
 - **The status strip** under the viewport shows the build status, the bed-fit badge, the part
   table (footprint, grams, triangles, overhang, bed fit per part, and the totals; clicking a
   row selects that part) with the selected part's details, and every warning.

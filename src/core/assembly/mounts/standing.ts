@@ -42,7 +42,12 @@ import {
   screwJoint,
 } from '../interfaces.ts';
 import { compose, flipX, translation } from '../transforms.ts';
-import { mountPartColour, mountShadeBottom, mountShadeParts } from './common.ts';
+import {
+  mountPartColour,
+  mountShadeBottom,
+  mountShadeParts,
+  shadeInstanceTransforms,
+} from './common.ts';
 import type { MountCtx, MountModule } from './types.ts';
 
 type StandingMount = MountOf<'standing'>;
@@ -434,7 +439,8 @@ export const standingMount: MountModule<'standing'> = {
       topZ = Math.max(topZ, hubZ - mountShadeBottom(shade));
     }
     const partTransforms: Record<string, Mat4> = {};
-    const instanceTransforms: Record<string, Mat4[]> = {};
+    // Every copy of a shade part with copies (a tiered shade's spacers) turns over too.
+    const instanceTransforms = shadeInstanceTransforms(ctx.shades, hubTransform);
     for (const part of parts.parts) {
       switch (part.kind) {
         case 'stem':
