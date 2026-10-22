@@ -8,6 +8,7 @@
  *   node cli/openlamp.ts part hub --mount ceilingCord -o hub.stl
  *   node cli/openlamp.ts part canopy                # a part of a mount, with its defaults
  *   node cli/openlamp.ts project my.lamp.json --out prints/
+ *   node cli/openlamp.ts project my.lamp.json --out prints/ --3mf   # + one coloured 3MF on the bed
  *   node cli/openlamp.ts samples            # every src/examples/*.lamp.json → samples/
  *   node cli/openlamp.ts list               # printers, examples, shade families, parameters
  */
@@ -38,6 +39,7 @@ import {
   SHADE_FAMILY_LABELS,
   SHADE_JOINT_TYPES,
   SHADE_MODULES,
+  archiveFileName,
   assemble,
   buildPart,
   classicParamsToProject,
@@ -45,14 +47,18 @@ import {
   dispose,
   lightParamPath,
   mountParamPath,
+  meshFor3mf,
   meshToBinaryStl,
   normalizeClassicShade,
   parseProject,
   partFileName,
   printerLabel,
   shadeParamPath,
+  writeLamp3mf,
+  type Built3mfPart,
   type BuildableSpec,
   type Kernel,
+  type Manifold,
   type MountKind,
   type ParamDef,
   type PartKind,
@@ -71,7 +77,7 @@ const USAGE = `openlamp – parametric, 3D-printable lamp generator
 
 Usage:
   node cli/openlamp.ts part <kind> [--<param> <value> ...] [-o out.stl] [--json]
-  node cli/openlamp.ts project <file.lamp.json> [--out <dir>] [--quality <q>] [--json]
+  node cli/openlamp.ts project <file.lamp.json> [--out <dir>] [--quality <q>] [--3mf] [--json]
   node cli/openlamp.ts samples [--out <dir>] [--quality <q>]
   node cli/openlamp.ts list
   node cli/openlamp.ts --help
@@ -84,7 +90,9 @@ Commands:
             the hub of a two-part lamp; a mount's own part (e.g. \`part canopy\`) comes with
             that mount's defaults. Default output samples/openlamp-<kind>.stl.
   project   Build every part of a .lamp.json project at its export quality into
-            <dir> (default: the current directory) as openlamp-<project>-<part>.stl.
+            <dir> (default: the current directory) as openlamp-<project>-<part>.stl;
+            with --3mf also openlamp-<project>.3mf: every part in its colour, laid
+            out on the project's printer bed (as the app's Export → 3MF).
   samples   Build every example in src/examples into samples/ (git-ignored).
   list      Show the part kinds, printers, examples, shade style families, lights,
             mounts and every parameter.
@@ -96,6 +104,7 @@ Options:
   --mount <kind>       part: the mount, with its defaults (${MOUNT_KINDS.join(', ')});
                        every mount but the strap splits the lamp
   --quality <q>        Mesh quality: ${QUALITIES.join(', ')} (overrides the project's export quality)
+  --3mf                project: also write the 3MF next to the STLs
   --json               Print the stats as JSON
   -h, --help           This help
 
@@ -138,13 +147,17 @@ interface Built {
   stats: PartStats;
 }
 
-/** Build a part, write its STL (only if the mesh is valid) and dispose it. */
+/**
+ * Build a part, write its STL (only if the mesh is valid) and dispose it.
+ * `onValid` sees the valid manifold before it is disposed.
+ */
 async function buildToFile(
   k: Kernel,
   spec: BuildableSpec,
   quality: Quality,
   file: string,
   header: string,
+  onValid?: (manifold: Manifold, stats: PartStats) => void,
 ): Promise<Built> {
   const { manifold, stats } = buildPart(k, spec, quality);
   try {
@@ -152,6 +165,7 @@ async function buildToFile(
       const stl = meshToBinaryStl(manifold.getMesh(), header);
       await mkdir(dirname(file), { recursive: true });
       await writeFile(file, new Uint8Array(stl));
+      onValid?.(manifold, stats);
     }
   } finally {
     dispose(manifold);
@@ -194,12 +208,16 @@ async function loadProjectFile(file: string): Promise<Project> {
   }
 }
 
-/** Build every part of a project into `outDir`; returns whether all meshes are valid. */
+/**
+ * Build every part of a project into `outDir` (and, with `threeMf`, the 3MF of
+ * all of them, if every mesh is valid); returns whether all meshes are valid.
+ */
 async function buildProject(
   project: Project,
   outDir: string,
   quality: Quality | undefined,
   json: boolean,
+  threeMf = false,
 ): Promise<{ ok: boolean; results: Record<string, unknown>[] }> {
   const q = quality ?? project.quality.export;
   const assembly = assemble(project, { quality: q });
@@ -207,13 +225,52 @@ async function buildProject(
   const k = await getKernel();
   let ok = true;
   const results: Record<string, unknown>[] = [];
+  const plate: Built3mfPart[] = [];
   for (const part of assembly.parts) {
     const file = join(outDir, partFileName(project, part, 'stl'));
     const header = `openlamp ${part.displayName} - ${project.name}`;
-    const built = await buildToFile(k, part, q, file, header);
+    const keep = threeMf
+      ? (manifold: Manifold, stats: PartStats) =>
+          plate.push({ part, mesh: meshFor3mf(manifold.getMesh()), bbox: stats.bbox })
+      : undefined;
+    const built = await buildToFile(k, part, q, file, header, keep);
     if (built.stats.status !== 'NoError') ok = false;
     if (json) results.push(statsJson(built, { project: project.name, part: part.id }));
     else console.log(summary(built));
+  }
+  if (threeMf && !ok) {
+    console.error(`Skipped the 3MF of ${project.name}: some meshes are not valid manifolds.`);
+  } else if (threeMf) {
+    const file = join(outDir, archiveFileName(project, '3mf'));
+    const bytes = writeLamp3mf(plate, assembly.layout, {
+      title: project.name,
+      printerName: printerLabel(project.printer),
+    });
+    await mkdir(outDir, { recursive: true });
+    await writeFile(file, bytes);
+    const items = assembly.parts.reduce((n, p) => n + p.instances, 0);
+    const colours = new Set(assembly.parts.map((p) => p.colour.toLowerCase())).size;
+    const { overflow } = assembly.layout;
+    if (json) {
+      results.push({
+        out: file,
+        project: project.name,
+        format: '3mf',
+        objects: plate.length,
+        items,
+        colours,
+        overflow,
+        bytes: bytes.length,
+      });
+    } else {
+      console.log(
+        [
+          `Wrote ${displayPath(file)}`,
+          `  3mf         ${plate.length} objects, ${items} copies laid out on the ${printerLabel(project.printer)} bed (${project.printer.bed.join(' × ')} mm), ${colours} colours, ${fmt(bytes.length / 1024, 0)} KiB`,
+          ...(overflow.length > 0 ? [`  beside bed  ${overflow.join(', ')} (do not fit)`] : []),
+        ].join('\n'),
+      );
+    }
   }
   return { ok, results };
 }
@@ -315,7 +372,13 @@ async function cmdProject(
   const project = await loadProjectFile(file);
   const outDir = resolve(typeof flags.out === 'string' ? flags.out : '.');
   const quality = parseQuality(typeof flags.quality === 'string' ? flags.quality : undefined);
-  const { ok, results } = await buildProject(project, outDir, quality, flags.json === true);
+  const { ok, results } = await buildProject(
+    project,
+    outDir,
+    quality,
+    flags.json === true,
+    flags['3mf'] === true,
+  );
   if (flags.json) console.log(JSON.stringify(results, null, 2));
   return ok ? 0 : 1;
 }
@@ -421,6 +484,7 @@ async function main(argv: string[]): Promise<number> {
     joint: { type: 'string' },
     mount: { type: 'string' },
     json: { type: 'boolean' },
+    '3mf': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
     // One string flag per classic-shade parameter (this includes --quality).
     ...Object.fromEntries(CLASSIC_SHADE_DEFS.map((d) => [d.key, { type: 'string' as const }])),
@@ -436,6 +500,9 @@ async function main(argv: string[]): Promise<number> {
   if (flags.help || command === undefined || command === 'help') {
     console.log(USAGE);
     return 0;
+  }
+  if (flags['3mf'] && command !== 'project') {
+    throw new UsageError('--3mf only applies to `project`');
   }
   if (command !== 'part') {
     const misplaced = [...CLASSIC_SHADE_DEFS.map((d) => d.key), 'joint', 'mount'].filter(

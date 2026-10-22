@@ -2,7 +2,7 @@
  * The top bar: app name, project name (with an unsaved-changes dot), printer,
  * undo / redo, project file actions (Open ▾ with the recent projects, Save,
  * Share), examples and export (STL files, a ZIP of them with the print sheet,
- * the print-sheet dialog).
+ * a 3MF of the coloured parts on the bed, the print-sheet dialog).
  */
 import { DropdownMenu, Tooltip } from 'radix-ui';
 import { useState, type ReactNode } from 'react';
@@ -166,9 +166,9 @@ function ExportMenu({ onPrintSheet }: { onPrintSheet: () => void }) {
             ZIP of all parts (STL + print sheet)
             <span className={styles.menuHint}>one .zip</span>
           </DropdownMenu.Item>
-          <DropdownMenu.Item className={styles.menuItem} disabled>
-            3MF
-            <span className={styles.menuHint}>later</span>
+          <DropdownMenu.Item className={styles.menuItem} onSelect={() => void exportProject('3mf')}>
+            3MF (all parts, coloured, laid out on the bed)
+            <span className={styles.menuHint}>one .3mf for the slicer</span>
           </DropdownMenu.Item>
           <DropdownMenu.Separator className={styles.menuSeparator} />
           <DropdownMenu.Item className={styles.menuItem} onSelect={onPrintSheet}>
