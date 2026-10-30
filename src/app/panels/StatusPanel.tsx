@@ -7,6 +7,7 @@
  * selects its node in the lamp tree); clicking it again goes back to the project.
  */
 import type { PartSpec, PartStats, Warning } from '@core/model/assembly.ts';
+import { useState } from 'react';
 import { printerLabel } from '@core/schema/printers.ts';
 import { useBuildStore, type PartBuild } from '../store/buildStore.ts';
 import { useAssembly, useBedFit, useSelectedPart, useTotals } from '../store/selectors.ts';
@@ -182,6 +183,7 @@ function Warnings({ warnings }: { warnings: readonly Warning[] }) {
 }
 
 export function StatusPanel() {
+  const [expanded, setExpanded] = useState(false);
   const status = useStatus();
   const assembly = useAssembly();
   const selected = useSelectedPart();
@@ -217,8 +219,18 @@ export function StatusPanel() {
         ) : null}
         <div className={styles.spacer} />
         <BedFitBadge />
+        <button
+          type="button"
+          className={styles.detailsToggle}
+          aria-expanded={expanded}
+          aria-controls="stats"
+          onClick={() => setExpanded(!expanded)}
+        >
+          Print details <span aria-hidden="true">{expanded ? '−' : '+'}</span>
+        </button>
       </div>
-      <div id="stats" className={styles.stats}>
+      <Warnings warnings={warnings} />
+      <div id="stats" className={styles.stats} hidden={!expanded}>
         {several ? <PartRows parts={assembly.parts} warnings={assembly.warnings} /> : null}
         {stats ? (
           <div className={styles.details}>
@@ -226,7 +238,6 @@ export function StatusPanel() {
             <StatsRows stats={stats} />
           </div>
         ) : null}
-        <Warnings warnings={warnings} />
       </div>
     </section>
   );

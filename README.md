@@ -25,13 +25,24 @@ Requires Node.js 24 (the version CI uses).
 
 ## Using the app
 
-The window has three columns: the **lamp tree** on the left, the 3D **viewport** in the middle
-with the **status strip** under it, and the **inspector** of whatever is selected in the tree on
-the right. Below 1100 px the tree shrinks to a rail of icons (» expands it) and the inspector
-opens as a sheet over the viewport (pick a node, or _Edit …_); below 760 px everything stacks,
-the viewport at half the screen height.
+The Atelier workspace opens on **Outer shade** editing, with a compact **component rail**
+on the left, a warm studio **3D preview** in the middle and the selected component's
+**inspector** on the right. Use **»** to expand the rail and see component details.
+The preview toolbar switches between **Assembled** and **Print bed**, frames the lamp,
+and toggles the light. **Print details** expands measurements and part statistics below
+the preview; build errors and warnings stay visible when it is collapsed.
 
-- **Examples** opens a gallery of starting points: the classic shades (bell, drum, faceted,
+**Light on** (or **L**) enters **Afterglow**: a dark lighting studio with warm accents,
+an illuminated shade and matching menus and editing controls. **Simple preview** in the
+viewport toolbar uses lighter materials for slower devices. Camera position, selection
+and parameter edits are kept when changing lighting. **Print bed** returns to Atelier;
+switching back to **Assembled** restores the light and preview quality you chose.
+
+Below 1100 px the inspector opens as a sheet over the viewport (pick a component, or
+_Edit …_). Below 760 px the component rail becomes horizontal and editing controls
+stack below the preview, which takes about half the screen height.
+
+- **Examples** opens an illustrated gallery of starting points: the classic shades (bell, drum, faceted,
   fluted twist, straight cone, trumpet, wide & shallow), the pendant on a cord, the E27 pendant,
   the strip-ring drum, the two-tone bell (with an inner shade), the slatted drum, the layered
   pendant (tiered, PH-style), the origami pendant (pleated) and the lattice drum (geometric), the
@@ -45,7 +56,12 @@ the viewport at half the screen height.
   says how often ("Stem segment ×2", "Spacer 1 ×3"). Selecting a node shows only its
   parameters in the inspector; selecting a part row selects the node it belongs to (its mount,
   or Hub & joints for the test pieces) and outlines the part.
-- **The inspector** shows the selected node's parameters, generated from the core schema. Each
+- **The inspector** shows the selected node's parameters, generated from the core schema.
+  Outer and inner shades start with common shape controls, followed by style, colour and surface
+  controls. **Construction** and **Pattern details** expand the technical settings; notes for
+  those settings remain visible while collapsed. Mounts, lights and hub connections follow the
+  same approach: placement, hardware dimensions and joint clearance first; cable routing,
+  fitting measurements, thread geometry and construction details in expandable sections. Each
   number has a slider and a text field; values out of range are clamped and explained under the
   field, rows that do not apply are hidden (a smooth shade has no rib count). While you drag a
   slider the preview builds at draft quality; releasing it builds the full mesh.
@@ -87,8 +103,8 @@ the viewport at half the screen height.
   view still cuts it); _Simple light preview_ uses plain translucent shades instead, for slow
   graphics (on by default on machines with 4 or fewer cores); the light, strap and cord show as
   ghosts; _Show as mounted_ shows the ceiling, the wall or the floor.
-- **The status strip** under the viewport shows the build status, the bed-fit badge, the part
-  table (footprint, grams, triangles, overhang, bed fit per part, and the totals; clicking a
+- **The status strip** under the viewport shows the build status, the bed-fit badge and warnings.
+  Expand **Print details** for the part table (footprint, grams, triangles, overhang, bed fit per part, and the totals; clicking a
   row selects that part) with the selected part's details, and every warning.
 - **Undo / redo**: ⌘Z / Ctrl+Z and ⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y, or the arrows in the top
   bar. A whole slider drag is one step.

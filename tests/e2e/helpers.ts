@@ -53,6 +53,8 @@ export async function expectReady(page: Page): Promise<void> {
 export async function openApp(page: Page, path = './'): Promise<void> {
   await page.goto(path);
   await expectReady(page);
+  // Behavioural tests inspect print measurements; the workspace starts with these collapsed.
+  await page.getByRole('button', { name: 'Print details' }).click();
 }
 
 /**

@@ -10,7 +10,7 @@
   flex-direction: column;
   background: var(--panel);
   border-left: 1px solid var(--border);
-  box-shadow: -16px 0 40px rgb(0 0 0 / 40%);
+  box-shadow: -16px 0 40px rgb(42 48 32 / 12%);
   outline: none;
   animation: sheet-in 0.16s ease-out;
 }

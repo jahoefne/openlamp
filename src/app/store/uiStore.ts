@@ -1,5 +1,6 @@
 /**
- * View state: what is selected, how the lamp is shown. Not undoable, not saved.
+ * View state: what is selected, how the lamp is shown. Starts on shade editing;
+ * not undoable or saved.
  */
 import { create } from 'zustand';
 import type { Quality } from '@core/geometry/quality.ts';
@@ -72,7 +73,7 @@ export interface UiState {
   viewMode: ViewMode;
   /** Overrides the project's preview quality while set (draft during a slider drag). */
   previewQuality: Quality | null;
-  /** Panel visibility; `null` = the layout's default (the tree is expanded on wide screens only). */
+  /** Panel visibility; `null` = the layout's default (a compact component rail). */
   panels: Record<PanelId, boolean | null>;
   /** Ask the camera rig to frame the lamp. */
   fitRequest: FitRequest;
@@ -110,7 +111,7 @@ export interface UiState {
 let noticeSeq = 0;
 
 export const useUiStore = create<UiState>()((set, get) => ({
-  selection: ROOT_NODE,
+  selection: 'outerShade',
   selectedPart: null,
   hover: null,
   explode: 0,

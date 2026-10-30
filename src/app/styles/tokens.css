@@ -1,29 +1,55 @@
-/* The dark palette and base element styles (from the first app's style.css). */
+/* Atelier: warm paper, botanical accents and quiet, tactile controls. */
 :root {
-  --bg: #15171c;
-  --panel: #1d2026;
-  --panel-2: #262a32;
-  --border: #343944;
-  --text: #e8eaf0;
-  --muted: #9aa1b1;
-  --accent: #f2b544;
-  --accent-text: #1a1203;
-  --warn: #ff8a65;
-  --ok: #7ed491;
-  --overlay: rgb(20 22 28 / 78%);
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
+  --bg: #f5f2eb;
+  --panel: #f8f6f0;
+  --panel-2: #eeeee5;
+  --border: #deded2;
+  --text: #30382e;
+  --muted: #6b7265;
+  --accent: #3d5037;
+  --accent-text: #fffdf5;
+  --accent-hover: #2c3e27;
+  --selection: #e4e9db;
+  --ok-surface: #e4e9db;
+  --warn-surface: #f4e7dc;
+  --warn-border: #dfb4a3;
+  --warn: #a14427;
+  --ok: #45633e;
+  --overlay: rgb(248 246 240 / 96%);
+  --shadow: 0 12px 40px rgb(42 48 32 / 12%);
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  font-family: 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color-scheme: light;
+}
+
+/* Afterglow follows the effective light mode; print-bed view returns to Atelier. */
+:root[data-appearance='afterglow'] {
+  --bg: #151714;
+  --panel: #1d201a;
+  --panel-2: #282c23;
+  --border: #3e4436;
+  --text: #f2f0e5;
+  --muted: #afb3a1;
+  --accent: #edbd7e;
+  --accent-text: #241b0e;
+  --accent-hover: #f5ce98;
+  --selection: #39392b;
+  --ok: #b9cea3;
+  --ok-surface: #293423;
+  --warn: #ffb391;
+  --warn-surface: #3d2920;
+  --warn-border: #80513a;
+  --overlay: rgb(31 34 27 / 97%);
+  --shadow: 0 12px 40px rgb(0 0 0 / 28%);
+  --font-display: 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
   color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
 }
-
 html,
 body,
 #root {
@@ -32,69 +58,89 @@ body,
   background: var(--bg);
   color: var(--text);
 }
-
+button,
+input,
+select {
+  font: inherit;
+}
 select,
 input[type='number'],
 input[type='text'] {
-  background: var(--panel-2);
+  background: var(--panel);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 8px;
-  font: inherit;
-  font-size: 13px;
+  border-radius: 5px;
+  padding: 7px 9px;
+  min-width: 0;
 }
-
 input:focus-visible,
-select:focus-visible {
-  outline: none;
-  border-color: var(--accent);
+select:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
-
 button {
-  background: var(--panel-2);
+  background: transparent;
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 7px 12px;
-  font: inherit;
-  font-size: 13px;
+  border-radius: 5px;
+  padding: 8px 12px;
   cursor: pointer;
+  transition:
+    background 140ms,
+    border-color 140ms;
 }
-
 button:hover:not(:disabled) {
+  background: var(--panel-2);
   border-color: var(--muted);
 }
-
-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
 button[data-variant='primary'] {
   background: var(--accent);
   color: var(--accent-text);
   border-color: var(--accent);
-  font-weight: 600;
+  font-weight: 500;
 }
-
+button[data-variant='primary']:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
 }
-
 fieldset {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  margin: 12px 0;
-  padding: 8px 12px 10px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  margin: 26px 0 0;
+  padding: 16px 0 0;
   min-width: 0;
 }
-
 legend {
-  font-size: 12px;
+  padding: 0 10px 0 0;
+  font-size: 10px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   color: var(--muted);
-  padding: 0 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (pointer: coarse) {
+  button,
+  summary {
+    min-height: 44px;
+  }
+  input[type='number'],
+  input[type='text'],
+  select {
+    font-size: 16px;
+  }
 }

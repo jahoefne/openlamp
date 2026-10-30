@@ -184,7 +184,7 @@ export function CameraRig({ children }: { children: ReactNode }) {
   return (
     <>
       <OrbitControls makeDefault target={TARGET} enableDamping={!reducedMotion} />
-      <Bounds margin={1.2} maxDuration={reducedMotion ? JUMP_S : GLIDE_S}>
+      <Bounds margin={1.45} maxDuration={reducedMotion ? JUMP_S : GLIDE_S}>
         {children}
         <FitOnRequest />
       </Bounds>

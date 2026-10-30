@@ -14,6 +14,9 @@ import { ExamplesDialog } from './ExamplesDialog.tsx';
 import { PrinterDialog } from './PrinterDialog.tsx';
 import { PrintSheetDialog } from './PrintSheetDialog.tsx';
 import styles from './ProjectBar.module.css';
+import dialogStyles from './dialog.module.css';
+import { DialogGlyph } from './DialogGlyph.tsx';
+import { useAssembly, useBedFit } from '../store/selectors.ts';
 
 /** Project file actions; App passes the persistence handlers. */
 export interface ProjectBarActions {
@@ -143,38 +146,89 @@ function ExportMenu({ onPrintSheet }: { onPrintSheet: () => void }) {
   const exporting = useBuildStore((s) => s.exporting);
   const progress = useBuildStore((s) => s.exportProgress);
   const ready = useBuildStore((s) => s.kernelReady);
+  const { parts } = useAssembly();
+  const fit = useBedFit();
+  const copies = parts.reduce((n, p) => n + p.instances, 0);
   const label = exporting
     ? `Exporting…${progress ? ` ${progress.done}/${progress.total}` : ''}`
     : 'Export';
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button type="button" data-variant="primary" disabled={exporting || !ready}>
-          {label} ▾
+        <button
+          type="button"
+          className={styles.export}
+          data-variant="primary"
+          disabled={exporting || !ready}
+        >
+          {label}
+          <span className={styles.exportArrow} aria-hidden="true">
+            ↗
+          </span>
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content className={styles.menu} align="end" sideOffset={6}>
-          <DropdownMenu.Item className={styles.menuItem} onSelect={() => void exportProject('stl')}>
-            Download STL
-            <span className={styles.menuHint}>one file per part</span>
+        <DropdownMenu.Content
+          className={`${styles.menu} ${dialogStyles.exportMenu}`}
+          align="end"
+          sideOffset={10}
+        >
+          <DropdownMenu.Label className={dialogStyles.exportHeading}>
+            <span className={dialogStyles.eyebrow}>From pixels to a print</span>
+            <span className={dialogStyles.exportTitle}>Make it real.</span>
+            <span className={dialogStyles.description}>
+              {copies} {copies === 1 ? 'piece' : 'pieces'} · {fit.printer.name}
+            </span>
+          </DropdownMenu.Label>
+          <DropdownMenu.Item
+            className={dialogStyles.exportOption}
+            onSelect={() => void exportProject('stl')}
+          >
+            <DialogGlyph name="stl" />
+            <span>
+              <strong>Download STL</strong>
+              <small>One mesh file per part, ready for your slicer.</small>
+            </span>
+            <span className={dialogStyles.formatTag}>STL</span>
           </DropdownMenu.Item>
           <DropdownMenu.Item
-            className={styles.menuItem}
+            className={dialogStyles.exportOption}
             onSelect={() => void exportProject('zip-stl')}
           >
-            ZIP of all parts (STL + print sheet)
-            <span className={styles.menuHint}>one .zip</span>
+            <DialogGlyph name="zip" />
+            <span>
+              <strong>ZIP of all parts (STL + print sheet)</strong>
+              <small>Every part and the assembly guide, together.</small>
+            </span>
+            <span className={dialogStyles.formatTag}>ZIP</span>
           </DropdownMenu.Item>
-          <DropdownMenu.Item className={styles.menuItem} onSelect={() => void exportProject('3mf')}>
-            3MF (all parts, coloured, laid out on the bed)
-            <span className={styles.menuHint}>one .3mf for the slicer</span>
+          <DropdownMenu.Item
+            className={dialogStyles.exportOption}
+            onSelect={() => void exportProject('3mf')}
+          >
+            <DialogGlyph name="3mf" />
+            <span>
+              <strong>3MF (all parts, coloured, laid out on the bed)</strong>
+              <small>Keep colours and print placement in one file.</small>
+            </span>
+            <span className={dialogStyles.formatTag}>3MF</span>
           </DropdownMenu.Item>
           <DropdownMenu.Separator className={styles.menuSeparator} />
-          <DropdownMenu.Item className={styles.menuItem} onSelect={onPrintSheet}>
-            Print sheet…
-            <span className={styles.menuHint}>parts, assembly, printing</span>
+          <DropdownMenu.Item className={dialogStyles.exportOption} onSelect={onPrintSheet}>
+            <DialogGlyph name="sheet" />
+            <span>
+              <strong>Print sheet…</strong>
+              <small>Parts, assembly and the finishing touches.</small>
+            </span>
+            <span aria-hidden="true">↗</span>
           </DropdownMenu.Item>
+          <DropdownMenu.Label
+            className={`${dialogStyles.exportFoot} ${fit.fits ? dialogStyles.fitOk : dialogStyles.fitWarn}`}
+          >
+            {fit.fits
+              ? `✓ Fits ${fit.printer.name}`
+              : '⚠ Some parts exceed your printer’s build volume'}
+          </DropdownMenu.Label>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
@@ -203,8 +257,10 @@ export function ProjectBar({
   return (
     <header className={styles.bar}>
       <div className={styles.brand}>
-        <span className={styles.logo} aria-hidden="true" />
         openlamp
+        <span className={styles.logo} aria-hidden="true">
+          ✳
+        </span>
       </div>
       <input
         className={styles.name}
@@ -225,7 +281,12 @@ export function ProjectBar({
         />
       ) : null}
       <Tip label="Choose the printer">
-        <button type="button" className={styles.chip} onClick={() => setPrinterOpen(true)}>
+        <button
+          type="button"
+          className={styles.chip}
+          aria-label={`Choose printer: ${printer.name} ${printer.bed.join('×')}`}
+          onClick={() => setPrinterOpen(true)}
+        >
           <span className={styles.chipName}>{printer.name}</span>
           <span className={styles.chipMeta}>{printer.bed.join('×')}</span>
         </button>
@@ -233,46 +294,48 @@ export function ProjectBar({
 
       <div className={styles.spacer} />
 
-      <div className={styles.group} role="group" aria-label="History">
-        <Tip label={`Undo (${MOD}Z)`}>
-          <button type="button" aria-label="Undo" disabled={!canUndo} onClick={undo}>
-            ↶
-          </button>
-        </Tip>
-        <Tip label={`Redo (${isMac ? '⇧⌘Z' : 'Ctrl+Y'})`}>
-          <button type="button" aria-label="Redo" disabled={!canRedo} onClick={redo}>
-            ↷
-          </button>
-        </Tip>
-      </div>
+      <div className={styles.actions}>
+        <div className={styles.group} role="group" aria-label="History">
+          <Tip label={`Undo (${MOD}Z)`}>
+            <button type="button" aria-label="Undo" disabled={!canUndo} onClick={undo}>
+              ↶
+            </button>
+          </Tip>
+          <Tip label={`Redo (${isMac ? '⇧⌘Z' : 'Ctrl+Y'})`}>
+            <button type="button" aria-label="Redo" disabled={!canRedo} onClick={redo}>
+              ↷
+            </button>
+          </Tip>
+        </div>
 
-      <div className={styles.group} role="group" aria-label="Project file">
-        <OpenMenu
-          onOpen={onOpen}
-          recents={recents}
-          onOpenRecent={onOpenRecent}
-          onClearRecents={onClearRecents}
-        />
-        <Tip label={`Save as a .lamp.json file (${MOD}S · ⇧-click or ${SHIFT_MOD}S: save as)`}>
-          <button
-            type="button"
-            disabled={!onSave}
-            onClick={(e) => (e.shiftKey && onSaveAs ? onSaveAs() : onSave?.())}
-          >
-            Save
-          </button>
-        </Tip>
-        <Tip label="Copy a link that reopens this lamp">
-          <button type="button" disabled={!onShare} onClick={onShare}>
-            Share
-          </button>
-        </Tip>
-      </div>
+        <div className={styles.group} role="group" aria-label="Project file">
+          <OpenMenu
+            onOpen={onOpen}
+            recents={recents}
+            onOpenRecent={onOpenRecent}
+            onClearRecents={onClearRecents}
+          />
+          <Tip label={`Save as a .lamp.json file (${MOD}S · ⇧-click or ${SHIFT_MOD}S: save as)`}>
+            <button
+              type="button"
+              disabled={!onSave}
+              onClick={(e) => (e.shiftKey && onSaveAs ? onSaveAs() : onSave?.())}
+            >
+              Save
+            </button>
+          </Tip>
+          <Tip label="Copy a link that reopens this lamp">
+            <button type="button" disabled={!onShare} onClick={onShare}>
+              Share
+            </button>
+          </Tip>
+        </div>
 
-      <button type="button" onClick={() => setExamplesOpen(true)}>
-        Examples
-      </button>
-      <ExportMenu onPrintSheet={() => setSheetOpen(true)} />
+        <button type="button" onClick={() => setExamplesOpen(true)}>
+          Examples
+        </button>
+        <ExportMenu onPrintSheet={() => setSheetOpen(true)} />
+      </div>
 
       <PrinterDialog open={printerOpen} onOpenChange={setPrinterOpen} />
       <ExamplesDialog open={examplesOpen} onOpenChange={setExamplesOpen} />

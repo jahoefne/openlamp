@@ -1,44 +1,34 @@
-/*
- * bar / tree | viewport | inspector / status. The status strip sits under the
- * viewport, between the tree and the inspector, which run the full height.
- */
+/* The preview owns the space; print details expand below it. */
 .app {
   display: grid;
-  grid-template-areas:
-    'bar bar bar'
-    'tree viewport inspector'
-    'tree status inspector';
-  grid-template-columns: 260px minmax(0, 1fr) 360px;
-  /* A fixed status strip: the viewport keeps its size whatever the status shows. */
-  grid-template-rows: auto minmax(0, 1fr) min(30vh, 220px);
+  grid-template-areas: 'bar bar bar' 'tree viewport inspector' 'tree status inspector';
+  grid-template-columns: 100px minmax(0, 1fr) 330px;
+  grid-template-rows: auto minmax(280px, 1fr) auto;
   height: 100%;
+  min-height: 620px;
 }
-
+.app[data-tree='open'] {
+  grid-template-columns: 224px minmax(0, 1fr) 330px;
+}
 .bar {
   grid-area: bar;
   min-width: 0;
 }
-
 .tree,
 .inspector {
-  /* Contain the visually hidden texts and the hidden form inputs of Radix
-     controls (absolutely positioned), which would otherwise stretch the page. */
   position: relative;
   min-height: 0;
   overflow-y: auto;
   background: var(--panel);
 }
-
 .tree {
   grid-area: tree;
   border-right: 1px solid var(--border);
 }
-
 .inspector {
   grid-area: inspector;
   border-left: 1px solid var(--border);
 }
-
 .viewport {
   grid-area: viewport;
   position: relative;
@@ -46,88 +36,97 @@
   min-height: 0;
   overflow: hidden;
 }
-
 .status {
   grid-area: status;
   min-width: 0;
-  min-height: 0;
-  overflow-y: auto;
+  max-height: 36vh;
+  overflow: auto;
   background: var(--panel);
   border-top: 1px solid var(--border);
 }
-
-/* Medium screens: the button that opens the inspector sheet. */
 .sheetToggle {
   position: absolute;
-  top: 10px;
-  right: 12px;
+  top: 24px;
+  right: 24px;
   background: var(--overlay);
+  z-index: 2;
+  border-radius: 30px;
+  box-shadow: var(--shadow);
 }
-
-/* Shown while files are dragged over the window. */
 .dropOverlay {
   position: fixed;
   inset: 0;
   z-index: 100;
   display: grid;
   place-items: center;
-  background: rgb(21 23 28 / 70%);
+  background: rgb(245 242 235 / 88%);
   border: 2px dashed var(--accent);
   pointer-events: none;
 }
-
 .dropMessage {
-  padding: 12px 18px;
-  border-radius: 8px;
-  background: var(--panel-2);
+  padding: 22px 30px;
+  border-radius: 10px;
+  background: var(--panel);
   border: 1px solid var(--border);
-  font-size: 15px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  box-shadow: var(--shadow);
 }
-
-/* Medium screens: the tree a rail of icons (or expanded), the inspector a sheet. */
 @media (max-width: 1099.98px) {
   .app {
-    grid-template-areas:
-      'bar bar'
-      'tree viewport'
-      'tree status';
-    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-areas: 'bar bar' 'tree viewport' 'tree status';
+    grid-template-columns: 88px minmax(0, 1fr);
   }
-
   .app[data-tree='open'] {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: 224px minmax(0, 1fr);
   }
 }
-
-/* Narrow screens: everything stacks, the viewport takes half the height. */
 @media (max-width: 759.98px) {
   .app,
   .app[data-tree='open'] {
-    grid-template-areas:
-      'bar'
-      'tree'
-      'viewport'
-      'status'
-      'inspector';
+    grid-template-areas: 'bar' 'tree' 'viewport' 'status' 'inspector';
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto 50vh auto auto;
+    grid-template-rows: auto auto minmax(380px, 55svh) auto auto;
     height: auto;
     min-height: 100%;
   }
-
   .tree {
     border-right: 0;
     border-bottom: 1px solid var(--border);
     overflow: visible;
   }
-
   .inspector {
     border-left: 0;
     border-top: 1px solid var(--border);
     overflow: visible;
   }
-
   .status {
     max-height: none;
   }
+}
+
+/* The stage and controls stay mounted: switching light never resets the camera. */
+.app[data-appearance='afterglow'] {
+  background: var(--bg);
+}
+.app[data-appearance='afterglow'] .inspector {
+  margin: 24px 18px 24px 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.app[data-appearance='afterglow'] .tree {
+  background: var(--bg);
+}
+.app[data-appearance='afterglow'] .dropOverlay {
+  background: rgb(21 23 20 / 88%);
+}
+@media (max-width: 759.98px) {
+  .app[data-appearance='afterglow'] .inspector {
+    margin: 16px;
+  }
+}
+.app[data-appearance='afterglow'] .inspector h2 {
+  font-size: 24px;
+  font-weight: 500;
 }

@@ -95,8 +95,8 @@ export function PartMesh({ part, transforms, offsetZ = 0, overflow = false }: Pa
     >
       {selected && (
         <Outlines
-          color="#f2b544"
-          thickness={2}
+          color={mode === 'off' ? '#526846' : '#edbd7e'}
+          thickness={1.5}
           screenspace
           angle={0}
           clippingPlanes={OUTLINE_PLANES}

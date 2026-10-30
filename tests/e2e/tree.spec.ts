@@ -90,6 +90,8 @@ test('picking the base in the status table selects the Mount node', async () => 
   await expect(treeNode(page, 'mount')).toHaveAttribute('aria-current', 'true');
   await expect(page.getByTestId('tree-part-base')).toHaveAttribute('aria-current', 'true');
   await expect(inspectorOf(page, 'mount')).toBeVisible();
+  await expect(page.locator('#p-stemSegmentLength')).toBeHidden();
+  await page.getByRole('region', { name: 'Construction settings' }).locator('summary').click();
   await expect(page.locator('#p-stemSegmentLength')).toBeVisible();
 });
 

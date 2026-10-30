@@ -59,10 +59,10 @@ function SheetContent() {
     <>
       <div className={`${dialogStyles.header} ${styles.header}`}>
         <div>
+          <p className={dialogStyles.eyebrow}>From screen to object</p>
           <Dialog.Title className={dialogStyles.title}>Print sheet</Dialog.Title>
           <Dialog.Description className={dialogStyles.description}>
-            Parts, what else you need, assembly steps and printing notes. The ZIP export includes it
-            as print-sheet.md.
+            Your parts, assembly steps and printing notes, all in one place.
           </Dialog.Description>
         </div>
         <div className={styles.actions}>

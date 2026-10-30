@@ -12,6 +12,7 @@ import { asNewProject } from '../persistence/identity.ts';
 import { useProjectStore } from '../store/projectStore.ts';
 import styles from './dialog.module.css';
 import { EXAMPLES } from './examples.ts';
+import { LampThumbnail } from './LampThumbnail.tsx';
 
 /** The lamp itself, without identity and bookkeeping: "is this still that example?". */
 function designKey(p: Project): string {
@@ -77,12 +78,13 @@ export function ExamplesDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className={styles.overlay} />
-        <Dialog.Content className={styles.content}>
+        <Dialog.Content className={`${styles.content} ${styles.galleryContent}`}>
           <div className={styles.header}>
             <div>
+              <p className={styles.eyebrow}>The openlamp collection</p>
               <Dialog.Title className={styles.title}>Examples</Dialog.Title>
               <Dialog.Description className={styles.description}>
-                Start from one of these lamps. Your current lamp stays one undo away.
+                A starting point for something yours. Every shape is ready to explore.
               </Dialog.Description>
             </div>
             <Dialog.Close className={styles.close} aria-label="Close">
@@ -101,19 +103,31 @@ export function ExamplesDialog({
                     aria-current={EXAMPLE_KEYS.get(example.id) === currentKey}
                     onClick={() => pick(example)}
                   >
-                    <span className={styles.exampleName}>
-                      <span
-                        className={styles.exampleSwatch}
-                        style={{ background: example.shades[0].colour }}
-                      />
-                      {example.name}
+                    <span className={styles.examplePreview}>
+                      <LampThumbnail project={example} />
+                      {EXAMPLE_KEYS.get(example.id) === currentKey && (
+                        <span className={styles.currentTag}>Current design</span>
+                      )}
                     </span>
-                    <span className={styles.exampleDims}>{dims}</span>
-                    <span className={styles.exampleStyle}>{style}</span>
+                    <span className={styles.exampleCopy}>
+                      <span className={styles.exampleName}>
+                        <span
+                          className={styles.exampleSwatch}
+                          style={{ background: example.shades[0].colour }}
+                        />
+                        {example.name}
+                      </span>
+                      <span className={styles.exampleDims}>{dims}</span>
+                      <span className={styles.exampleStyle}>{style}</span>
+                    </span>
                   </button>
                 );
               })}
             </div>
+          </div>
+          <div className={styles.footer}>
+            <span>{EXAMPLES.length} starting points. Endless possibilities.</span>
+            <span>Your current lamp stays one undo away.</span>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

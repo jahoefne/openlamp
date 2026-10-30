@@ -133,11 +133,13 @@ function Row({ testId, icon, label, detail, current, child, badges, expanded, on
         onClick={onClick}
       >
         {icon}
-        <span className={expanded ? styles.text : styles.hidden}>
+        <span className={styles.text}>
           <span className={styles.label}>{label}</span>
-          {detail ? <span className={styles.detail}>{detail}</span> : null}
+          {detail ? (
+            <span className={expanded ? styles.detail : styles.hidden}>{detail}</span>
+          ) : null}
         </span>
-        {expanded ? badges : null}
+        {badges}
       </button>
     </li>
   );

@@ -14,7 +14,6 @@ import {
   selectNode,
   sharedPage,
   showProject,
-  statsOf,
   statusOf,
 } from './helpers.ts';
 
@@ -46,8 +45,11 @@ test('Light → E27 bulb, then LED strip, on the pendant: the hub rebuilds aroun
   await chooseLight('E27 bulb');
   await expect(statusOf(page)).not.toHaveText(/Error/);
   await expect(partNames(page)).toHaveText(['Hub', 'Shade', 'Canopy']);
+  await expect(page.locator('#p-bulbHoleDiameter')).toBeHidden();
+  await page.getByRole('region', { name: 'Lampholder fit settings' }).locator('summary').click();
+  await expect(page.locator('#p-bulbHoleDiameter')).toBeVisible();
   await expect(page.locator('#p-bulbHoleDiameter')).toHaveValue('40.5');
-  await expect(statsOf(page)).toContainText('LED bulbs only');
+  await expect(page.getByRole('region', { name: 'Build status' })).toContainText('LED bulbs only');
   await expect(page.getByTestId('tree-light')).toContainText('E27 bulb');
 
   await chooseLight('LED strip');
@@ -61,7 +63,9 @@ test('the velcro strap with an E27 bulb shows the error', async () => {
   await selectNode(page, 'light');
   await chooseLight('E27 bulb');
 
-  await expect(statsOf(page)).toContainText('The velcro strap holds LED pucks only');
+  await expect(page.getByRole('region', { name: 'Build status' })).toContainText(
+    'The velcro strap holds LED pucks only',
+  );
   await expect(partNames(page)).toHaveText(['Hub', 'Shade']);
 });
 

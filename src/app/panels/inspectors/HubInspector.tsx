@@ -5,7 +5,7 @@
  */
 import { useMemo } from 'react';
 import { HUB_PARAM_PATHS, projectToHubParams } from '@core/model/project.ts';
-import { HUB_JOINT_GROUPS, type HubJointKey, type HubJointParams } from '@core/schema/defs.ts';
+import { type HubJointKey, type HubJointParams, type ParamGroup } from '@core/schema/defs.ts';
 import { hubEdits } from '../../forms/editSession.ts';
 import { ToggleField } from '../../forms/fields/ToggleField.tsx';
 import { SchemaForm } from '../../forms/SchemaForm.tsx';
@@ -13,6 +13,8 @@ import { useProjectStore } from '../../store/projectStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import styles from '../Inspector.module.css';
 import { useWarningsByPath } from './warnings.ts';
+import { HUB_LAYOUT } from './hardwareLayout.ts';
+import { ParameterSection } from '../ParameterSection.tsx';
 
 const asHubKey = (key: string) => key as HubJointKey;
 const asHubValue = (value: number | string) => value as HubJointParams[HubJointKey];
@@ -37,30 +39,48 @@ export function HubInspector() {
     useProjectStore.getState().setFused(on);
     useUiStore.getState().requestFit(true); // the lamp changes shape: frame it once built
   };
-  return (
+  const form = (groups: readonly ParamGroup[]) => (
     <SchemaForm
-      groups={HUB_JOINT_GROUPS}
+      groups={groups}
       values={values}
       warningsFor={warningsFor}
       onTransient={(key, v) => hubEdits.transient(asHubKey(key), v)}
       onCommit={(key, v) => hubEdits.commit(asHubKey(key), asHubValue(v))}
       onEnd={hubEdits.end}
-      lead={() =>
-        strap && puck && revolved ? (
+    />
+  );
+  return (
+    <>
+      <fieldset>
+        <legend>Assembly</legend>
+        {strap && puck && revolved ? (
           <ToggleField
             id="p-fused"
             label="Single-piece print (fused)"
             checked={fused}
-            help="On: hub and shade print as one part (the classic shade). Off: a separate hub holds the puck and hangs from the strap, and the shade hangs from the hub on a bayonet, press fit or thread."
+            help="On: hub and shade print as one part. Off: a separate hub holds the light and the shade connects with a bayonet, press fit or thread."
             onChange={setFused}
           />
         ) : (
           <p className={styles.hint}>
-            With this {!puck ? 'light' : !strap ? 'mount' : 'shade style'} the hub and the shade
-            print separately; the shade hangs from the hub on a bayonet, press fit or thread.
+            With this {!puck ? 'light' : !strap ? 'mount' : 'shade style'} the hub and shade print
+            separately, joined by a bayonet, press fit or thread.
           </p>
-        )
-      }
-    />
+        )}
+      </fieldset>
+      {form(HUB_LAYOUT.primary)}
+      {HUB_LAYOUT.sections.map((section) => (
+        <ParameterSection
+          key={section.id}
+          title={section.title}
+          description={section.description}
+          groups={section.groups}
+          values={values}
+          warningsFor={warningsFor}
+        >
+          {form(section.groups)}
+        </ParameterSection>
+      ))}
+    </>
   );
 }

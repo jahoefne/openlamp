@@ -4,8 +4,15 @@
  */
 import { Dialog } from 'radix-ui';
 import { useState, type FormEvent } from 'react';
-import { CUSTOM_PRINTER_ID, PRINTERS, type PrinterSpec } from '@core/schema/printers.ts';
+import {
+  CUSTOM_PRINTER_ID,
+  PRINTERS,
+  printerLabel,
+  type PrinterSpec,
+} from '@core/schema/printers.ts';
 import { useProjectStore } from '../store/projectStore.ts';
+import { useBedFit } from '../store/selectors.ts';
+import { DialogGlyph } from './DialogGlyph.tsx';
 import styles from './dialog.module.css';
 
 const VENDORS = [...new Set(PRINTERS.map((p) => p.vendor))];
@@ -113,6 +120,7 @@ export function PrinterDialog({
   const current = useProjectStore((s) => s.project.printer);
   const setPrinter = useProjectStore((s) => s.setPrinter);
   const close = () => onOpenChange(false);
+  const fit = useBedFit();
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -120,9 +128,10 @@ export function PrinterDialog({
         <Dialog.Content className={styles.content}>
           <div className={styles.header}>
             <div>
+              <p className={styles.eyebrow}>Made for your workbench</p>
               <Dialog.Title className={styles.title}>Printer</Dialog.Title>
               <Dialog.Description className={styles.description}>
-                The build volume decides whether every part fits the bed.
+                Choose where your lamp comes to life. We’ll check the fit as you design.
               </Dialog.Description>
             </div>
             <Dialog.Close className={styles.close} aria-label="Close">
@@ -130,6 +139,21 @@ export function PrinterDialog({
             </Dialog.Close>
           </div>
           <div className={styles.body}>
+            <div className={styles.currentPrinter}>
+              <span className={styles.printerIcon}>
+                <DialogGlyph name="printer" />
+              </span>
+              <div>
+                <span className={styles.eyebrow}>Your current setup</span>
+                <strong>{printerLabel(current)}</strong>
+                <span className={styles.printerMeta}>
+                  {bedText(current)} · {current.nozzle} mm nozzle
+                </span>
+              </div>
+              <span className={fit.fits ? styles.fitOk : styles.fitWarn}>
+                {fit.fits ? '✓ Fits this lamp' : 'Check part sizes'}
+              </span>
+            </div>
             {VENDORS.map((vendor) => (
               <section key={vendor}>
                 <h3 className={styles.sectionTitle}>{vendor}</h3>
@@ -145,6 +169,10 @@ export function PrinterDialog({
                         close();
                       }}
                     >
+                      <span className={styles.printerCardTop}>
+                        <DialogGlyph name="printer" />
+                        <span>{current.id === p.id ? '✓ Selected' : `${p.nozzle} mm nozzle`}</span>
+                      </span>
                       <span className={styles.printerName}>{p.name}</span>
                       <span className={styles.printerMeta}>
                         {bedText(p)}
@@ -155,11 +183,17 @@ export function PrinterDialog({
                 </div>
               </section>
             ))}
-            <section>
-              <h3 className={styles.sectionTitle}>Custom</h3>
+            <details className={styles.customPanel} open={current.id === CUSTOM_PRINTER_ID}>
+              <summary>
+                Another printer?<span>Set a custom build volume</span>
+              </summary>
               {/* Keyed so it starts from the current printer each time the dialog opens. */}
               {open && <CustomPrinterForm key={current.id} onDone={close} />}
-            </section>
+            </details>
+          </div>
+          <div className={styles.footer}>
+            <span>Measurements in millimetres.</span>
+            <span>You can change this at any time.</span>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

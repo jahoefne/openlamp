@@ -31,6 +31,7 @@ test('Table lamp builds its stem; 150 mm segments print the segment twice', asyn
 
   // 400 mm of stem in segments of at most 150 mm: the foot and two copies of the segment.
   await selectNode(page, 'mount');
+  await page.getByRole('region', { name: 'Construction settings' }).locator('summary').click();
   const input = page.locator('#p-stemSegmentLength');
   await expect(input).toHaveValue('200');
   const sawBuilding = await watchForBuilding(page);

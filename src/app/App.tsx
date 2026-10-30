@@ -2,12 +2,12 @@
  * The app shell, a CSS grid `bar / tree | viewport | inspector / status`:
  * the project bar on top; the lamp tree on the left, the viewport in the
  * middle with the status strip under it, the inspector of the selected node
- * on the right. Below 1100 px the tree is a rail of icons (expandable) and
- * the inspector a sheet over the viewport; below 760 px everything stacks,
- * the viewport at 50 vh. The whole window is a drop zone for project files.
+ * on the right. The tree starts as an expandable component rail. Below 1100 px
+ * the inspector is a sheet over the viewport; below 760 px everything stacks,
+ * the viewport at 55 svh. The whole window is a drop zone for project files.
  */
 import { Tooltip } from 'radix-ui';
-import { useCallback, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import styles from './App.module.css';
 import { Inspector } from './panels/Inspector.tsx';
 import { InspectorSheet } from './panels/InspectorSheet.tsx';
@@ -22,11 +22,12 @@ import { useUiStore } from './store/uiStore.ts';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts.ts';
 import { useLayout, type LayoutKind } from './useLayout.ts';
 import { Viewport } from './viewport/Viewport.tsx';
+import { useLightMode } from './viewport/useLightMode.ts';
 import { useBuildPipeline } from './worker/useBuildPipeline.ts';
 
-/** The tree is expanded by default on wide screens only. */
+/** Keep the component rail compact until expanded. */
 const TREE_EXPANDED_BY_DEFAULT: Readonly<Record<LayoutKind, boolean>> = {
-  wide: true,
+  wide: false,
   medium: false,
   narrow: false,
 };
@@ -56,7 +57,16 @@ export function App() {
   const treeChoice = useUiStore((s) => s.panels.tree);
   const sheetOpen = useUiStore((s) => s.panels.inspector === true);
   const treeExpanded = treeChoice ?? TREE_EXPANDED_BY_DEFAULT[layout];
+  const appearance = useLightMode() === 'off' ? 'atelier' : 'afterglow';
   const { setPanel } = useUiStore.getState();
+
+  // Theme the document so Radix menus and dialogs portalled to body match the workspace.
+  useLayoutEffect(() => {
+    document.documentElement.dataset.appearance = appearance;
+    return () => {
+      delete document.documentElement.dataset.appearance;
+    };
+  }, [appearance]);
 
   const onPick = () => {
     if (layout === 'medium') setPanel('inspector', true);
@@ -67,7 +77,12 @@ export function App() {
 
   return (
     <Tooltip.Provider delayDuration={400}>
-      <div className={styles.app} data-layout={layout} data-tree={treeExpanded ? 'open' : 'rail'}>
+      <div
+        className={styles.app}
+        data-appearance={appearance}
+        data-layout={layout}
+        data-tree={treeExpanded ? 'open' : 'rail'}
+      >
         <div className={styles.bar}>
           <ProjectBar
             onOpen={files.open}
@@ -91,7 +106,7 @@ export function App() {
         <aside className={styles.tree}>
           <LampTree
             expanded={treeExpanded}
-            collapsible={layout !== 'wide'}
+            collapsible
             onToggle={() => setPanel('tree', !treeExpanded)}
             onPick={onPick}
           />

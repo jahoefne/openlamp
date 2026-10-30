@@ -33,6 +33,7 @@ import { SectionPlane } from './SectionPlane.tsx';
 import { useExplode } from './useExplode.ts';
 import { useLightMode } from './useLightMode.ts';
 import styles from './Viewport.module.css';
+import { ViewportChrome } from './ViewportChrome.tsx';
 
 /** The bed view's layout of the current parts, or null in the assembled view. */
 function useBedScene(on: boolean): BedScene | null {
@@ -104,22 +105,25 @@ function Scene() {
 
 export function Viewport() {
   const clearSelection = useUiStore((s) => s.clearSelection);
+  const lit = useLightMode() !== 'off';
   return (
-    <div className={styles.viewport}>
-      <Canvas
-        className={styles.canvas}
-        frameloop="demand"
-        dpr={[1, 2]}
-        flat
-        gl={{ antialias: true, localClippingEnabled: true }}
-        camera={{ up: [0, 0, 1], position: [260, -300, 220], fov: 40, near: 1, far: 4000 }}
-        onPointerMissed={() => clearSelection()}
-      >
-        <color attach="background" args={['#15171c']} />
-        <Lights />
-        <SectionPlane />
-        <Scene />
-      </Canvas>
+    <div className={styles.viewport} data-lit={lit}>
+      <div className={styles.modelStage}>
+        <Canvas
+          className={styles.canvas}
+          frameloop="demand"
+          dpr={[1, 2]}
+          flat
+          gl={{ antialias: true, localClippingEnabled: true }}
+          camera={{ up: [0, 0, 1], position: [260, -300, 220], fov: 40, near: 1, far: 4000 }}
+          onPointerMissed={() => clearSelection()}
+        >
+          <Lights />
+          <SectionPlane />
+          <Scene />
+        </Canvas>
+      </div>
+      <ViewportChrome />
     </div>
   );
 }

@@ -7,6 +7,7 @@
  */
 import { NODE_LABELS, type NodeId } from '../store/nodes.ts';
 import { useShownNode } from '../store/selectors.ts';
+import { useLightMode } from '../viewport/useLightMode.ts';
 import { HubInspector } from './inspectors/HubInspector.tsx';
 import { InnerShadeInspector } from './inspectors/InnerShadeInspector.tsx';
 import { LightInspector } from './inspectors/LightInspector.tsx';
@@ -37,12 +38,21 @@ function NodeInspector({ node }: { node: NodeId }) {
 
 export function Inspector({ heading = true }: { heading?: boolean }) {
   const node = useShownNode();
+  const lit = useLightMode() !== 'off';
   return (
     <div className={styles.inspector} data-node={node}>
       {heading ? (
-        <h2 className={styles.title} id="inspector-title">
-          {NODE_LABELS[node]}
-        </h2>
+        <>
+          <p className={styles.eyebrow}>{lit ? 'Sculpt the light' : 'Make it yours'}</p>
+          <h2 className={styles.title} id="inspector-title">
+            {NODE_LABELS[node]}
+          </h2>
+          <p className={styles.intro}>
+            {node === 'outerShade' || node === 'innerShade'
+              ? 'The shape of things.'
+              : 'Every detail, considered.'}
+          </p>
+        </>
       ) : null}
       {/* Keyed by node, so a form's local state (a half-typed number) never leaks into another. */}
       <form key={node} autoComplete="off" onSubmit={(e) => e.preventDefault()}>
