@@ -553,7 +553,7 @@ describe('the geometric shade’s profile', () => {
 describe('the geometric examples', () => {
   it('the origami pendant hangs a white pleated shade on a cord', () => {
     const project = example('origami-pendant');
-    expect(project.name).toBe('Origami pendant');
+    expect(project.name).toBe('Fold');
     expect(project.mount.kind).toBe('ceilingCord');
     expect(project.light.kind).toBe('puck');
     expect(project.hub.fused).toBe(false);
@@ -573,7 +573,7 @@ describe('the geometric examples', () => {
 
   it('the lattice drum hangs a hex lattice under its cap on a cord', () => {
     const project = example('lattice-drum');
-    expect(project.name).toBe('Lattice drum');
+    expect(project.name).toBe('Væv');
     expect(project.shades[0].style).toMatchObject({ family: 'geometric', variant: 'lattice' });
     const a = assemble(project, { quality: 'normal' });
     expect(a.warnings.filter((w) => w.severity !== 'info')).toEqual([]);

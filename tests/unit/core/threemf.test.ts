@@ -208,7 +208,7 @@ describe('the pendant on a cord as a 3MF', () => {
       'xmlns:openlamp': OPENLAMP_3MF_NS,
     });
     expect(metadata).toEqual({
-      Title: 'Pendant on a cord',
+      Title: 'Lærke',
       Application: 'openlamp',
       'openlamp:bed': '256 256 256',
       'openlamp:printer': 'Bambu Lab A1',
@@ -291,7 +291,7 @@ describe('the pendant on a cord as a 3MF', () => {
   });
 
   it('is named openlamp-<project>.3mf, model/3mf', () => {
-    expect(archiveFileName(lamp.project, '3mf')).toBe('openlamp-pendant-on-a-cord.3mf');
+    expect(archiveFileName(lamp.project, '3mf')).toBe('openlamp-laerke.3mf');
     expect(THREEMF_MIME).toBe('model/3mf');
   });
 });

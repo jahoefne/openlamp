@@ -11,7 +11,7 @@ import { MOUNT_LABELS } from '@core/schema/defs.ts';
 import { asNewProject } from '../persistence/identity.ts';
 import { useProjectStore } from '../store/projectStore.ts';
 import styles from './dialog.module.css';
-import { EXAMPLES } from './examples.ts';
+import { EXAMPLES, EXAMPLE_DESCRIPTIONS } from './examples.ts';
 import { LampThumbnail } from './LampThumbnail.tsx';
 import { nordicLettering } from '../brand/lettering.ts';
 
@@ -120,6 +120,7 @@ export function ExamplesDialog({
                         />
                         {example.name}
                       </span>
+                      <span className={styles.exampleType}>{EXAMPLE_DESCRIPTIONS[example.id]}</span>
                       <span className={styles.exampleDims}>{dims}</span>
                       <span className={styles.exampleStyle}>{style}</span>
                     </span>

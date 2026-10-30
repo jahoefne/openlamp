@@ -141,6 +141,18 @@ describe('partFileName', () => {
       'openlamp-lamp-abc123-shade.stl',
     );
     expect(partFileName({ name: '' }, { id: 'shade' }, 'stl')).toBe('openlamp-project-shade.stl');
-    expect(slugify('  Über -- Lamp!  ')).toBe('ber-lamp');
+    expect(slugify('  Über -- Lamp!  ')).toBe('uber-lamp');
+  });
+
+  it.each([
+    ['Måne', 'mane'],
+    ['Bølge', 'bolge'],
+    ['Lærke', 'laerke'],
+    ['Glød', 'glod'],
+    ['Væv', 'vaev'],
+    ['Å Ä Æ Ø Ö', 'a-a-ae-o-o'],
+    ['Ma\u030ane', 'mane'],
+  ])('keeps %s recognizable in ASCII export filenames', (name, slug) => {
+    expect(partFileName({ name }, { id: 'shade' }, 'stl')).toBe(`openlamp-${slug}-shade.stl`);
   });
 });

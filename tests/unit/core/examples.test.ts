@@ -98,7 +98,7 @@ describe('the classic examples', () => {
 describe('the pendant example', () => {
   it('hangs a hub and a shade on a cord from a canopy', () => {
     const project = read('pendant-cord');
-    expect(project.name).toBe('Pendant on a cord');
+    expect(project.name).toBe('Lærke');
     expect(project.mount).toMatchObject({ kind: 'ceilingCord', grip: 'knot' });
     expect(project.hub.fused).toBe(false);
     expect(project.joints.shadeToHub).toBe('bayonet');
@@ -115,7 +115,7 @@ describe('the pendant example', () => {
 describe('the two-shade example', () => {
   it('hangs a black ribbed bell and a white smooth inner shade from a split hub on a cord', async () => {
     const project = read('two-tone-bell');
-    expect(project.name).toBe('Two-tone bell');
+    expect(project.name).toBe('Skumring');
     expect(project.mount.kind).toBe('ceilingCord');
     expect(project.light.kind).toBe('puck');
     expect(project.hub.fused).toBe(false);
@@ -143,7 +143,7 @@ describe('the two-shade example', () => {
 describe('the light examples', () => {
   it('the E27 pendant hangs an E27 lampholder (shade ring) and vents in its hub', () => {
     const project = read('e27-pendant');
-    expect(project.name).toBe('E27 pendant');
+    expect(project.name).toBe('Lys');
     expect(project.light).toMatchObject({ kind: 'bulb', size: 'E27', fitting: 'shadeRing' });
     expect(project.mount.kind).toBe('ceilingCord');
     expect(project.hub).toMatchObject({ fused: false, ventCount: 8 });
@@ -155,7 +155,7 @@ describe('the light examples', () => {
 
   it('the strip ring drum carries an LED strip ring under a wide hub', () => {
     const project = read('strip-drum');
-    expect(project.name).toBe('Strip ring drum');
+    expect(project.name).toBe('Glød');
     expect(project.light.kind).toBe('strip');
     expect(project.mount.kind).toBe('ceilingCord');
     const assembly = assemble(project, { quality: 'draft' });

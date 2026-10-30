@@ -42,11 +42,14 @@ Below 1100 px the inspector opens as a sheet over the viewport (pick a component
 _Edit …_). Below 760 px the component rail becomes horizontal and editing controls
 stack below the preview, which takes about half the screen height.
 
-- **Examples** opens an illustrated gallery of starting points: the classic shades (bell, drum, faceted,
-  fluted twist, straight cone, trumpet, wide & shallow), the pendant on a cord, the E27 pendant,
-  the strip-ring drum, the two-tone bell (with an inner shade), the slatted drum, the layered
-  pendant (tiered, PH-style), the origami pendant (pleated) and the lattice drum (geometric), the
-  table lamp and the wall lamp. Picking one replaces the current lamp, which stays one undo away.
+- **Examples** opens an illustrated collection with Nordic-inspired names: Måne (bell), Holm
+  (drum), Klint (faceted), Bølge (fluted twist), Fjord (straight cone), Lilje (trumpet), Sol
+  (wide & shallow), Lærke (cord pendant), Lys (E27 pendant), Glød (strip-ring drum), Skumring
+  (two-tone bell), Siv (slatted drum), Nord (layered pendant), Fold (origami pendant), Væv
+  (lattice drum), Ro (table lamp) and Aften (wall lamp). Each card keeps its lamp type,
+  dimensions and shape details visible. Picking one replaces the current lamp, which stays
+  one undo away. The collection name follows the new project into its print sheet and exports;
+  filenames use readable ASCII equivalents, such as `openlamp-laerke.zip`.
 - **The lamp tree** lists the lamp's nodes: **Project**, **Printer**, **Mount** (its kind),
   **Light** (its kind), **Outer shade**, **Inner shade** (or _Add inner shade_), **Hub &
   joints**, then one row per further part of the lamp (canopy, cord grip, stem segments, stem

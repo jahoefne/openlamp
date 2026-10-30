@@ -84,7 +84,7 @@ test('Export → ZIP downloads one STL per part and the print sheet', async () =
   for (const name of stls) expectWellFormedStl(files[name]!, name);
 
   const sheet = strFromU8(files['print-sheet.md']!);
-  expect(sheet.startsWith('# Pendant on a cord\n')).toBe(true);
+  expect(sheet.startsWith('# Lærke\n')).toBe(true);
   for (const name of stls) expect(sheet).toContain(`\`${name}\``);
 });
 
@@ -116,7 +116,7 @@ test('Export → 3MF downloads one model with an object per part, laid out on th
   expect(model.match(/<object\s/g)).toHaveLength(parts);
   expect(model.match(/<item\s/g)).toHaveLength(parts);
   expect(model.match(/<base\s/g)).toHaveLength(2);
-  expect(model).toContain('<metadata name="Title">Pendant on a cord</metadata>');
+  expect(model).toContain('<metadata name="Title">Lærke</metadata>');
 });
 
 test('Export → Print sheet… shows the parts table and downloads the sheet', async () => {
@@ -126,9 +126,7 @@ test('Export → Print sheet… shows the parts table and downloads the sheet', 
   await page.getByRole('menuitem', { name: /Print sheet/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Print sheet' });
   await expect(dialog).toBeVisible();
-  await expect(
-    dialog.getByRole('heading', { level: 1, name: 'Pendant on a cord', exact: true }),
-  ).toBeVisible();
+  await expect(dialog.getByRole('heading', { level: 1, name: 'Lærke', exact: true })).toBeVisible();
 
   // The parts table: one row per part plus the total, with the built parts' grams.
   const table = dialog.getByRole('table').first();
@@ -147,9 +145,9 @@ test('Export → Print sheet… shows the parts table and downloads the sheet', 
     page.waitForEvent('download'),
     dialog.getByRole('button', { name: 'Download .md' }).click(),
   ]);
-  expect(download.suggestedFilename()).toBe('openlamp-pendant-on-a-cord-print-sheet.md');
+  expect(download.suggestedFilename()).toBe('openlamp-laerke-print-sheet.md');
   const md = await readFile(await download.path(), 'utf8');
-  expect(md.startsWith('# Pendant on a cord\n')).toBe(true);
+  expect(md.startsWith('# Lærke\n')).toBe(true);
 
   // Print calls window.print(); on paper only the sheet shows, without the dialog's buttons.
   await page.evaluate('window.__printed = 0; window.print = () => { window.__printed += 1; }');

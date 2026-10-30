@@ -328,7 +328,7 @@ describe('the slatted shade’s rules', () => {
 describe('the Slatted drum example', () => {
   it('hangs a twisted slatted shade from a split hub on a cord and builds', () => {
     const p = example('slatted-drum');
-    expect(p.name).toBe('Slatted drum');
+    expect(p.name).toBe('Siv');
     expect(p.mount.kind).toBe('ceilingCord');
     expect(p.light.kind).toBe('puck');
     expect(p.hub.fused).toBe(false);

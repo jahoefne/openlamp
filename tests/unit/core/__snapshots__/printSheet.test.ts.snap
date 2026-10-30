@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`the print sheet of bell-default.lamp.json > matches its snapshot 1`] = `
-"# Bell (default)
+"# Måne
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -41,7 +41,7 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Shade (fused)
 
-File: \`openlamp-bell-default-shade.stl\`
+File: \`openlamp-mane-shade.stl\`
 
 - Print as exported: open end on the bed, housing on top. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -57,7 +57,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of drum.lamp.json > matches its snapshot 1`] = `
-"# Drum
+"# Holm
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -97,7 +97,7 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Shade (fused)
 
-File: \`openlamp-drum-shade.stl\`
+File: \`openlamp-holm-shade.stl\`
 
 - Print as exported: open end on the bed, housing on top. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -113,7 +113,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of e27-pendant.lamp.json > matches its snapshot 1`] = `
-"# E27 pendant
+"# Lys
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -158,7 +158,7 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Hub
 
-File: \`openlamp-e27-pendant-hub.stl\`
+File: \`openlamp-lys-hub.stl\`
 
 - Print as exported: collar ring on the bed, mount face up. No supports needed.
 - The lampholder's threaded sleeve goes through the Ø40.5 mm hole in the plate; screw its shade ring on from the light face, inside the skirt, so the plate is clamped.
@@ -167,7 +167,7 @@ File: \`openlamp-e27-pendant-hub.stl\`
 
 ### Shade
 
-File: \`openlamp-e27-pendant-shade.stl\`
+File: \`openlamp-lys-shade.stl\`
 
 - Print as exported: open end on the bed, collar up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -175,7 +175,7 @@ File: \`openlamp-e27-pendant-shade.stl\`
 
 ### Canopy
 
-File: \`openlamp-e27-pendant-canopy.stl\`
+File: \`openlamp-lys-canopy.stl\`
 
 - Print as exported: ceiling face on the bed. No supports needed.
 - Feed the cord up through the canopy and tie a knot that sits in the recess; then screw the canopy to the ceiling through its two slots.
@@ -193,7 +193,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of faceted.lamp.json > matches its snapshot 1`] = `
-"# Faceted
+"# Klint
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -233,7 +233,7 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Shade (fused)
 
-File: \`openlamp-faceted-shade.stl\`
+File: \`openlamp-klint-shade.stl\`
 
 - Print as exported: open end on the bed, housing on top. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -249,7 +249,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of fluted-twist.lamp.json > matches its snapshot 1`] = `
-"# Fluted twist
+"# Bølge
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -289,7 +289,7 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Shade (fused)
 
-File: \`openlamp-fluted-twist-shade.stl\`
+File: \`openlamp-bolge-shade.stl\`
 
 - Print as exported: open end on the bed, housing on top. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -305,7 +305,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of lattice-drum.lamp.json > matches its snapshot 1`] = `
-"# Lattice drum
+"# Væv
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -348,14 +348,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Hub
 
-File: \`openlamp-lattice-drum-hub.stl\`
+File: \`openlamp-vaev-hub.stl\`
 
 - Print as exported: collar ring on the bed, mount face up. No supports needed.
 - Feed the cord down through the boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity; then press the puck in from below until it stops (crush ribs hold it).
 
 ### Shade
 
-File: \`openlamp-lattice-drum-shade.stl\`
+File: \`openlamp-vaev-shade.stl\`
 
 - Print as exported: open end on the bed, collar up. The holes print without supports (hexagons point up, round holes bridge their short tops).
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -363,7 +363,7 @@ File: \`openlamp-lattice-drum-shade.stl\`
 
 ### Canopy
 
-File: \`openlamp-lattice-drum-canopy.stl\`
+File: \`openlamp-vaev-canopy.stl\`
 
 - Print as exported: ceiling face on the bed. No supports needed.
 - Feed the cord up through the canopy and tie a knot that sits in the recess; then screw the canopy to the ceiling through its two slots.
@@ -379,7 +379,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of origami-pendant.lamp.json > matches its snapshot 1`] = `
-"# Origami pendant
+"# Fold
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -422,14 +422,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Hub
 
-File: \`openlamp-origami-pendant-hub.stl\`
+File: \`openlamp-fold-hub.stl\`
 
 - Print as exported: collar ring on the bed, mount face up. No supports needed.
 - Feed the cord down through the boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity; then press the puck in from below until it stops (crush ribs hold it).
 
 ### Shade
 
-File: \`openlamp-origami-pendant-shade.stl\`
+File: \`openlamp-fold-shade.stl\`
 
 - Print as exported: open end on the bed, collar up. The pleats and the 45° roof print without supports.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -437,7 +437,7 @@ File: \`openlamp-origami-pendant-shade.stl\`
 
 ### Canopy
 
-File: \`openlamp-origami-pendant-canopy.stl\`
+File: \`openlamp-fold-canopy.stl\`
 
 - Print as exported: ceiling face on the bed. No supports needed.
 - Feed the cord up through the canopy and tie a knot that sits in the recess; then screw the canopy to the ceiling through its two slots.
@@ -454,7 +454,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of pendant-cord.lamp.json > matches its snapshot 1`] = `
-"# Pendant on a cord
+"# Lærke
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -497,14 +497,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Hub
 
-File: \`openlamp-pendant-on-a-cord-hub.stl\`
+File: \`openlamp-laerke-hub.stl\`
 
 - Print as exported: collar ring on the bed, mount face up. No supports needed.
 - Feed the cord down through the boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity; then press the puck in from below until it stops (crush ribs hold it).
 
 ### Shade
 
-File: \`openlamp-pendant-on-a-cord-shade.stl\`
+File: \`openlamp-laerke-shade.stl\`
 
 - Print as exported: open end on the bed, collar up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -512,7 +512,7 @@ File: \`openlamp-pendant-on-a-cord-shade.stl\`
 
 ### Canopy
 
-File: \`openlamp-pendant-on-a-cord-canopy.stl\`
+File: \`openlamp-laerke-canopy.stl\`
 
 - Print as exported: ceiling face on the bed. No supports needed.
 - Feed the cord up through the canopy and tie a knot that sits in the recess; then screw the canopy to the ceiling through its two slots.
@@ -528,7 +528,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of ph-layered.lamp.json > matches its snapshot 1`] = `
-"# Layered pendant
+"# Nord
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -578,7 +578,7 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Hub
 
-File: \`openlamp-layered-pendant-hub.stl\`
+File: \`openlamp-nord-hub.stl\`
 
 - Print as exported: collar ring on the bed, mount face up. No supports needed.
 - The lampholder's threaded sleeve goes through the Ø40.5 mm hole in the plate; screw its shade ring on from the light face, inside the skirt, so the plate is clamped.
@@ -587,7 +587,7 @@ File: \`openlamp-layered-pendant-hub.stl\`
 
 ### Tier 1
 
-File: \`openlamp-layered-pendant-shade.stl\`
+File: \`openlamp-nord-shade.stl\`
 
 - Print as exported: rim on the bed, collar up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -595,7 +595,7 @@ File: \`openlamp-layered-pendant-shade.stl\`
 
 ### Tier 2
 
-File: \`openlamp-layered-pendant-shade-tier2.stl\`
+File: \`openlamp-nord-shade-tier2.stl\`
 
 - Print as exported: rim on the bed, inner edge up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -603,7 +603,7 @@ File: \`openlamp-layered-pendant-shade-tier2.stl\`
 
 ### Tier 3
 
-File: \`openlamp-layered-pendant-shade-tier3.stl\`
+File: \`openlamp-nord-shade-tier3.stl\`
 
 - Print as exported: rim on the bed, inner edge up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -611,7 +611,7 @@ File: \`openlamp-layered-pendant-shade-tier3.stl\`
 
 ### Tier 4
 
-File: \`openlamp-layered-pendant-shade-tier4.stl\`
+File: \`openlamp-nord-shade-tier4.stl\`
 
 - Print as exported: rim on the bed, inner edge up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -619,28 +619,28 @@ File: \`openlamp-layered-pendant-shade-tier4.stl\`
 
 ### Spacer 1 ×3
 
-File: \`openlamp-layered-pendant-shade-spacer1.stl\` · print 3 copies
+File: \`openlamp-nord-shade-spacer1.stl\` · print 3 copies
 
 - Print as exported: standing on its lower pin. No supports needed.
 - Assembly: their pins go through the sockets of tier 1 (top) and tier 2 (bottom); a drop of glue holds them.
 
 ### Spacer 2 ×3
 
-File: \`openlamp-layered-pendant-shade-spacer2.stl\` · print 3 copies
+File: \`openlamp-nord-shade-spacer2.stl\` · print 3 copies
 
 - Print as exported: standing on its lower pin. No supports needed.
 - Assembly: their pins go through the sockets of tier 2 (top) and tier 3 (bottom); a drop of glue holds them.
 
 ### Spacer 3 ×3
 
-File: \`openlamp-layered-pendant-shade-spacer3.stl\` · print 3 copies
+File: \`openlamp-nord-shade-spacer3.stl\` · print 3 copies
 
 - Print as exported: standing on its lower pin. No supports needed.
 - Assembly: their pins go through the sockets of tier 3 (top) and tier 4 (bottom); a drop of glue holds them.
 
 ### Canopy
 
-File: \`openlamp-layered-pendant-canopy.stl\`
+File: \`openlamp-nord-canopy.stl\`
 
 - Print as exported: ceiling face on the bed. No supports needed.
 - Feed the cord up through the canopy and tie a knot that sits in the recess; then screw the canopy to the ceiling through its two slots.
@@ -664,7 +664,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of slatted-drum.lamp.json > matches its snapshot 1`] = `
-"# Slatted drum
+"# Siv
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -707,14 +707,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Hub
 
-File: \`openlamp-slatted-drum-hub.stl\`
+File: \`openlamp-siv-hub.stl\`
 
 - Print as exported: collar ring on the bed, mount face up. No supports needed.
 - Feed the cord down through the boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity; then press the puck in from below until it stops (crush ribs hold it).
 
 ### Shade
 
-File: \`openlamp-slatted-drum-shade.stl\`
+File: \`openlamp-siv-shade.stl\`
 
 - Print as exported: bottom ring on the bed, collar up. The top ring bridges the short gaps between the slats; no supports needed.
 - Two or more perimeters through the slats; no infill needed.
@@ -722,7 +722,7 @@ File: \`openlamp-slatted-drum-shade.stl\`
 
 ### Canopy
 
-File: \`openlamp-slatted-drum-canopy.stl\`
+File: \`openlamp-siv-canopy.stl\`
 
 - Print as exported: ceiling face on the bed. No supports needed.
 - Feed the cord up through the canopy and tie a knot that sits in the recess; then screw the canopy to the ceiling through its two slots.
@@ -738,7 +738,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of straight-cone.lamp.json > matches its snapshot 1`] = `
-"# Straight cone
+"# Fjord
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -778,7 +778,7 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Shade (fused)
 
-File: \`openlamp-straight-cone-shade.stl\`
+File: \`openlamp-fjord-shade.stl\`
 
 - Print as exported: open end on the bed, housing on top. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -794,7 +794,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of strip-drum.lamp.json > matches its snapshot 1`] = `
-"# Strip ring drum
+"# Glød
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -837,7 +837,7 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Hub
 
-File: \`openlamp-strip-ring-drum-hub.stl\`
+File: \`openlamp-glod-hub.stl\`
 
 - Print as exported: collar ring on the bed, mount face up. No supports needed.
 - The ring channel's ceiling prints as a 10.4 mm bridge, the slot for the shade's collar as a short one.
@@ -846,7 +846,7 @@ File: \`openlamp-strip-ring-drum-hub.stl\`
 
 ### Shade
 
-File: \`openlamp-strip-ring-drum-shade.stl\`
+File: \`openlamp-glod-shade.stl\`
 
 - Print as exported: open end on the bed, collar up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -854,7 +854,7 @@ File: \`openlamp-strip-ring-drum-shade.stl\`
 
 ### Canopy
 
-File: \`openlamp-strip-ring-drum-canopy.stl\`
+File: \`openlamp-glod-canopy.stl\`
 
 - Print as exported: ceiling face on the bed. No supports needed.
 - Feed the cord up through the canopy and tie a knot that sits in the recess; then screw the canopy to the ceiling through its two slots.
@@ -871,7 +871,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of table-lamp.lamp.json > matches its snapshot 1`] = `
-"# Table lamp
+"# Ro
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -922,14 +922,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Hub
 
-File: \`openlamp-table-lamp-hub.stl\`
+File: \`openlamp-ro-hub.stl\`
 
 - Print as exported: collar ring on the bed, mount face up. No supports needed.
 - Press the puck in from below until it stops (crush ribs hold it); its cable runs up through the bore in the mount face.
 
 ### Shade
 
-File: \`openlamp-table-lamp-shade.stl\`
+File: \`openlamp-ro-shade.stl\`
 
 - Print as exported: open end on the bed, collar up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -937,21 +937,21 @@ File: \`openlamp-table-lamp-shade.stl\`
 
 ### Stem segment
 
-File: \`openlamp-table-lamp-stem.stl\`
+File: \`openlamp-ro-stem.stl\`
 
 - Print as exported: female thread on the bed, male thread up. No supports needed.
 - Assembly: feed the cable through the segments, then screw each one onto the one below, clockwise seen from above, until the shoulders meet.
 
 ### Stem foot
 
-File: \`openlamp-table-lamp-stemFoot.stl\`
+File: \`openlamp-ro-stemFoot.stl\`
 
 - Print as exported: flange on the bed, thread up. No supports needed.
 - Screw the flange onto the base with 4 M3 × 8 screws; the heads sit on the flange.
 
 ### Base
 
-File: \`openlamp-table-lamp-base.stl\`
+File: \`openlamp-ro-base.stl\`
 
 - Print as exported: top face on the bed, weight pocket and cable groove up. No supports needed.
 - Fill the pocket with steel shot, washers or sand, close it with the lid, and lay the cable in the groove under the base, out through the notch in the rim.
@@ -959,7 +959,7 @@ File: \`openlamp-table-lamp-base.stl\`
 
 ### Base lid
 
-File: \`openlamp-table-lamp-baseLid.stl\`
+File: \`openlamp-ro-baseLid.stl\`
 
 - Print as exported: flat, the side that faces into the pocket on the bed.
 - Press the lid into the pocket's mouth, notch over the spoke; the three crush ribs hold it.
@@ -978,7 +978,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of trumpet.lamp.json > matches its snapshot 1`] = `
-"# Trumpet
+"# Lilje
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -1018,7 +1018,7 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Shade (fused)
 
-File: \`openlamp-trumpet-shade.stl\`
+File: \`openlamp-lilje-shade.stl\`
 
 - Print as exported: open end on the bed, housing on top. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -1034,7 +1034,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of two-tone-bell.lamp.json > matches its snapshot 1`] = `
-"# Two-tone bell
+"# Skumring
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -1078,14 +1078,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Hub
 
-File: \`openlamp-two-tone-bell-hub.stl\`
+File: \`openlamp-skumring-hub.stl\`
 
 - Print as exported: collar ring on the bed, mount face up. No supports needed.
 - Feed the cord down through the boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity; then press the puck in from below until it stops (crush ribs hold it).
 
 ### Shade
 
-File: \`openlamp-two-tone-bell-shade.stl\`
+File: \`openlamp-skumring-shade.stl\`
 
 - Print as exported: open end on the bed, collar up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -1094,7 +1094,7 @@ File: \`openlamp-two-tone-bell-shade.stl\`
 
 ### Inner shade
 
-File: \`openlamp-two-tone-bell-innerShade.stl\`
+File: \`openlamp-skumring-innerShade.stl\`
 
 - Print as exported: open end on the bed, collar up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -1103,7 +1103,7 @@ File: \`openlamp-two-tone-bell-innerShade.stl\`
 
 ### Canopy
 
-File: \`openlamp-two-tone-bell-canopy.stl\`
+File: \`openlamp-skumring-canopy.stl\`
 
 - Print as exported: ceiling face on the bed. No supports needed.
 - Feed the cord up through the canopy and tie a knot that sits in the recess; then screw the canopy to the ceiling through its two slots.
@@ -1121,7 +1121,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of wall-lamp.lamp.json > matches its snapshot 1`] = `
-"# Wall lamp
+"# Aften
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -1170,14 +1170,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Hub
 
-File: \`openlamp-wall-lamp-hub.stl\`
+File: \`openlamp-aften-hub.stl\`
 
 - Print as exported: collar ring on the bed, mount face up. No supports needed.
 - Press the puck in from below until it stops (crush ribs hold it); its cable runs up through the bore in the mount face.
 
 ### Shade
 
-File: \`openlamp-wall-lamp-shade.stl\`
+File: \`openlamp-aften-shade.stl\`
 
 - Print as exported: open end on the bed, collar up. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
@@ -1185,7 +1185,7 @@ File: \`openlamp-wall-lamp-shade.stl\`
 
 ### Wall plate
 
-File: \`openlamp-wall-lamp-wallPlate.stl\`
+File: \`openlamp-aften-wallPlate.stl\`
 
 - Print as exported: back face on the bed. No supports needed.
 - Hang the plate on two screws through its keyholes (heads in the channels on the back, the plate slid down onto them); the cable leaves through the slot at its bottom edge.
@@ -1193,7 +1193,7 @@ File: \`openlamp-wall-lamp-wallPlate.stl\`
 
 ### Wall arm
 
-File: \`openlamp-wall-lamp-wallArm.stl\`
+File: \`openlamp-aften-wallArm.stl\`
 
 - Print as exported: standing on its flange, the end boss's thread lying horizontal. No supports needed; a brim keeps the tall part in place.
 - Feed the cable in through the flange and out of the threaded bore, screw the hub onto the arm (clockwise seen from below), then screw the flange to the plate with four M3 × 10 screws.
@@ -1209,7 +1209,7 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 `;
 
 exports[`the print sheet of wide-shallow.lamp.json > matches its snapshot 1`] = `
-"# Wide \\& shallow
+"# Sol
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
@@ -1249,7 +1249,7 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 ### Shade (fused)
 
-File: \`openlamp-wide-shallow-shade.stl\`
+File: \`openlamp-sol-shade.stl\`
 
 - Print as exported: open end on the bed, housing on top. No supports needed.
 - Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.

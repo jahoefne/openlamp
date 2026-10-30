@@ -797,7 +797,7 @@ describe('the spacer builder', () => {
 describe('the Layered pendant example', () => {
   it('hangs four tiers on a cord around an E27 bulb and prints them all without supports', () => {
     const p = example('ph-layered');
-    expect(p.name).toBe('Layered pendant');
+    expect(p.name).toBe('Nord');
     expect(p.mount.kind).toBe('ceilingCord');
     expect(p.light).toMatchObject({ kind: 'bulb', size: 'E27' });
     expect(p.hub.fused).toBe(false);

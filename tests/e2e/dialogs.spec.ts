@@ -13,13 +13,14 @@ test('the illustrated gallery selects a lamp and can undo back to the previous d
   const tableLamp = gallery
     .getByRole('button')
     .filter({ has: page.getByText('Table lamp', { exact: true }) });
+  await expect(tableLamp.getByText('Ro', { exact: true })).toBeVisible();
   await tableLamp.scrollIntoViewIfNeeded();
   await expect(tableLamp.locator('svg')).toBeVisible();
   await page.waitForTimeout(350);
   await tableLamp.click();
   await expect(gallery).toBeHidden();
   await expectReady(page);
-  await expect(page.getByLabel('Project name')).toHaveValue('Table lamp');
+  await expect(page.getByLabel('Project name')).toHaveValue('Ro');
   await page.keyboard.press('ControlOrMeta+z');
   await expect(page.getByLabel('Project name')).toHaveValue(previous);
   await expectReady(page);

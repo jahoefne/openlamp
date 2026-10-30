@@ -156,6 +156,11 @@
   font: 400 20px / 1.2 var(--font-display);
   letter-spacing: -0.4px;
 }
+.exampleType {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text);
+}
 .exampleDims,
 .exampleStyle {
   font-size: 10px;

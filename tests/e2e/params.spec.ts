@@ -86,8 +86,8 @@ test.describe('the outer shade', () => {
   });
 });
 
-test('Examples → Faceted builds the faceted shade', async () => {
-  await loadExample(page, 'Faceted');
+test('Examples → Klint builds the faceted shade', async () => {
+  await loadExample(page, 'Klint');
   await selectNode(page, 'outerShade');
 
   await expect(page.locator('#p-bottomDiameter')).toHaveValue('170');

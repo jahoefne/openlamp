@@ -516,7 +516,7 @@ describe('the wall lamp projects', () => {
 
   it('the Wall lamp example hangs from an angled arm, its parts fitting the bed', () => {
     const project = read(new URL('../../../src/examples/wall-lamp.lamp.json', import.meta.url));
-    expect(project.name).toBe('Wall lamp');
+    expect(project.name).toBe('Aften');
     expect(project.hub.fused).toBe(false);
     expect(project.joints.shadeToHub).toBe('bayonet');
     const a = assemble(project, { quality: 'draft' });

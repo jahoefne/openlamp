@@ -3,10 +3,14 @@
  */
 import type { PartSpec } from '../model/assembly.ts';
 
-/** Lower-case ASCII letters and digits, runs of anything else as one `-`, no `-` at the ends. */
+/** Fold accents and Nordic letters to ASCII, then use lower-case letters, digits and hyphens. */
 export function slugify(s: string): string {
   return s
     .toLowerCase()
+    .replace(/æ/g, 'ae')
+    .replace(/ø/g, 'o')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
