@@ -355,7 +355,13 @@ export function resolveWallArm(
       passage: bore,
       wallHole: PLATE.wallHole,
     },
-    socket: { pivot: platePivot, seatY: (bossHeight - kneeTop) / 2, lock: arm.lock },
+    socket: {
+      pivot: platePivot,
+      seatY: (bossHeight - kneeTop) / 2,
+      lock: arm.lock,
+      // The knee's discs turn about the socket axis: they clear the plate's front at every angle.
+      standoff: rosette.sweptRadius + 1,
+    },
     profile: arm.profile,
     quality,
   };

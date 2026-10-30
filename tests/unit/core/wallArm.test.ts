@@ -583,7 +583,8 @@ describe('the pure footprints', () => {
     const a = assemble(wallLamp());
     const pd = deriveWallPlate(plateParams(a));
     // The socket axis: the groove (cable + 0.5), a 1.2 skin, the bore's radius.
-    expect(pd.socketZ).toBeCloseTo(6.5 + 1.2 + 7.8, 9);
+    // The front (10 + 3) plus the knee's discs' swept radius (19) + 1, not the groove's 6.5 + 1.2 + 7.8.
+    expect(pd.socketZ).toBeCloseTo(13 + 19 + 1, 9);
     expect(pd.rBoss).toBeCloseTo(7.8 * Math.SQRT2 + 2.5, 9);
     // The boss + knee stack centred on the plate.
     expect(pd.seatY - pd.bossHeight + (pd.seatY + KNEE.hingeHeight + 18)).toBeCloseTo(0, 9);

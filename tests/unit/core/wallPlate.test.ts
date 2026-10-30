@@ -322,7 +322,7 @@ describe('the wall plate', () => {
       halfWidth: 50,
       halfHeight: 50,
       frontZ: 13,
-      socketZ: 15.5,
+      socketZ: 33,
       channelDepth: 3.5,
       keyholeLip: KEYHOLE_LIP,
       keyholeTop: 8,

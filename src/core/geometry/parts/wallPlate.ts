@@ -73,12 +73,19 @@ export function socketBossHeight(pivot: JointInterface): number {
 }
 
 /**
- * The socket axis's distance from the back face (print z): the back groove,
- * its skin, then the bore's radius. The same for every cable exit, so the
- * exit does not move the lamp. Pure.
+ * The socket axis's distance from the back face (print z): at least the back
+ * groove, its skin, then the bore's radius, and at least `standoff` in front
+ * of the plate's front face at the centre (`frontZ`: the knee's hinge discs
+ * turn about this axis and must clear the plate at every swing angle). The
+ * same for every cable exit, so the exit does not move the lamp. Pure.
  */
-export function socketAxisZ(pivot: JointInterface, grooveDepth: number): number {
-  return grooveDepth + GROOVE_SKIN + pivotDims(pivot).rBore;
+export function socketAxisZ(
+  pivot: JointInterface,
+  grooveDepth: number,
+  frontZ: number,
+  standoff: number,
+): number {
+  return Math.max(grooveDepth + GROOVE_SKIN + pivotDims(pivot).rBore, frontZ + standoff);
 }
 
 /** The outline's half extents and corner radius (a round plate: `width` is its Ø). Pure. */
@@ -186,14 +193,14 @@ export interface WallPlateStats extends GeometryStats {
 export function deriveWallPlate(p: WallPlateParams): WallPlateDerived {
   const outline = plateOutlineDims(p.outline, p.width, p.height, p.cornerRadius);
   const pv = pivotDims(p.socket.pivot);
-  const socketZ = socketAxisZ(p.socket.pivot, p.cable.grooveDepth);
+  const frontZ = p.thickness + p.domeHeight;
+  const socketZ = socketAxisZ(p.socket.pivot, p.cable.grooveDepth, frontZ, p.socket.standoff);
   const seatY = p.socket.seatY;
   const floorY = seatY - pv.depth;
   const bossBottomY = floorY - BOSS_FLOOR;
   const kh = p.keyholes;
   const roof = (kh.headDiameter - kh.slotWidth) / 2;
   const gable = kh.slotWidth / 2;
-  const frontZ = p.thickness + p.domeHeight;
   const channelDepth = Math.max(
     0,
     Math.min(CHANNEL_MAX_DEPTH, p.thickness - roof - gable - CHANNEL_SKIN),

@@ -4,7 +4,7 @@ exports[`the snapshot > matches the snapshot 1`] = `
 {
   "context": {
     "kind": "wall",
-    "wallY": -222.23237657289985,
+    "wallY": -239.73237657289985,
   },
   "derived": {
     "armLength": 220,
@@ -18,7 +18,7 @@ exports[`the snapshot > matches the snapshot 1`] = `
     "endZ": 101.8813490500039,
     "hubHeight": 74.8813490500039,
     "hubYaw": 0,
-    "maxSwing": 71.6,
+    "maxSwing": 76.6,
     "plateZ": 1.3369175183567847,
     "puckDiameter": 59,
     "puckHeight": 8,
@@ -29,7 +29,7 @@ exports[`the snapshot > matches the snapshot 1`] = `
     "shoulderY": -206.73237657289985,
     "shoulderZ": 26.636917518356785,
     "socketY": -206.73237657289985,
-    "wallY": -222.23237657289985,
+    "wallY": -239.73237657289985,
     "zCollar": 134.88944967926534,
   },
   "hubTransform": [
@@ -485,19 +485,19 @@ exports[`the snapshot > matches the snapshot 1`] = `
         0,
         0,
         0,
-        -222.23237657289985,
+        -239.73237657289985,
         1.3369175183567847,
         1,
       ],
       "bedFootprint": {
         "x": 100,
         "y": 100,
-        "z": 29.03086578651014,
+        "z": 46.53086578651014,
       },
-      "buildKeyLength": 551,
+      "buildKeyLength": 565,
       "colour": "#d9d4cb",
       "displayName": "Wall plate",
-      "hash": "0808899d244964",
+      "hash": "17b7d9c652b34a",
       "id": "wallPlate",
       "instanceTransforms": [
         [
@@ -514,7 +514,7 @@ exports[`the snapshot > matches the snapshot 1`] = `
           0,
           0,
           0,
-          -222.23237657289985,
+          -239.73237657289985,
           1.3369175183567847,
           1,
         ],
@@ -560,6 +560,7 @@ exports[`the snapshot > matches the snapshot 1`] = `
             "type": "pivot",
           },
           "seatY": 1.3000000000000007,
+          "standoff": 20,
         },
         "thickness": 10,
         "width": 100,

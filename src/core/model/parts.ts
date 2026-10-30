@@ -576,8 +576,13 @@ export interface WallPlateParams {
   keyholes: { spacing: Mm; headDiameter: Mm; slotWidth: Mm; length: Mm };
   /** The cable: where it leaves, the back groove (width × depth), the passage's Ø, the wall hole's Ø. */
   cable: { exit: CableExit; grooveWidth: Mm; grooveDepth: Mm; passage: Mm; wallHole: Mm };
-  /** The socket boss: the pivot (the plate is its female side), its seat plane, the lock. */
-  socket: { pivot: JointInterface; seatY: Mm; lock: ArmLock };
+  /**
+   * The socket boss: the pivot (the plate is its female side), its seat plane,
+   * the lock, and `standoff`: how far the socket axis keeps in front of the
+   * plate's front face at the centre (`thickness + domeHeight`), so the knee's
+   * hinge discs (their swept radius + 1) clear the plate at every swing angle.
+   */
+  socket: { pivot: JointInterface; seatY: Mm; lock: ArmLock; standoff: Mm };
   /** The socket boss's section. */
   profile: ArmProfile;
   quality: Quality;
