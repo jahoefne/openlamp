@@ -61,14 +61,18 @@ const V3_FIXTURES = [
   'v3-wall-arm.lamp.json',
   'v3-standing.lamp.json',
 ];
+const V4_FIXTURES = ['v4-minimal.lamp.json', 'v4-full.lamp.json', 'v4-wall-arm.lamp.json'];
 
 describe('parseProject / serializeProject', () => {
-  it.each([...V3_FIXTURES, ...V2_FIXTURES, ...V1_FIXTURES])('round-trips %s', (name) => {
-    const project = parseProject(fixture(name));
-    const text = serializeProject(project);
-    expect(parseProject(text)).toEqual(project);
-    expect(serializeProject(parseProject(text))).toBe(text);
-  });
+  it.each([...V4_FIXTURES, ...V3_FIXTURES, ...V2_FIXTURES, ...V1_FIXTURES])(
+    'round-trips %s',
+    (name) => {
+      const project = parseProject(fixture(name));
+      const text = serializeProject(project);
+      expect(parseProject(text)).toEqual(project);
+      expect(serializeProject(parseProject(text))).toBe(text);
+    },
+  );
 
   it('writes keys in schema order with sorted colour overrides', () => {
     const text = serializeProject(parseProject(fixture('v2-full.lamp.json')));
@@ -127,8 +131,8 @@ describe('parseProject / serializeProject', () => {
   });
 
   it('leaves current and unknown versions to the schema', () => {
-    const v3 = JSON.parse(fixture('v3-minimal.lamp.json')) as unknown;
-    expect(migrate(v3)).toBe(v3);
+    const v4 = JSON.parse(fixture('v4-minimal.lamp.json')) as unknown;
+    expect(migrate(v4)).toBe(v4);
     const future = { version: 99 };
     expect(migrate(future)).toBe(future);
     expect(migrate('nope')).toBe('nope');
@@ -217,7 +221,7 @@ describe('migration v1 → v2', () => {
 
   it('re-saved v1 fixtures equal the current fixtures', () => {
     expect(serializeProject(parseProject(fixture('v1-minimal.lamp.json')))).toBe(
-      fixture('v3-minimal.lamp.json'),
+      fixture('v4-minimal.lamp.json'),
     );
   });
 });
@@ -226,15 +230,16 @@ describe('migration v2 → v3', () => {
   it.each(V2_FIXTURES)('only bumps the version of %s (the strap keeps its shape)', (name) => {
     const raw = JSON.parse(fixture(name)) as Record<string, unknown>;
     const migrated = migrate(raw) as Record<string, unknown>;
-    expect(migrated).toEqual({ ...raw, version: 3 });
+    // v2 → v3 → v4: the strap keeps its shape through both.
+    expect(migrated).toEqual({ ...raw, version: PROJECT_VERSION });
     const project = loadProject(raw);
-    expect(project.version).toBe(3);
+    expect(project.version).toBe(PROJECT_VERSION);
     expect(project.mount).toEqual(raw.mount);
   });
 
-  it('re-saved v2 fixtures equal the v3 fixtures', () => {
+  it('re-saved v2 fixtures equal the current fixtures', () => {
     expect(serializeProject(parseProject(fixture('v2-minimal.lamp.json')))).toBe(
-      fixture('v3-minimal.lamp.json'),
+      fixture('v4-minimal.lamp.json'),
     );
   });
 
@@ -253,6 +258,102 @@ describe('migration v2 → v3', () => {
       variant: 'floor',
       base: { lid: 'screws' },
     });
+  });
+});
+
+describe('migration v3 → v4', () => {
+  const raw = (name: string) => JSON.parse(fixture(name)) as Record<string, unknown>;
+  /** A v3 wall arm with this plate and arm (the v3-wall-arm fixture's otherwise). */
+  const v3Wall = (plate: Record<string, unknown>, arm: Record<string, unknown>) => {
+    const r = raw('v3-wall-arm.lamp.json');
+    const mount = r.mount as { plate: object; arm: object };
+    return {
+      ...r,
+      mount: { ...mount, plate: { ...mount.plate, ...plate }, arm: { ...mount.arm, ...arm } },
+    };
+  };
+  const wallOf = (r: unknown) => {
+    const mount = loadProject(r).mount;
+    if (mount.kind !== 'wallArm') throw new Error('not a wall arm');
+    return mount;
+  };
+
+  it.each(['v3-minimal.lamp.json', 'v3-full.lamp.json', 'v3-standing.lamp.json'])(
+    'only bumps the version of %s (every mount but the wall arm keeps its shape)',
+    (name) => {
+      const r = raw(name);
+      expect(migrate(r)).toEqual({ ...r, version: 4 });
+      expect(loadProject(r).mount).toEqual(r.mount);
+    },
+  );
+
+  it('rebuilds a wall arm: the plate keeps its size, a curved arm bends by its rise', () => {
+    const migrated = migrate(raw('v3-wall-arm.lamp.json')) as { version: number; mount: unknown };
+    expect(migrated.version).toBe(4);
+    expect(migrated.mount).toEqual({
+      kind: 'wallArm',
+      plate: {
+        outline: 'roundedRect',
+        width: 90,
+        height: 130,
+        thickness: 10,
+        edge: 'chamfer',
+        edgeSize: 3,
+        domeHeight: 0,
+        keyholeSpacing: 70,
+        cableExit: 'bottom',
+      },
+      arm: {
+        shape: 'curved',
+        bendAngle: 30,
+        length: 220,
+        tubeDiameter: 26,
+        cableDiameter: 5,
+        tilt: 0,
+        links: 1,
+        elbow: 'swing',
+        elbowAt: 0.5,
+        elbowTilt: 0,
+        profile: 'round',
+        lock: 'friction',
+      },
+    });
+  });
+
+  it('turns an angled arm into a straight one tilted by its rise; a straight one stays level', () => {
+    expect(wallOf(v3Wall({}, { shape: 'angled', riseAngle: 25 })).arm).toMatchObject({
+      shape: 'straight',
+      tilt: 25,
+      bendAngle: 20,
+    });
+    expect(wallOf(v3Wall({}, { shape: 'straight', riseAngle: 35 })).arm).toMatchObject({
+      shape: 'straight',
+      tilt: 0,
+      bendAngle: 20,
+    });
+    expect(wallOf(v3Wall({}, { shape: 'curved', riseAngle: 40 })).arm).toMatchObject({
+      shape: 'curved',
+      tilt: 0,
+      bendAngle: 40,
+    });
+  });
+
+  it('thickens a plate under 10 mm and keeps a thicker one', () => {
+    expect(wallOf(v3Wall({ thickness: 4 }, {})).plate.thickness).toBe(10);
+    expect(wallOf(v3Wall({ thickness: 12.5 }, {})).plate.thickness).toBe(12.5);
+  });
+
+  it.each([
+    ['v3-minimal.lamp.json', 'v4-minimal.lamp.json'],
+    ['v3-full.lamp.json', 'v4-full.lamp.json'],
+    ['v3-wall-arm.lamp.json', 'v4-wall-arm.lamp.json'],
+  ])('re-saved %s equals %s', (from, to) => {
+    expect(serializeProject(parseProject(fixture(from)))).toBe(fixture(to));
+  });
+
+  it('leaves a v4 wall arm alone', () => {
+    const v4 = raw('v4-wall-arm.lamp.json');
+    expect(migrate(v4)).toBe(v4);
   });
 });
 
@@ -290,6 +391,8 @@ describe('mounts', () => {
     expect(mountParamPath('ceilingCord', 'canopyDiameter')).toBe('mount.canopy.diameter');
     expect(mountParamPath('ceilingStrap', 'strapWidth')).toBe(CLASSIC_PARAM_PATHS.strapWidth);
     expect(mountParamPath('wallArm', 'canopyDiameter')).toBeUndefined();
+    expect(mountParamPath('wallArm', 'plateDome')).toBe('mount.plate.domeHeight');
+    expect(mountParamPath('wallArm', 'armElbowTilt')).toBe('mount.arm.elbowTilt');
   });
 
   it('clamps mount parameters with their project paths', () => {
@@ -306,13 +409,21 @@ describe('mounts', () => {
     ]);
   });
 
-  it('shows the rise angle only for a bent arm', () => {
+  it('shows the bend only for a curved arm, the plate height only when not round, the elbow only for two links', () => {
     const defs = MOUNT_GROUPS.wallArm.flatMap((g) => g.params);
-    const shown = (armShape: string) =>
-      defs.filter((d) => isParamVisible(d, { armShape })).map((d) => d.key);
-    expect(shown('straight')).not.toContain('armRiseAngle');
-    expect(shown('angled')).toContain('armRiseAngle');
-    expect(shown('curved')).toContain('armRiseAngle');
+    const shown = (values: Record<string, unknown>) =>
+      defs.filter((d) => isParamVisible(d, values)).map((d) => d.key);
+    expect(MOUNT_GROUPS.wallArm.map((g) => g.label)).toEqual(['Wall plate', 'Arm', 'Joints']);
+    expect(shown({ armShape: 'straight' })).not.toContain('armBend');
+    expect(shown({ armShape: 'curved' })).toContain('armBend');
+    expect(shown({ plateOutline: 'round' })).not.toContain('plateHeight');
+    expect(shown({ plateOutline: 'roundedRect' })).toContain('plateHeight');
+    expect(shown({ plateOutline: 'stadium' })).toContain('plateHeight');
+    const elbow = ['armElbow', 'armElbowAt', 'armElbowTilt'];
+    for (const key of elbow) expect(shown({ armLinks: 1 })).not.toContain(key);
+    expect(shown({ armLinks: 2 })).toEqual(expect.arrayContaining(elbow));
+    // The pivot lock applies to the plate's pivot, so it is always shown.
+    expect(shown({ armLinks: 1 })).toContain('armLock');
   });
 
   it('keeps a mount other than the strap through the classic shade bridge', () => {

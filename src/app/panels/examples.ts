@@ -25,6 +25,7 @@ export const EXAMPLE_DESCRIPTIONS: Readonly<Record<string, string>> = {
   'ph-layered': 'Layered pendant',
   'table-lamp': 'Table lamp',
   'wall-lamp': 'Wall lamp',
+  'swing-arm': 'Swing-arm wall lamp',
 };
 
 const rank = (p: Project) => (p.id === DEFAULT_EXAMPLE_ID ? 0 : 1);

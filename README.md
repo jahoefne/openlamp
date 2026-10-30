@@ -46,19 +46,20 @@ stack below the preview, which takes about half the screen height.
   (drum), Klint (faceted), Bølge (fluted twist), Fjord (straight cone), Lilje (trumpet), Sol
   (wide & shallow), Lærke (cord pendant), Lys (E27 pendant), Glød (strip-ring drum), Skumring
   (two-tone bell), Siv (slatted drum), Nord (layered pendant), Fold (origami pendant), Væv
-  (lattice drum), Ro (table lamp) and Aften (wall lamp). Each card keeps its lamp type,
-  dimensions and shape details visible. Picking one replaces the current lamp, which stays
-  one undo away. The collection name follows the new project into its print sheet and exports;
+  (lattice drum), Ro (table lamp), Aften (wall lamp) and Gren (swing-arm wall lamp). Each
+  card keeps its lamp type, dimensions and shape details visible. Picking one replaces the
+  current lamp, which stays one undo away. The collection name follows the new project into its print sheet and exports;
   filenames use readable ASCII equivalents, such as `openlamp-laerke.zip`.
 - **The lamp tree** lists the lamp's nodes: **Project**, **Printer**, **Mount** (its kind),
   **Light** (its kind), **Outer shade**, **Inner shade** (or _Add inner shade_), **Hub &
   joints**, then one row per further part of the lamp (canopy, cord grip, stem segments, stem
-  foot, base, base lid, wall plate, wall arm, or the fit-test pieces), each part with its colour
-  and a bed-fit mark (✓ fits, ⚠ too big for the printer). A shade of several parts lists them
-  under its node (a tiered shade's lower tiers and its spacers); a part printed several times
-  says how often ("Stem segment ×2", "Spacer 1 ×3"). Selecting a node shows only its
-  parameters in the inspector; selecting a part row selects the node it belongs to (its mount,
-  or Hub & joints for the test pieces) and outlines the part.
+  foot, base, base lid, wall plate, knee, wall arm or inner and outer arm, hanger, knobs, or the
+  fit-test pieces), each part with its colour and a bed-fit mark (✓ fits, ⚠ too big for the
+  printer). A shade of several parts lists them under its node (a tiered shade's lower tiers
+  and its spacers); a part printed several times says how often ("Stem segment ×2",
+  "Spacer 1 ×3", "Knob ×2"). Selecting a node shows only its parameters in the inspector;
+  selecting a part row selects the node it belongs to (its mount, or Hub & joints for the
+  test pieces) and outlines the part.
 - **The inspector** shows the selected node's parameters, generated from the core schema.
   Outer and inner shades start with common shape controls, followed by style, colour and surface
   controls. **Construction** and **Pattern details** expand the technical settings; notes for
@@ -74,8 +75,9 @@ stack below the preview, which takes about half the screen height.
     chip next to the project name).
   - **Mount**: how the lamp is hung or stands: the velcro strap on the ceiling, a pendant on a
     cord (a ceiling canopy, the cord knotted in it or held by a collet and a screw-on grip), a
-    wall arm (wall plate and arm) or a standing lamp (base, lid and a segmented stem), each with
-    its own parameters.
+    wall arm (a canopy plate on the wall, a knee that swings in its socket, one or two links on
+    toothed hinges that set the tilt, a hanger the hub screws into, a knob per hinge) or a
+    standing lamp (base, lid and a segmented stem), each with its own parameters.
   - **Light**: a USB LED puck, an E27 or E14 bulb in a lampholder or an LED strip ring.
   - **Outer shade** / **Inner shade**: the **Style family** first — _Revolved_ (a turned wall,
     smooth, ribbed or faceted), _Slatted_ (a bottom and a top ring joined by flat slats that can
@@ -273,7 +275,7 @@ the examples and the CLI. Its top-level fields:
 
 | Field                                 | Contents                                                                                                      |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `version`                             | format version (currently `3`); older versions are migrated on load                                           |
+| `version`                             | format version (currently `4`); older versions are migrated on load                                           |
 | `id`, `name`, `revision`, `updatedAt` | identity, display name, edit counter, ISO timestamp                                                           |
 | `printer`                             | `{ id, vendor, name, bed: [x, y, z], nozzle, multiColour, notes? }`                                           |
 | `quality`                             | `{ preview, export }`, each `draft`, `normal` or `fine`                                                       |

@@ -9,7 +9,10 @@ import { buildBaseLid } from './parts/baseLid.ts';
 import { buildCanopy } from './parts/canopy.ts';
 import { buildCordGrip } from './parts/cordGrip.ts';
 import { buildFitFemale, buildFitMale } from './parts/fitPair.ts';
+import { buildHanger } from './parts/hanger.ts';
 import { buildHub } from './parts/hub.ts';
+import { buildKnee } from './parts/knee.ts';
+import { buildKnob } from './parts/knob.ts';
 import { buildShade } from './parts/shade.ts';
 import { buildSpacer } from './parts/spacer.ts';
 import { buildStem } from './parts/stem.ts';
@@ -39,7 +42,10 @@ export const PART_BUILDERS: { readonly [K in PartKind]: Builder<PartParamsByKind
   base: buildBase,
   baseLid: buildBaseLid,
   wallPlate: buildWallPlate,
+  knee: buildKnee,
   wallArm: buildWallArm,
+  hanger: buildHanger,
+  knob: buildKnob,
   fitMale: buildFitMale,
   fitFemale: buildFitFemale,
 };
@@ -57,9 +63,12 @@ export const PART_KIND_DESCRIPTIONS: { readonly [K in PartKind]: string } = {
   base: 'the weighted base of the standing lamp: weight pocket, cable groove, insert pockets for the stem flange',
   baseLid: 'the lid of the base weight pocket (snap ring or three screws)',
   wallPlate:
-    'the wall plate of the wall arm: keyholes, insert pockets for the arm flange, cable slot',
+    'the canopy plate of the wall arm: blind keyholes, the cable groove in its back, the socket boss the knee turns in',
+  knee: 'the wall arm’s knee: a spigot that turns in a socket (swing), a toothed tang that carries a link (tilt)',
   wallArm:
-    'the arm of the wall lamp: flange, straight / angled / curved tube, threaded end boss for the hub',
+    'a link of the wall arm: straight or curved tube between toothed clevises (or a tang), or a socket boss for a swing elbow',
+  hanger: 'the wall arm’s hanger: a toothed tang over the female thread the hub screws into',
+  knob: 'a knob for a hinge of the wall arm: holds the M5 nut that clamps the hinge’s teeth',
   fitMale:
     'fit test: a section of the shade collar with the joint (lugs, ribs or thread) on a base disc',
   fitFemale: "fit test: a section of the hub's collar ring with the joint's slots or thread",
@@ -110,8 +119,14 @@ function runBuilder(
       return PART_BUILDERS.baseLid(k, spec.params, quality);
     case 'wallPlate':
       return PART_BUILDERS.wallPlate(k, spec.params, quality);
+    case 'knee':
+      return PART_BUILDERS.knee(k, spec.params, quality);
     case 'wallArm':
       return PART_BUILDERS.wallArm(k, spec.params, quality);
+    case 'hanger':
+      return PART_BUILDERS.hanger(k, spec.params, quality);
+    case 'knob':
+      return PART_BUILDERS.knob(k, spec.params, quality);
     case 'fitMale':
       return PART_BUILDERS.fitMale(k, spec.params, quality);
     case 'fitFemale':

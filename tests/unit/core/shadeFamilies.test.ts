@@ -142,7 +142,7 @@ describe('the shade style in the project', () => {
     const p = withInnerShade(pendantAs(family));
     p.shades[1]!.style = shadeStyleForFamily(p.shades[1]!.style, family);
     expect(p.version).toBe(PROJECT_VERSION);
-    expect(PROJECT_VERSION).toBe(3);
+    expect(PROJECT_VERSION).toBe(4);
     const text = serializeProject(p);
     expect(parseProject(text)).toEqual(p);
     expect(serializeProject(parseProject(text))).toBe(text);

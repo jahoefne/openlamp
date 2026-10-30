@@ -9,15 +9,20 @@
 import type { Quality } from '../geometry/quality.ts';
 import type { SurfaceStyleName } from '../geometry/surface.ts';
 import type {
+  ARM_LOCKS,
+  ARM_PROFILES,
   ARM_SHAPES,
   BASE_LIDS,
   BulbFitting,
   BulbSize,
+  CABLE_EXITS,
   ClassicShadeParams,
   GeometricVariant,
   LATTICE_HOLE_SHAPES,
+  PLATE_EDGES,
+  PLATE_OUTLINES,
 } from '../schema/defs.ts';
-import type { Deg, JointInterface, Mm } from './assembly.ts';
+import type { Deg, JointInterface, Mm, RosetteSpec } from './assembly.ts';
 
 // ---------------------------------------------------------------- lights
 
@@ -472,45 +477,237 @@ export interface BaseLidParams {
   quality: Quality;
 }
 
+// ---------------------------------------------------------------- the wall arm
+//
+// The wall lamp's parts and their frames. Every number a builder needs is
+// resolved by the mount module (assembly/mounts/wallArm.ts) and copied in
+// here; the pure `derive*` / `*Footprint` functions next to each builder
+// (geometry/parts/{wallPlate,knee,wallArm,hanger,knob}.ts) are what the
+// placement reads, so a builder must build to them.
+//
+// The room: z up, the wall is a plane y = const and the lamp stands out
+// toward +y. `W` below is the map (x, y, z) → (−x, z, y) (a proper rotation,
+// its own inverse) between a part's "wall frame" and the room.
+//
+// A **hinge frame** (the placement's): origin on a rosette hinge's axis in
+// the tang's mid-plane, x along the axis, y toward the link the hinge carries
+// (away from the wall at rest), z up. A **link frame** is its hinge frame
+// composed with `W`: x = −(hinge x), y = hinge z, z = hinge y.
+
+export type PlateOutline = (typeof PLATE_OUTLINES)[number];
+export type PlateEdge = (typeof PLATE_EDGES)[number];
+export type CableExit = (typeof CABLE_EXITS)[number];
+export type ArmShape = (typeof ARM_SHAPES)[number];
+export type ArmProfile = (typeof ARM_PROFILES)[number];
+export type ArmLock = (typeof ARM_LOCKS)[number];
+
 /**
- * The wall plate (part kind `wallPlate`): an extruded rounded rectangle with
- * two keyhole slots to hang it on screws, heat-set pockets for the arm's
- * flange and a cable notch in its bottom edge. Printed back-face-down.
+ * Every number both sides of a rosette hinge build from: the joint's
+ * `RosetteSpec`, its tolerance and what follows from them. The same for every
+ * hinge of a lamp (the shoulder, a knee's or a fold elbow's hinge, the
+ * hanger's).
+ *
+ * Hinge-local frame (`features/rosette.ts`): the axis along x, the mid-plane
+ * x = 0, the tang's stalk toward −y. A tang and a clevis built in the same
+ * local frame mesh (the ears' teeth are turned half a pitch against the
+ * tang's), and keep meshing turned against each other about x by any
+ * multiple of `360 / teeth`. The bolt's head sits in the counterbore of the
+ * ear on local −x; the knob (and the nut in it) on the ear on local +x.
+ * The cable channel runs in the tang's mid-plane as an arc around the bolt,
+ * from the stalk (local −y) to the tube side, and leaves through an open notch
+ * in the toothed rim.
+ */
+export interface RosetteHinge extends RosetteSpec {
+  /** Axial clearance on each side of the tang (the joint's `tolerance`). */
+  tolerance: Mm;
+  /** Between the ears: `tangThickness + 2·tolerance`. */
+  earGap: Mm;
+  /** The whole hinge along its axis: `earGap + 2·earThickness`. */
+  width: Mm;
+  /** The bolt head's counterbore in the −x ear: Ø × depth (a web stays under it). */
+  headCounterbore: [Mm, Mm];
+  /** The cable channel: its width (square section) and the radius of its centre line around the bolt. */
+  channel: { width: Mm; radius: Mm };
+  /**
+   * Disc on edge: a disc printed with its axis horizontal enters its support
+   * (or the bed) within 45° of the axis when the axis is `radius / √2` above it.
+   */
+  axisHeight: Mm;
+  /** The swept circle every other part keeps clear of around the axis (`radius` + 1). */
+  sweptRadius: Mm;
+}
+
+/**
+ * The wall plate (part kind `wallPlate`): a canopy hung on two screws, its
+ * front closed. Printed back face down.
+ *
+ * Print frame: the back face (the wall) on the bed, z 0; the outline centred
+ * on x = y = 0; +y is up in the room, +z toward the room, +x the room's −x
+ * (print → room is `W` plus a translation). The front is the hull of stacked
+ * slices of the outline, inset by the edge (`edge`, `edgeSize`) and rising
+ * from `thickness` at the rim to `thickness + domeHeight` in the middle. Two
+ * keyholes, cut from the back only, at x = ±`keyholes.spacing / 2`: the screw's
+ * place (the slot's upper end) at y 0, the head hole `keyholes.length` below
+ * it. The cable runs from the socket's sump through a passage (Ø
+ * `cable.passage`, along z) back to a groove in the back face to the edge
+ * `cable.exit` names (left / right at the passage's height), or, for
+ * `wall`, through a Ø `cable.wallHole` hole into the wall. The socket boss on
+ * the front carries the pivot's female side: its axis is the line x 0,
+ * z = `deriveWallPlate(p).socketZ`, along y, the seat plane (the boss's top)
+ * at y = `socket.seatY`. The pivot's joint frame (z up the socket axis) has
+ * its origin at the print point (0, `socket.seatY`, `socketZ`) and is the room's
+ * orientation: joint (x, y, z) = print (−x, z, y), so the print's "up" (the
+ * teardrop's point, the lock pocket) is the joint's +y.
  */
 export interface WallPlateParams {
+  outline: PlateOutline;
+  /** The outline's width (the Ø of a round plate). */
   width: Mm;
+  /** The outline's height (= `width` for a round plate). */
   height: Mm;
-  thickness: Mm;
+  /** Corner radius of a rounded rectangle (a stadium's ends are half its shorter side). */
   cornerRadius: Mm;
-  /** Keyholes on the vertical centre line: spacing, head Ø, slot width, slot length. */
+  /** At the rim. */
+  thickness: Mm;
+  edge: PlateEdge;
+  edgeSize: Mm;
+  domeHeight: Mm;
+  /** The keyholes: spacing, head Ø, slot width, travel from the head hole to the screw's place. */
   keyholes: { spacing: Mm; headDiameter: Mm; slotWidth: Mm; length: Mm };
-  /** The arm flange's screws (the plate is the female side). */
-  armScrews: JointInterface;
-  /** Notch in the bottom edge for the cable: width × depth. */
-  cableNotch: { width: Mm; depth: Mm };
+  /** The cable: where it leaves, the back groove (width × depth), the passage's Ø, the wall hole's Ø. */
+  cable: { exit: CableExit; grooveWidth: Mm; grooveDepth: Mm; passage: Mm; wallHole: Mm };
+  /** The socket boss: the pivot (the plate is its female side), its seat plane, the lock. */
+  socket: { pivot: JointInterface; seatY: Mm; lock: ArmLock };
+  /** The socket boss's section. */
+  profile: ArmProfile;
   quality: Quality;
 }
 
 /**
- * The wall arm (part kind `wallArm`): a tube from a flange on the wall plate
- * to an end boss whose female thread takes the hub's stub from below; cable
- * bore throughout. `straight` = horizontal, `angled` = rising `riseAngle`,
- * `curved` = a torus sector sweeping `riseAngle`. Printed standing on its flange.
+ * The knee (part kind `knee`): spigot → 45° shoulder → body → stalk → tang.
+ * Two knees of a swing elbow are one part with `instances` 2 (both build
+ * from the plate's pivot; the elbow's pivot has the same numbers).
+ *
+ * Knee frame: origin on the pivot axis in the seat plane, z up the pivot
+ * axis, x along the hinge axis, y toward the arm (away from the wall at
+ * rest). The spigot (the pivot's male side, its joint frame = the knee
+ * frame) reaches `pivot.length` below the seat plane, its shoulder cone
+ * widens at 45° to the body (Ø `bodyDiameter`, its top `bodyHeight` above the
+ * seat plane, clear of the clevis ears' swept circle), the stalk (`stalk.width`
+ * along x, `stalk.depth` along y) carries the tang; the hinge axis is the line
+ * y 0, z `hingeHeight` (the tang's hinge-local frame → knee: `rotationX(90)`
+ * then up by `hingeHeight`). The cable bore (Ø `boreDiameter`) runs up the
+ * spigot into the tang's channel.
+ *
+ * Print frame: the knee frame moved up by `pivot.length` (the spigot's end on
+ * the bed).
+ */
+export interface KneeParams {
+  /** The spigot (the knee is the male side). */
+  pivot: JointInterface;
+  /** The tang (the knee is the male side). */
+  rosette: RosetteHinge;
+  bodyDiameter: Mm;
+  /** The body's top above the seat plane. */
+  bodyHeight: Mm;
+  stalk: { width: Mm; depth: Mm };
+  /** The hinge axis above the seat plane. */
+  hingeHeight: Mm;
+  /** Cable bore Ø (cable + 1). */
+  boreDiameter: Mm;
+  /** The body's section. */
+  profile: ArmProfile;
+  quality: Quality;
+}
+
+/**
+ * One link of the wall arm (part kind `wallArm`): a tube between two hinge
+ * ends. `root` is the end at the knee (or, for a fold elbow's outer link, at
+ * the inner link's end clevis); `end` is a clevis (for the hanger or a fold
+ * elbow's outer link) or a socket boss for a swing elbow's knee.
+ *
+ * Link frame: origin on the root's hinge axis in the mid-plane, x along it, z
+ * along the chord to the end's axis at (0, 0, `length`), y up at rest (tilt
+ * 0). A `curved` link's centre line is a circular arc through both axes that
+ * turns by `bendAngle` toward +y: it leaves the root at `bendAngle / 2` below
+ * the chord, sags by `deriveWallArm(p).sagitta`, arrives at `bendAngle / 2`
+ * above it. A clevis (root or end): its hinge-local frame → link is
+ * `rotationY(180)` at the axis; a `tang` root: `rotationX(−90) · rotationY(180)`
+ * (its stalk along +z). A socket end: the socket's axis along +y through
+ * (0, ·, `length`), its seat plane at y = `deriveWallArm(p).seatY`; the
+ * pivot's joint frame → link is `W` plus that seat point; the sump is centred
+ * on the chord, where the tube's bore arrives; the lock pocket (if any) along
+ * +z.
+ *
+ * Print frame: standing on a clevis (a tang never goes down) with the chord
+ * vertical: the root clevis on the bed (`root: 'clevis'`), else the end
+ * clevis (the link turned half a turn about x); the lower axis
+ * `rosette.axisHeight` above the bed, moved along y so the footprint is
+ * centred (`linkToPrint` in parts/wallArm.ts).
  */
 export interface WallArmParams {
-  shape: (typeof ARM_SHAPES)[number];
-  /** From the wall plate to the hub's axis. */
+  shape: ArmShape;
+  /** How far a curved link turns between its hinges; 0 for a straight one. */
+  bendAngle: Deg;
+  /** From the root's axis to the end's axis (the chord). */
   length: Mm;
-  riseAngle: Deg;
   tubeDiameter: Mm;
   /** Cable bore Ø (cable + 1). */
   boreDiameter: Mm;
-  /** Flange on the wall plate: Ø × thickness. */
-  flange: { diameter: Mm; thickness: Mm };
-  /** The flange's screws into the plate (the arm is the male side). */
-  plateScrews: JointInterface;
-  /** The hub's threaded stub (the arm's end boss is the female side). */
+  /** The tube's (and a socket boss's) section. */
+  profile: ArmProfile;
+  root: 'clevis' | 'tang';
+  end: { kind: 'clevis' } | { kind: 'socket'; pivot: JointInterface; lock: ArmLock };
+  rosette: RosetteHinge;
+  quality: Quality;
+}
+
+/**
+ * The hanger (part kind `hanger`): a tang on a revolved body whose female
+ * thread takes the hub's stub; it hangs plumb from the last link's end clevis.
+ *
+ * Hanger frame: origin on the hinge axis in the mid-plane, x along it, z up
+ * (plumb), the last link toward −y. The tang's hinge-local frame → hanger:
+ * `rotationX(90)`. The body (Ø `bodyDiameter`, `bodyHeight` tall) hangs below
+ * the axis with its top `axisAboveBody` below it; the thread's mouth (the
+ * joint frame's origin, where the hub's mount face meets it) is at z
+ * −`deriveHanger(p).drop`. The cable bore (Ø `boreDiameter`) runs from the
+ * tang's channel down into the thread.
+ *
+ * Print frame: the hanger frame moved up by `drop` (the mouth on the bed).
+ */
+export interface HangerParams {
+  /** The tang (the hanger is the male side). */
+  rosette: RosetteHinge;
+  /** The hub's stub (the hanger is the female side). */
   hubJoint: JointInterface;
+  /** Cable bore Ø (cable + 1). */
+  boreDiameter: Mm;
+  bodyDiameter: Mm;
+  /** From the thread's mouth to the body's top (thread, 45° roof, skin). */
+  bodyHeight: Mm;
+  /** From the body's top up to the hinge axis (clear of the ears' swept circle). */
+  axisAboveBody: Mm;
+  quality: Quality;
+}
+
+/**
+ * A hinge's knob (part kind `knob`; one part, a copy per hinge): a lobed
+ * star with a bore for the bolt and a hexagonal pocket for its nut.
+ *
+ * Print frame: flat, the face that lies on the ear on the bed (z 0), the axis
+ * on x = y = 0, the nut's pocket open on the top face (z `height`). In the
+ * lamp it sits on the ear on the hinge's +x side (hinge frame: print z →
+ * +x, print z 0 at x = `rosette.width / 2`).
+ */
+export interface KnobParams {
+  diameter: Mm;
+  height: Mm;
+  lobes: number;
+  /** The bolt's bore Ø. */
+  boreDiameter: Mm;
+  /** The nut's hexagonal pocket: across flats × depth from the top face. */
+  nut: { acrossFlats: Mm; depth: Mm };
   quality: Quality;
 }
 

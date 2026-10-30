@@ -143,8 +143,13 @@ describe('the parts table', () => {
 
   it('lists the joints with the other parts', () => {
     const md = sheet(lamp(defaultMount('wallArm')));
-    expect(md).toMatch(/\| Hub \|.*bayonet for the Shade; thread Ø16 × 2\.5 into the Wall arm \|/);
-    expect(md).toMatch(/\| Wall plate \|.*4 × M3 \(heat-set inserts\) for the Wall arm \|/);
+    expect(md).toMatch(/\| Hub \|.*bayonet for the Shade; thread Ø16 × 2\.5 into the Hanger \|/);
+    expect(md).toMatch(/\| Wall plate \|.*pivot Ø15 for the Knee \|/);
+    expect(md).toMatch(
+      /\| Knee \|.*pivot Ø15 into the Wall plate; toothed hinge \(M5\) into the Wall arm \|/,
+    );
+    const stand = sheet(lamp(defaultMount('standing')));
+    expect(stand).toMatch(/\| Base \|.*4 × M3 \(heat-set inserts\) for the Stem foot/);
     expect(assembly.interfaces.shadeToHub?.type).toBe('bayonet');
   });
 });
@@ -193,22 +198,27 @@ describe('the non-printed items', () => {
     expect(list).toContain("the strip's power cable");
   });
 
-  it('wall arm: wall anchors, the arm screws and their heat-set inserts', () => {
+  it('wall arm: wall anchors, a bolt and a nut per hinge, grub screws for locked pivots', () => {
     const list = items(lamp(defaultMount('wallArm')));
     expect(list.join('\n')).toMatch(
-      /2 × wall screws .* and wall anchors, 60 mm apart on a vertical line/,
+      /2 × wall screws .* and wall anchors, 60 mm apart on a level line/,
     );
-    expect(list).toContain('4 × M3 × 10 screws (Wall arm to Wall plate)');
-    expect(list).toContain('4 × M3 heat-set inserts (and a soldering iron to set them)');
+    expect(list).toContain('2 × M5 × 40 bolts and 2 × M5 nuts (one each per hinge)');
+    expect(list.join('\n')).not.toContain('M3');
+    const swing = defaultMount('wallArm');
+    swing.arm = { ...swing.arm, links: 2, elbow: 'swing', lock: 'screw' };
+    const locked = items(lamp(swing));
+    expect(locked).toContain('3 × M5 × 40 bolts and 3 × M5 nuts (one each per hinge)');
+    expect(locked).toContain('2 × M3 grub screws and 2 × M3 heat-set inserts (one each per pivot)');
   });
 
   it('without heat-set inserts the screws tap into plain holes', () => {
-    const p = lamp(defaultMount('wallArm'));
+    const p = lamp(defaultMount('standing'));
     p.joints.heatSet = false;
     const list = items(p);
-    expect(list).toContain('4 × M3 × 10 screws (Wall arm to Wall plate)');
+    expect(list).toContain('4 × M3 × 8 screws (Stem foot to Base)');
     expect(list.join('\n')).not.toContain('inserts');
-    expect(steps(p).join('\n')).toContain('Tap the four holes');
+    expect(steps(p).join('\n')).toContain('tap into the four holes');
   });
 
   it('standing lamp: the weight for the base, the flange screws and inserts; lid screws when screwed', () => {
@@ -275,20 +285,25 @@ describe('the assembly steps', () => {
     );
   });
 
-  it('wall arm: anchors, inserts, cable through the arm, hub screwed in, arm screwed to the plate, plate hung', () => {
+  it('wall arm: anchors, nuts, cable through the arm, hub into the hanger, plate hung, arm bolted, tilt set', () => {
     const s = steps(lamp(defaultMount('wallArm')));
     const at = (re: RegExp) => s.findIndex((x) => re.test(x));
     const order = [
       /wall anchors/,
-      /heat-set inserts/,
-      /through the arm's flange/,
-      /Screw the hub onto the arm/,
-      /arm's flange to the plate/,
+      /M5 nut into each knob/,
+      /Feed the cable/,
+      /Screw the hub into the hanger/,
       /Hang the plate/,
+      /knee's spigot into the plate's socket/,
+      /tilt to 20°/,
       /Fit the shade/,
     ].map(at);
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(s.join('\n')).not.toContain('heat-set');
+    const locked = defaultMount('wallArm');
+    locked.arm.lock = 'screw';
+    expect(steps(lamp(locked)).join('\n')).toContain('heat-set insert into the pocket');
   });
 
   it('standing lamp: weights and lid, stem segments screwed together, hub, cable through the base', () => {

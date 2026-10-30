@@ -10,7 +10,10 @@ import type {
   CanopyParams,
   CordGripParams,
   FitPieceParams,
+  HangerParams,
   HubParams,
+  KneeParams,
+  KnobParams,
   ShadeParams,
   SpacerParams,
   StemParams,
@@ -44,8 +47,9 @@ export interface Warning {
 /**
  * Part kinds with a builder: the hub and the shade, a tiered shade's tiers and
  * spacers (their builders arrive in M3b), the pendant's canopy and cord grip,
- * the standing lamp's stem, base and base lid, the wall lamp's wall plate and
- * arm, and the fit-test pair (`fitMale`, `fitFemale`) that tests the shade joint.
+ * the standing lamp's stem, base and base lid, the wall lamp's wall plate,
+ * knee, arm links, hanger and hinge knobs, and the fit-test pair (`fitMale`,
+ * `fitFemale`) that tests the shade joint.
  */
 export type PartKind =
   | 'hub'
@@ -58,7 +62,10 @@ export type PartKind =
   | 'base'
   | 'baseLid'
   | 'wallPlate'
+  | 'knee'
   | 'wallArm'
+  | 'hanger'
+  | 'knob'
   | 'fitMale'
   | 'fitFemale';
 
@@ -78,14 +85,17 @@ export interface PartParamsByKind {
   base: BaseParams;
   baseLid: BaseLidParams;
   wallPlate: WallPlateParams;
+  knee: KneeParams;
   wallArm: WallArmParams;
+  hanger: HangerParams;
+  knob: KnobParams;
   fitMale: FitPieceParams;
   fitFemale: FitPieceParams;
 }
 
 // ---------------------------------------------------------------- joints
 
-export type JointType = 'thread' | 'bayonet' | 'snap' | 'screw';
+export type JointType = 'thread' | 'bayonet' | 'snap' | 'screw' | 'pivot' | 'rosette';
 
 /** The joints a shade can hang from the hub with (`project.joints.shadeToHub`). */
 export const SHADE_JOINT_TYPES = ['bayonet', 'snap', 'thread'] as const;
@@ -130,6 +140,52 @@ export interface ScrewSpec {
 }
 
 /**
+ * A vertical pivot of the wall arm: a round spigot (male: the knee) turning in
+ * a socket bore (female: the wall plate's boss, or a link's socket boss).
+ *
+ * The joint frame: origin on the axis at the **seat plane** (the socket boss's
+ * top face), z up out of the socket. The male's spigot (Ø `nominalDiameter`)
+ * reaches `length` below the seat plane; a 45° shoulder cone,
+ * `r(z) = nominalDiameter / 2 + tolerance + seat + z`, rests on the female's
+ * 45° seat cup of the same cone (`z` from −`seat` to 0, so the cup is `seat`
+ * deep and `seat` wide), the shoulder continuing upward into the male's body.
+ * The female's bore (radius `nominalDiameter / 2 + tolerance`) is `depth`
+ * deep below the seat plane: the spigot's `length`, 1 mm of play, then the
+ * `sump` where the cable enters from the side (the plate's passage, a link's
+ * tube bore) and bends up into the spigot's bore.
+ */
+export interface PivotSpec {
+  /** Depth of the female's bore below the seat plane (spigot + 1 + sump). */
+  depth: Mm;
+  /** Depth (= width) of the 45° seat cup. */
+  seat: Mm;
+  /** The cable's room at the bottom of the bore, below the spigot's end (its Ø: the cable + 1). */
+  sump: Mm;
+}
+
+/**
+ * A rosette hinge of the wall arm: a serrated tang (male) between two
+ * serrated clevis ears (female) on one axis, clamped by an M5 bolt into a
+ * nut in a knob. The 90° V-teeth (`teeth` of them, `toothDepth` deep) cover
+ * the annulus `innerRadius` … `radius` of each face the tang and an ear share,
+ * so the hinge locks in `360 / teeth` degree steps. The ears are
+ * `tangThickness + 2·tolerance` apart.
+ */
+export interface RosetteSpec {
+  /** Radius of the tang's and the ears' discs. */
+  radius: Mm;
+  teeth: number;
+  /** Depth of the 90° V-teeth. */
+  toothDepth: Mm;
+  /** The teeth cover `innerRadius` … `radius`; the faces are smooth inside. */
+  innerRadius: Mm;
+  tangThickness: Mm;
+  earThickness: Mm;
+  /** The bolt hole's Ø through the tang and the ears. */
+  boltHole: Mm;
+}
+
+/**
  * One resolved joint between two parts, computed once by `assemble()` and
  * copied into the params of both parts, so the two sides cannot drift.
  *
@@ -138,7 +194,11 @@ export interface ScrewSpec {
  * surface the bayonet lugs and snap ribs stand on); the female ring's bore is
  * `tolerance` larger in radius. The joint spans `length` from the collar plane
  * (where the female part sits on the male one) into the female part. For
- * screws `nominalDiameter` is the bolt circle.
+ * screws `nominalDiameter` is the bolt circle. For a pivot it is the spigot's
+ * Ø and `length` the spigot's length below the seat plane (see `PivotSpec`);
+ * for a rosette hinge the discs' Ø, `length` the hinge's width along its axis
+ * and `tolerance` the axial clearance on each side of the tang (see
+ * `RosetteSpec`).
  */
 export interface JointInterface {
   id: string;
@@ -151,6 +211,8 @@ export interface JointInterface {
   bayonet?: BayonetSpec;
   snap?: SnapSpec;
   screw?: ScrewSpec;
+  pivot?: PivotSpec;
+  rosette?: RosetteSpec;
   /** Part ids. */
   male: string;
   female: string;
@@ -275,6 +337,12 @@ export interface Layout {
 
 export interface Assembly {
   parts: PartSpec[];
+  /**
+   * The hub's print frame → world (its part's `assembledTransform`): the
+   * identity for every hanging lamp at rest, the standing lamp's flip, the
+   * wall arm's hub at the pose `assemble()` was given.
+   */
+  hubTransform: Mat4;
   /** Every joint between the parts, by id (also copied into both parts' params). */
   interfaces: Record<string, JointInterface>;
   layout: Layout;

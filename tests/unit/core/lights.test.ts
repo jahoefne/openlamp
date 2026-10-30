@@ -253,11 +253,11 @@ describe('schema and presets', () => {
     expect(shown({ fused: true, lightKind: 'bulb' })).not.toContain('ventCount');
   });
 
-  it('round-trips bulb and strip projects through the file format (still version 3)', () => {
+  it('round-trips bulb and strip projects through the file format (version 4)', () => {
     for (const [, light] of LIGHTS) {
       const project = lamp(light());
       const text = serializeProject(project);
-      expect(JSON.parse(text).version).toBe(3);
+      expect(JSON.parse(text).version).toBe(4);
       expect(parseProject(text)).toEqual(project);
     }
   });

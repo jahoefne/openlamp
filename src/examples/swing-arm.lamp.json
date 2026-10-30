@@ -1,0 +1,102 @@
+{
+  "version": 4,
+  "id": "swing-arm",
+  "name": "Gren",
+  "revision": 0,
+  "updatedAt": "2026-10-21T00:00:00.000Z",
+  "printer": {
+    "id": "bambu-a1",
+    "vendor": "Bambu Lab",
+    "name": "A1",
+    "bed": [256, 256, 256],
+    "nozzle": 0.4,
+    "multiColour": true,
+    "notes": "AMS lite"
+  },
+  "quality": {
+    "preview": "normal",
+    "export": "normal"
+  },
+  "light": {
+    "kind": "puck",
+    "preset": "bambu-kit-001",
+    "diameter": 59,
+    "height": 8,
+    "clearance": 0.7,
+    "lightHoleDiameter": 50,
+    "ledgeThickness": 2,
+    "cableWidth": 4.5,
+    "bossWall": 2.4,
+    "pocketExtraDepth": 0.3
+  },
+  "mount": {
+    "kind": "wallArm",
+    "plate": {
+      "outline": "round",
+      "width": 100,
+      "height": 120,
+      "thickness": 10,
+      "edge": "round",
+      "edgeSize": 3,
+      "domeHeight": 3,
+      "keyholeSpacing": 60,
+      "cableExit": "bottom"
+    },
+    "arm": {
+      "shape": "straight",
+      "bendAngle": 20,
+      "length": 360,
+      "tubeDiameter": 24,
+      "cableDiameter": 6,
+      "tilt": 0,
+      "links": 2,
+      "elbow": "swing",
+      "elbowAt": 0.5,
+      "elbowTilt": 20,
+      "profile": "round",
+      "lock": "friction"
+    }
+  },
+  "hub": {
+    "wallThickness": 2,
+    "shoulderAngle": 50,
+    "collarWall": 2,
+    "radialGap": 8,
+    "ventCount": 0,
+    "fused": false
+  },
+  "shades": [
+    {
+      "id": "outer",
+      "role": "outer",
+      "colour": "#3f5b4c",
+      "wallThickness": 0.8,
+      "style": {
+        "family": "revolved",
+        "bottomDiameter": 150,
+        "topDiameter": 96,
+        "height": 110,
+        "curve": -0.2,
+        "shoulderAngle": 50,
+        "surface": {
+          "style": "faceted",
+          "patternCount": 10,
+          "ribDepth": 1.6,
+          "twist": 0
+        }
+      }
+    }
+  ],
+  "joints": {
+    "shadeToHub": "bayonet",
+    "tolerance": 0.3,
+    "threadPitch": 2.5,
+    "threadDepth": 0.8,
+    "screw": "M3",
+    "heatSet": true
+  },
+  "colours": {
+    "hub": "#d9d4cb"
+  },
+  "fitTest": false
+}

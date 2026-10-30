@@ -8,6 +8,7 @@ import { ceilingCordMount } from './ceilingCord.ts';
 import { ceilingStrapMount } from './ceilingStrap.ts';
 import { standingMount } from './standing.ts';
 import type { MountModule } from './types.ts';
+export { ZERO_POSE } from './types.ts';
 import { wallArmMount } from './wallArm.ts';
 
 export type {
@@ -16,6 +17,7 @@ export type {
   MountModule,
   MountParts,
   MountPlacement,
+  MountPose,
   MountShade,
   MountShadePart,
 } from './types.ts';

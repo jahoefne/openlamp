@@ -135,8 +135,14 @@ type Mount =
   | { kind: 'ceilingStrap'; strapWidth: Mm; strapThickness: Mm; loopLength: Mm; loopWall: Mm }   // puck only
   | { kind: 'ceilingCord'; cordDiameter: Mm; dropLength: Mm; grip: 'knot' | 'collet';
       canopy: { diameter: Mm; height: Mm; screwSpacing: Mm } }
-  | { kind: 'wallArm'; plate: { width: Mm; height: Mm; thickness: Mm; keyholeSpacing: Mm };
-      arm: { shape: 'straight' | 'angled' | 'curved'; length: Mm; riseAngle: Deg; tubeDiameter: Mm; cableDiameter: Mm } }
+  | { kind: 'wallArm';                         // v4: canopy plate, pivot (swing), rosette hinges (tilt)
+      plate: { outline: 'round' | 'roundedRect' | 'stadium'; width: Mm /* Ø when round */; height: Mm;
+               thickness: Mm; edge: 'chamfer' | 'round'; edgeSize: Mm; domeHeight: Mm; keyholeSpacing: Mm;
+               cableExit: 'bottom' | 'top' | 'left' | 'right' | 'wall' };
+      arm: { shape: 'straight' | 'curved'; bendAngle: Deg; length: Mm /* hinge axis to hinge axis */;
+             tubeDiameter: Mm; cableDiameter: Mm; tilt: Deg; links: number /* 1 | 2 */;
+             elbow: 'swing' | 'fold'; elbowAt: number; elbowTilt: Deg; profile: 'round' | 'faceted';
+             lock: 'friction' | 'screw' } }
   | { kind: 'standing'; variant: 'table' | 'floor';
       base: { diameter: Mm; height: Mm; pocketDepth: Mm; lid: 'snap' | 'screws' };
       stem: { totalHeight: Mm; segmentLength: Mm; diameter: Mm; cableDiameter: Mm; fluting?: SurfaceStyle } };
@@ -154,18 +160,21 @@ type ShadeStyle =
       sides?: number; twist?: Deg; pleatCount?: number; pleatDepth?: Mm; bands?: number;
       holeShape?: 'hex' | 'round'; holeSize?: Mm; holePitch?: Mm };
 
-type JointType = 'thread' | 'bayonet' | 'snap' | 'screw';
+type JointType = 'thread' | 'bayonet' | 'snap' | 'screw' | 'pivot' | 'rosette';
 interface JointInterface {                    // resolved once in assemble(), copied into both parts' params
   id: string; type: JointType; nominalDiameter: Mm; length: Mm; tolerance: Mm;
   thread?: { pitch: Mm; depth: Mm; flank: Deg; hand: 'right' };
   bayonet?: { lugs: number; lugWidth: Mm; lugHeight: Mm; lugDepth: Mm; travel: Deg };
   snap?: { ribs: number; ribHeight: Mm };
   screw?: { count: number; hole: Mm; counterbore: [Mm, Mm]; insertPocket?: [Mm, Mm] };
+  pivot?: { depth: Mm; seat: Mm; sump: Mm };  // wall arm: spigot in a socket, 45° seat cup
+  rosette?: { radius: Mm; teeth: number; toothDepth: Mm; innerRadius: Mm; tangThickness: Mm;
+              earThickness: Mm; boltHole: Mm };  // wall arm: toothed hinge
   male: string; female: string;               // part ids
 }
 
 type PartKind = 'hub' | 'shade' | 'tier' | 'spacer' | 'stem' | 'base' | 'baseLid'
-  | 'wallPlate' | 'wallArm' | 'canopy' | 'cordGrip'
+  | 'wallPlate' | 'knee' | 'wallArm' | 'hanger' | 'knob' | 'canopy' | 'cordGrip'
   | 'fitMale' | 'fitFemale';                  // the joint's fit-test pair (M2.5); tier, spacer: kinds since M3a, built in M3b
 interface PartSpec {
   id: string; kind: PartKind; displayName: string;
@@ -177,7 +186,7 @@ interface PartSpec {
   printNotes: string[]; warnings: Warning[];
 }
 interface Warning { severity: 'error' | 'warning' | 'info'; code: string; message: string; partId?: string; paramPath?: string }
-interface Assembly { parts: PartSpec[]; interfaces: Record<string, JointInterface>; derived: Record<string, number>; warnings: Warning[] }
+interface Assembly { parts: PartSpec[]; hubTransform: Mat4; interfaces: Record<string, JointInterface>; derived: Record<string, number>; warnings: Warning[] }
 ```
 
 The schema is zod 4 (`z.discriminatedUnion('kind', …)`). `PROJECT_VERSION` bumps whenever the shape changes; `migrate(raw)` runs `MIGRATIONS[v]` in a loop until current, then `ProjectSchema.parse`. Version 0 is today's flat `?bottomDiameter=…` query string, so existing shared links keep opening. M1 already ships v1 in the `light / mount / hub / shades` structure (only `puck` + `ceilingStrap` + `revolved` + `fused: true`), so the M2 migration stays small.

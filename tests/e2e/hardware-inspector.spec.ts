@@ -43,9 +43,9 @@ test('mounts lead with placement and shape; construction edits and undo stay int
   await expect(page.locator('#p-cordDiameter')).toBeHidden();
   await choose(page, '#p-mount', 'Wall arm');
   await expect(page.locator('#p-armLength')).toBeVisible();
-  await expect(page.locator('#p-armRiseAngle')).toHaveCount(0);
-  await choose(page, '#p-armShape', 'Angled');
-  await expect(page.locator('#p-armRiseAngle')).toBeVisible();
+  await expect(page.locator('#p-armBend')).toHaveCount(0);
+  await choose(page, '#p-armShape', 'Curved');
+  await expect(page.locator('#p-armBend')).toBeVisible();
   await expect(page.locator('#p-plateThickness')).toBeHidden();
   await choose(page, '#p-mount', 'Standing lamp');
   await expect(page.locator('#p-stemTotalHeight')).toBeVisible();
@@ -128,11 +128,13 @@ test('notes for mount, light and hub technical fields stay visible while collaps
 }) => {
   const wall = exampleProject('wall-lamp');
   if (wall.mount.kind !== 'wallArm') throw new Error('Expected wall arm');
-  wall.mount.plate.thickness = 3;
+  // An 8 mm cable needs a 10.5 mm plate (its groove in the back keeps the front closed).
+  wall.mount.arm.cableDiameter = 8;
+  wall.mount.plate.thickness = 10;
   await showProject(page, wall);
   await selectNode(page, 'mount');
   await expect(page.locator('#p-plateThickness')).toBeHidden();
-  await expect(section(page, 'Construction').getByRole('status')).toContainText('stands out');
+  await expect(section(page, 'Construction').getByRole('status')).toContainText('thickness raised');
   await expect(section(page, 'Construction').getByRole('status')).toBeVisible();
   const strip = exampleProject('strip-drum');
   if (strip.light.kind !== 'strip') throw new Error('Expected LED strip');

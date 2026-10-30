@@ -15,7 +15,7 @@
  * joint (`shadeToHub`, `innerShadeToHub`), both copied into the hub's params.
  */
 import { M3 } from '../geometry/joints/screw.ts';
-import type { JointInterface, Warning } from '../model/assembly.ts';
+import type { JointInterface, PivotSpec, RosetteSpec, Warning } from '../model/assembly.ts';
 import type { CollarDims, LightEnvelope } from '../model/parts.ts';
 import type { Hub, Joints, ShadeRole, ShadeSpec, ShadeStyle } from '../model/project.ts';
 
@@ -59,6 +59,8 @@ export function jointRadialDepth(iface: JointInterface): number {
       return iface.thread?.depth ?? 0;
     case 'snap':
     case 'screw':
+    case 'pivot':
+    case 'rosette':
       return 0;
   }
 }
@@ -416,4 +418,53 @@ export function mountThreadJoint(
     );
   }
   return { iface, warnings };
+}
+
+/**
+ * The wall arm's vertical pivot (see `PivotSpec`): a spigot of `diameter`,
+ * `length` below the seat plane, in a bore `tolerance` (`joints.tolerance`)
+ * wider in radius and `depth` deep, with a 45° seat cup `seat` deep and the
+ * cable's `sump` at the bottom. Male = the knee, female = the socket's part.
+ */
+export function pivotJoint(
+  id: string,
+  ids: { male: string; female: string },
+  size: { diameter: number; length: number } & PivotSpec,
+  joints: Pick<Joints, 'tolerance'>,
+): JointInterface {
+  return {
+    id,
+    type: 'pivot',
+    nominalDiameter: size.diameter,
+    length: size.length,
+    tolerance: joints.tolerance,
+    pivot: { depth: size.depth, seat: size.seat, sump: size.sump },
+    male: ids.male,
+    female: ids.female,
+  };
+}
+
+/**
+ * A rosette hinge of the wall arm (see `RosetteSpec`): `nominalDiameter` is
+ * the discs' Ø, `length` the hinge's width along its axis (tang, two
+ * clearances, two ears), `tolerance` (`joints.tolerance`) the axial
+ * clearance on each side of the tang. Male = the tang's part, female = the
+ * clevis's.
+ */
+export function rosetteJoint(
+  id: string,
+  ids: { male: string; female: string },
+  spec: RosetteSpec,
+  joints: Pick<Joints, 'tolerance'>,
+): JointInterface {
+  return {
+    id,
+    type: 'rosette',
+    nominalDiameter: 2 * spec.radius,
+    length: spec.tangThickness + 2 * joints.tolerance + 2 * spec.earThickness,
+    tolerance: joints.tolerance,
+    rosette: { ...spec },
+    male: ids.male,
+    female: ids.female,
+  };
 }

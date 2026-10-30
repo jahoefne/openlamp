@@ -532,16 +532,33 @@ export const MOUNT_DESCRIPTIONS: Readonly<Record<MountKind, string>> = {
     'Flush on the ceiling: a velcro strap runs across the hub through two belt-loop tunnels (LED pucks only).',
   ceilingCord:
     'Hangs on a cord from a canopy screwed to the ceiling; the cord is knotted in the canopy or held by a collet and a screw-on grip.',
-  wallArm: 'A wall plate and an arm; the hub screws onto the end of the arm.',
+  wallArm:
+    'A round canopy on the wall and an arm that swings on a pivot and tilts on toothed hinges; the hub screws into a hanger at its end.',
   standing: 'A weighted base and a segmented stem; the hub screws onto the top of the stem.',
 };
 
 export const CORD_GRIPS = ['knot', 'collet'] as const;
-export const ARM_SHAPES = ['straight', 'angled', 'curved'] as const;
 export const STANDING_VARIANTS = ['table', 'floor'] as const;
 export const BASE_LIDS = ['snap', 'screws'] as const;
 
-const bentArm = (v: ParamValues) => v.armShape !== 'straight';
+/** The wall plate's outline (`round`: `width` is its Ø, `height` is unused). */
+export const PLATE_OUTLINES = ['round', 'roundedRect', 'stadium'] as const;
+/** The wall plate's front edge: a 45° chamfer or a rounded edge, `edgeSize` wide. */
+export const PLATE_EDGES = ['chamfer', 'round'] as const;
+/** Where the cable leaves the wall plate: a groove in its back to that edge, or a hole into the wall. */
+export const CABLE_EXITS = ['bottom', 'top', 'left', 'right', 'wall'] as const;
+/** A link of the wall arm: a straight tube, or one bent by `bendAngle` along its length. */
+export const ARM_SHAPES = ['straight', 'curved'] as const;
+/** The second link's joint: a vertical pivot (`swing`) or a rosette hinge (`fold`). */
+export const ARM_ELBOWS = ['swing', 'fold'] as const;
+/** The cross-section of the arm's tube, the socket bosses and the knee's body. */
+export const ARM_PROFILES = ['round', 'faceted'] as const;
+/** How a pivot holds: by friction, or locked by an M3 grub screw in a heat-set insert. */
+export const ARM_LOCKS = ['friction', 'screw'] as const;
+
+const notRound = (v: ParamValues) => v.plateOutline !== 'round';
+const curvedArm = (v: ParamValues) => v.armShape === 'curved';
+const twoLinks = (v: ParamValues) => Number(v.armLinks) >= 1.5;
 
 // The mounts' parameters as flat keys (unique across all forms, so they can be
 // element ids); `MOUNT_PARAM_PATHS` says where each lives inside `project.mount`.
@@ -623,13 +640,23 @@ const WALL_ARM_MOUNT_SCHEMA = [
     label: 'Wall plate',
     params: [
       {
+        key: 'plateOutline',
+        label: 'Plate outline',
+        type: 'select',
+        options: PLATE_OUTLINES,
+        default: 'round',
+        optionLabels: { round: 'Round', roundedRect: 'Rounded rectangle', stadium: 'Stadium' },
+        help: 'The canopy on the wall: a disc, a rounded rectangle or a stadium (a rectangle with round ends).',
+      },
+      {
         key: 'plateWidth',
         label: 'Plate width',
         unit: 'mm',
         min: 50,
-        max: 200,
+        max: 250,
         step: 1,
-        default: 80,
+        default: 100,
+        help: 'The Ø of a round plate.',
       },
       {
         key: 'plateHeight',
@@ -639,15 +666,44 @@ const WALL_ARM_MOUNT_SCHEMA = [
         max: 250,
         step: 1,
         default: 120,
+        visibleWhen: notRound,
       },
       {
         key: 'plateThickness',
         label: 'Plate thickness',
         unit: 'mm',
-        min: 3,
-        max: 15,
+        min: 9.5,
+        max: 16,
         step: 0.5,
-        default: 6,
+        default: 10,
+        help: 'At the rim. The keyholes and the cable groove are cut into the back, so the front stays closed.',
+      },
+      {
+        key: 'plateEdge',
+        label: 'Front edge',
+        type: 'select',
+        options: PLATE_EDGES,
+        default: 'round',
+        optionLabels: { chamfer: '45° chamfer', round: 'Rounded' },
+      },
+      {
+        key: 'plateEdgeSize',
+        label: 'Edge size',
+        unit: 'mm',
+        min: 0,
+        max: 6,
+        step: 0.5,
+        default: 3,
+      },
+      {
+        key: 'plateDome',
+        label: 'Dome height',
+        unit: 'mm',
+        min: 0,
+        max: 8,
+        step: 0.5,
+        default: 3,
+        help: 'How far the front rises from the rim toward the middle.',
       },
       {
         key: 'keyholeSpacing',
@@ -657,7 +713,22 @@ const WALL_ARM_MOUNT_SCHEMA = [
         max: 200,
         step: 1,
         default: 60,
-        help: 'Vertical distance between the two keyhole slots the plate hangs on.',
+        help: 'Distance between the two wall screws, level with each other at the plate’s middle height; the keyholes are cut from the back only.',
+      },
+      {
+        key: 'cableExit',
+        label: 'Cable exit',
+        type: 'select',
+        options: CABLE_EXITS,
+        default: 'bottom',
+        optionLabels: {
+          bottom: 'Bottom edge',
+          top: 'Top edge',
+          left: 'Left edge',
+          right: 'Right edge',
+          wall: 'Into the wall',
+        },
+        help: 'The cable runs in a groove in the plate’s back to this edge, or through a Ø12 mm hole straight into the wall (a flush box behind the plate).',
       },
     ],
   },
@@ -671,7 +742,18 @@ const WALL_ARM_MOUNT_SCHEMA = [
         type: 'select',
         options: ARM_SHAPES,
         default: 'straight',
-        help: 'Straight out from the wall, angled upward, or curved upward.',
+        help: 'Straight links, or links bent upward along their length. The arm’s rise is its tilt.',
+      },
+      {
+        key: 'armBend',
+        label: 'Bend',
+        unit: '°',
+        min: 10,
+        max: 45,
+        step: 1,
+        default: 20,
+        help: 'How far a curved link turns from one hinge to the other.',
+        visibleWhen: curvedArm,
       },
       {
         key: 'armLength',
@@ -680,25 +762,14 @@ const WALL_ARM_MOUNT_SCHEMA = [
         min: 80,
         max: 600,
         step: 5,
-        default: 250,
-        help: 'From the wall plate to the axis of the hub.',
-      },
-      {
-        key: 'armRiseAngle',
-        label: 'Rise angle',
-        unit: '°',
-        min: 0,
-        max: 45,
-        step: 1,
-        default: 20,
-        help: 'How far an angled or curved arm rises from horizontal (at most 45° so it prints standing on its flange).',
-        visibleWhen: bentArm,
+        default: 220,
+        help: 'From the shoulder hinge to the hinge the lamp hangs from, over every link.',
       },
       {
         key: 'armTubeDiameter',
         label: 'Tube Ø',
         unit: 'mm',
-        min: 14,
+        min: 18,
         max: 40,
         step: 0.5,
         default: 24,
@@ -711,7 +782,83 @@ const WALL_ARM_MOUNT_SCHEMA = [
         max: 12,
         step: 0.1,
         default: 6,
-        help: 'The bore through the arm is 1 mm wider.',
+        help: 'The bores through the plate, the pivots and the arm are 1 mm wider.',
+      },
+      {
+        key: 'armTilt',
+        label: 'Tilt',
+        unit: '°',
+        min: -30,
+        max: 60,
+        step: 10,
+        default: 20,
+        help: 'The shoulder hinge’s angle: how far the arm rises from horizontal. The hinge’s teeth lock in 10° steps.',
+      },
+      {
+        key: 'armLinks',
+        label: 'Links',
+        unit: '',
+        min: 1,
+        max: 2,
+        step: 1,
+        default: 1,
+        help: 'Two links print shorter than one and add an elbow.',
+      },
+      {
+        key: 'armProfile',
+        label: 'Profile',
+        type: 'select',
+        options: ARM_PROFILES,
+        default: 'round',
+        optionLabels: { round: 'Round', faceted: 'Octagonal' },
+        help: 'The section of the tube, the socket bosses and the knee’s body.',
+      },
+    ],
+  },
+  {
+    id: 'wallArmJoints',
+    label: 'Joints',
+    params: [
+      {
+        key: 'armElbow',
+        label: 'Elbow',
+        type: 'select',
+        options: ARM_ELBOWS,
+        default: 'swing',
+        optionLabels: { swing: 'Swing (vertical pivot)', fold: 'Fold (hinge)' },
+        help: 'A swing elbow turns the outer link sideways on a second pivot; a fold elbow bends it up or down on a hinge.',
+        visibleWhen: twoLinks,
+      },
+      {
+        key: 'armElbowAt',
+        label: 'Elbow position',
+        unit: '',
+        min: 0.3,
+        max: 0.7,
+        step: 0.05,
+        default: 0.5,
+        help: 'The inner link’s share of the arm length.',
+        visibleWhen: twoLinks,
+      },
+      {
+        key: 'armElbowTilt',
+        label: 'Elbow tilt',
+        unit: '°',
+        min: -60,
+        max: 60,
+        step: 10,
+        default: 0,
+        help: 'A swing elbow: the angle of the hinge on the elbow’s knee, how far the outer link rises from the inner one. A fold elbow: the fold angle between the links (up is positive). In 10° steps of the teeth.',
+        visibleWhen: twoLinks,
+      },
+      {
+        key: 'armLock',
+        label: 'Pivot lock',
+        type: 'select',
+        options: ARM_LOCKS,
+        default: 'friction',
+        optionLabels: { friction: 'Friction', screw: 'Grub screw' },
+        help: 'The pivots hold by the lamp’s own weight; a grub screw in an M3 heat-set insert in each socket boss locks them.',
       },
     ],
   },
@@ -892,15 +1039,27 @@ export const MOUNT_PARAM_PATHS: {
     canopyScrewSpacing: 'canopy.screwSpacing',
   },
   wallArm: {
+    plateOutline: 'plate.outline',
     plateWidth: 'plate.width',
     plateHeight: 'plate.height',
     plateThickness: 'plate.thickness',
+    plateEdge: 'plate.edge',
+    plateEdgeSize: 'plate.edgeSize',
+    plateDome: 'plate.domeHeight',
     keyholeSpacing: 'plate.keyholeSpacing',
+    cableExit: 'plate.cableExit',
     armShape: 'arm.shape',
+    armBend: 'arm.bendAngle',
     armLength: 'arm.length',
-    armRiseAngle: 'arm.riseAngle',
     armTubeDiameter: 'arm.tubeDiameter',
     armCableDiameter: 'arm.cableDiameter',
+    armTilt: 'arm.tilt',
+    armLinks: 'arm.links',
+    armElbow: 'arm.elbow',
+    armElbowAt: 'arm.elbowAt',
+    armElbowTilt: 'arm.elbowTilt',
+    armProfile: 'arm.profile',
+    armLock: 'arm.lock',
   },
   standing: {
     standingVariant: 'variant',

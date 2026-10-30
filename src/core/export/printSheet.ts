@@ -16,7 +16,7 @@
 import { SHADE_JOINT_ID } from '../assembly/interfaces.ts';
 import { CANOPY_SCREW_SLOT } from '../assembly/mounts/ceilingCord.ts';
 import { LID_TO_BASE_JOINT_ID, STEM_TO_BASE_JOINT_ID } from '../assembly/mounts/standing.ts';
-import { ARM_TO_PLATE_JOINT_ID, KEYHOLE } from '../assembly/mounts/wallArm.ts';
+import { KEYHOLE, ROSETTE } from '../assembly/mounts/wallArm.ts';
 import { deriveBase } from '../geometry/parts/base.ts';
 import type { Quality } from '../geometry/quality.ts';
 import type {
@@ -62,7 +62,6 @@ const DRY_SAND_DENSITY = 1.6;
 /** Screw lengths the mounts' print notes ask for, by joint id, mm. */
 const SCREW_LENGTHS: Readonly<Record<string, number>> = {
   [STEM_TO_BASE_JOINT_ID]: 8,
-  [ARM_TO_PLATE_JOINT_ID]: 10,
   [LID_TO_BASE_JOINT_ID]: 6,
 };
 
@@ -236,6 +235,10 @@ function jointLabel(j: JointInterface): string {
       return `thread Ø${mm(j.nominalDiameter)} × ${mm(j.thread?.pitch ?? 0)}`;
     case 'screw':
       return `${j.screw?.count ?? 0} × M3`;
+    case 'pivot':
+      return `pivot Ø${mm(j.nominalDiameter)}`;
+    case 'rosette':
+      return `toothed hinge (${ROSETTE.bolt.size})`;
   }
 }
 
@@ -370,9 +373,17 @@ function mountItems(project: Project, assembly: Assembly): string[] {
     case 'wallArm': {
       const plate = partOf(assembly, 'wallPlate');
       const spacing = plate?.params.keyholes.spacing ?? m.plate.keyholeSpacing;
+      const joints = Object.values(assembly.interfaces);
+      const hinges = joints.filter((j) => j.type === 'rosette').length;
+      const pivots = joints.filter((j) => j.type === 'pivot').length;
+      const { size, length } = ROSETTE.bolt;
       return [
-        `2 × wall screws up to Ø${mm(KEYHOLE.slotWidth - 0.5)} mm with heads up to Ø${mm(KEYHOLE.headDiameter - 0.5)} mm, and wall anchors, ${mm(spacing)} mm apart on a vertical line`,
-        `Cable Ø${mm(m.arm.cableDiameter)} mm, at least ${ceilTo(m.arm.length + m.plate.height / 2 + 200, 50)} mm through the arm plus the run to the power: ${cable}`,
+        `2 × wall screws up to Ø${mm(KEYHOLE.slotWidth - 0.5)} mm with heads up to Ø${mm(KEYHOLE.headDiameter - 0.5)} mm, and wall anchors, ${mm(spacing)} mm apart on a level line`,
+        `${hinges} × ${size} × ${length} bolts and ${hinges} × ${size} nuts (one each per hinge)`,
+        ...(m.arm.lock === 'screw'
+          ? [`${pivots} × M3 grub screws and ${pivots} × M3 heat-set inserts (one each per pivot)`]
+          : []),
+        `Cable Ø${mm(m.arm.cableDiameter)} mm, at least ${ceilTo(m.arm.length + m.plate.height / 2 + 300, 50)} mm through the plate and the arm plus the run to the power: ${cable}`,
       ];
     }
     case 'standing': {
@@ -514,6 +525,8 @@ function shadeStep(assembly: Assembly): string[] {
     case 'thread':
       return ["Screw the shade into the hub's ring, clockwise seen from the shade's open end."];
     case 'screw':
+    case 'pivot':
+    case 'rosette':
       return [];
   }
 }
@@ -571,15 +584,17 @@ export function assemblySteps(input: Pick<PrintSheetInput, 'project' | 'assembly
       const spacing =
         partOf(assembly, 'wallPlate')?.params.keyholes.spacing ?? m.plate.keyholeSpacing;
       return [
-        `Mark two holes ${mm(spacing)} mm apart on a vertical line, drill them and set the wall anchors; drive the screws in, leaving their heads about 3 mm proud.`,
-        heatSet
-          ? "Press four M3 heat-set inserts into the pockets on the wall plate's front face, flush."
-          : "Tap the four holes on the wall plate's front face for M3 screws.",
-        "Feed the cable in through the arm's flange and out of the threaded bore at its end.",
+        `Mark two holes ${mm(spacing)} mm apart on a level line, drill them and set the wall anchors; drive the screws in, leaving their heads about 3 mm proud.`,
+        ...(m.arm.lock === 'screw'
+          ? ['Press an M3 heat-set insert into the pocket of each socket boss.']
+          : []),
+        'Press an M5 nut into each knob.',
+        "Feed the cable up through the plate's back and its socket, then through the knee, the arm and the hanger (it lies in each hinge's notch).",
         ...light,
-        'Screw the hub onto the arm, clockwise seen from below.',
-        "Screw the arm's flange to the plate with four M3 × 10 screws, the cable lying in the plate's slot.",
-        'Hang the plate on the two screws (heads through the keyholes, then slide it down); the cable leaves through the slot at its bottom edge.',
+        'Screw the hub into the hanger, clockwise seen from below.',
+        'Hang the plate on the two screws (heads through the keyholes, then slide it down).',
+        "Drop the knee's spigot into the plate's socket; bolt the arm to the knee, and the hanger to the arm's end, each with an M5 × 40 bolt and a knob.",
+        `Set the arm's tilt to ${mm(m.arm.tilt)}° and tighten the knobs.`,
         ...shade,
         ...bulb,
       ];

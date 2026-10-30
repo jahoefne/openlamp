@@ -95,7 +95,13 @@ import {
 } from './lights/index.ts';
 import { STRAP_CEILING_GAP, strapDerived } from './mounts/ceilingStrap.ts';
 import { mountModule } from './mounts/index.ts';
-import type { MountCtx, MountHubCtx, MountShade } from './mounts/types.ts';
+import {
+  ZERO_POSE,
+  type MountCtx,
+  type MountHubCtx,
+  type MountPose,
+  type MountShade,
+} from './mounts/types.ts';
 import { SHADE_PART_IDS, resolveShade, type ResolvedShade } from './shades/index.ts';
 import type { ShadeCtx } from './shades/types.ts';
 import { translation } from './transforms.ts';
@@ -109,6 +115,12 @@ export const INNER_SHADE_ID = SHADE_PART_IDS.inner;
 export interface AssembleOptions {
   /** Mesh quality baked into every part's params and buildKey; default the preview quality. */
   quality?: Quality;
+  /**
+   * A view-only pose of an articulated mount (the wall arm's swing, elbow
+   * swing and hub tilt); default at rest. It moves parts in the world only:
+   * params, buildKeys and hashes do not change with it.
+   */
+  pose?: Readonly<MountPose>;
 }
 
 const FUSED_PRINT_NOTES = [
@@ -215,6 +227,7 @@ function finish(
   derived: Record<string, number>,
   context: MountContext,
   warnings: Warning[],
+  hubTransform: Mat4 = [...IDENTITY],
 ): Assembly {
   const layout = layoutParts(
     placed.map(({ draft: d }) => ({
@@ -252,7 +265,7 @@ function finish(
   warnings.push(...bedFit);
   warnings.push(...validateLayout(layout, new Set(bedFit.map((w) => w.partId ?? ''))));
   for (const p of parts) p.warnings = warnings.filter((w) => w.partId === p.id);
-  return { parts, interfaces, layout, derived, context, warnings };
+  return { parts, hubTransform, interfaces, layout, derived, context, warnings };
 }
 
 function assembleFused(
@@ -311,6 +324,7 @@ function splitPartOf(key: string | undefined): 'hub' | 'shade' {
 interface SplitBase {
   project: Project;
   quality: Quality;
+  pose: Readonly<MountPose>;
   /** The normalised light, mount and outer shade (the inner one as given), in the project's structure. */
   norm: Project;
   joints: Joints;
@@ -323,6 +337,7 @@ interface SplitBase {
 function assembleSplit(
   project: Project,
   quality: Quality,
+  pose: Readonly<MountPose>,
   classicIn: ClassicShadeParams,
   classicWarnings: readonly Warning[],
 ): Assembly {
@@ -334,6 +349,7 @@ function assembleSplit(
   const base: SplitBase = {
     project,
     quality,
+    pose,
     norm,
     joints: {
       ...project.joints,
@@ -491,6 +507,9 @@ function mountShade(shade: ResolvedShade): MountShade {
     id: shade.id,
     zCollar: shade.parts.zCollar,
     zBottom: shade.parts.zBottom,
+    radius: Math.max(
+      ...shade.parts.parts.map((p) => Math.max(p.draft.footprint.x, p.draft.footprint.y) / 2),
+    ),
     parts: shade.parts.parts.map((p) => ({
       id: p.draft.id,
       transform: p.transform,
@@ -590,7 +609,7 @@ function assembleMounted<K extends MountKind>(
   };
   const mountParts = module.parts(hubCtx);
   warnings.push(...(mountParts.warnings ?? []));
-  const placement = module.placement(hubCtx, mountParts);
+  const placement = module.placement(hubCtx, mountParts, base.pose);
 
   const placed: Placed[] = [
     {
@@ -662,7 +681,15 @@ function assembleMounted<K extends MountKind>(
   if (innerJoint) interfaces[innerJoint.iface.id] = innerJoint.iface;
   for (const shade of shades) for (const j of shade.parts.interfaces) interfaces[j.id] = j;
   for (const j of mountParts.interfaces) interfaces[j.id] = j;
-  return finish(project, placed, interfaces, derived, placement.context, warnings);
+  return finish(
+    project,
+    placed,
+    interfaces,
+    derived,
+    placement.context,
+    warnings,
+    placement.hubTransform,
+  );
 }
 
 /** The classic shade's keys that describe the outer shade itself (its shape and surface). */
@@ -684,5 +711,11 @@ export function assemble(project: Project, options: AssembleOptions = {}): Assem
   const classicWarnings = revolved
     ? normalised.warnings
     : normalised.warnings.filter((w) => !CLASSIC_SHADE_KEYS.has(w.paramPath ?? ''));
-  return assembleSplit(project, quality, normalised.values, classicWarnings);
+  return assembleSplit(
+    project,
+    quality,
+    options.pose ?? ZERO_POSE,
+    normalised.values,
+    classicWarnings,
+  );
 }

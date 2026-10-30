@@ -1,6 +1,6 @@
 /**
  * Switching the mount in its inspector: the pendant adds its canopy, the
- * wall arm its wall plate and arm, and switching back to the strap restores
+ * wall arm its wall plate, knee, link, hanger and knobs, and switching back to the strap restores
  * the classic shade. One page; each test starts from the default lamp (at
  * draft quality, at normal where its triangle count is asserted).
  */
@@ -50,11 +50,19 @@ test('Mount → Pendant on a cord builds the hub, the shade and the canopy', asy
   await expect(statsOf(page).getByText(/^⚠/)).toHaveCount(0);
 });
 
-test('Mount → Wall arm builds the hub, the shade, the wall plate and the arm', async () => {
+test('Mount → Wall arm builds the hub, the shade and the arm’s plate, knee, link, hanger and knobs', async () => {
   await startFrom('draft');
   await chooseMount('Wall arm');
 
-  await expect(partNames(page)).toHaveText(['Hub', 'Shade', 'Wall plate', 'Wall arm']);
+  await expect(partNames(page)).toHaveText([
+    'Hub',
+    'Shade',
+    'Wall plate',
+    'Knee',
+    'Wall arm',
+    'Hanger',
+    'Knob ×2',
+  ]);
   await expect(statsOf(page).getByText(/arrive in a later step/)).toHaveCount(0);
   await expect(page.locator('#status')).not.toHaveText(/Error/);
 });

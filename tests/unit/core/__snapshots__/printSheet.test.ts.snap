@@ -870,6 +870,125 @@ Made with openlamp, https://jahoefne.github.io/openlamp/
 "
 `;
 
+exports[`the print sheet of swing-arm.lamp.json > matches its snapshot 1`] = `
+"# Gren
+
+Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
+
+- **Lamp:** Wall arm (straight, 360 mm); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
+- **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
+- **Export:** 8 STL files, one per part, at normal quality
+
+## Parts
+
+| Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
+| :-- | --: | :-- | --: | --: | :-- | :-- |
+| Hub | 1 | warm light grey \`#d9d4cb\` | — | — | Collar ring on the bed, mount face up | bayonet for the Shade; thread Ø16 × 2.5 into the Hanger |
+| Shade | 1 | green \`#3f5b4c\` | — | — | Open end on the bed, collar up | bayonet into the Hub |
+| Wall plate | 1 | warm light grey \`#d9d4cb\` | — | — | Back face on the bed | pivot Ø15 for the Knee |
+| Knee ×2 | 2 | warm light grey \`#d9d4cb\` | — | — | Spigot end on the bed, with a brim | pivot Ø15 into the Wall plate; toothed hinge (M5) into the Inner arm; pivot Ø15 into the Inner arm; toothed hinge (M5) into the Outer arm |
+| Inner arm | 1 | warm light grey \`#d9d4cb\` | — | — | Standing on its clevis, with a brim (a tall, slim part) | toothed hinge (M5) for the Knee; pivot Ø15 for the Knee |
+| Outer arm | 1 | warm light grey \`#d9d4cb\` | — | — | Standing on its clevis, with a brim (a tall, slim part) | toothed hinge (M5) for the Knee; toothed hinge (M5) for the Hanger |
+| Hanger | 1 | warm light grey \`#d9d4cb\` | — | — | Thread mouth on the bed | thread Ø16 × 2.5 for the Hub; toothed hinge (M5) into the Outer arm |
+| Knob ×3 | 3 | warm light grey \`#d9d4cb\` | — | — | Flat | — |
+| **Total** | **11** |  | — |  |  |  |
+
+PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
+
+## Also needed
+
+- 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
+- 1 × USB power adapter (5 V)
+- 2 × wall screws up to Ø4 mm with heads up to Ø8.5 mm, and wall anchors, 60 mm apart on a level line
+- 3 × M5 × 40 bolts and 3 × M5 nuts (one each per hinge)
+- Cable Ø6 mm, at least 750 mm through the plate and the arm plus the run to the power: the puck's USB cable or a USB extension
+
+## Assembly
+
+1. Mark two holes 60 mm apart on a level line, drill them and set the wall anchors; drive the screws in, leaving their heads about 3 mm proud.
+2. Press an M5 nut into each knob.
+3. Feed the cable up through the plate's back and its socket, then through the knee, the arm and the hanger (it lies in each hinge's notch).
+4. Press the LED puck into the hub from the light face until it stops (the crush ribs hold it); its cable runs through the bore in the hub's mount face.
+5. Screw the hub into the hanger, clockwise seen from below.
+6. Hang the plate on the two screws (heads through the keyholes, then slide it down).
+7. Drop the knee's spigot into the plate's socket; bolt the arm to the knee, and the hanger to the arm's end, each with an M5 × 40 bolt and a knob.
+8. Set the arm's tilt to 0° and tighten the knobs.
+9. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
+
+## Printing
+
+- 0.4 mm nozzle, 0.2 mm layers (0.12 mm for finer ribs). Every part prints as exported, without supports.
+- Shades: a 0.8 mm wall (2 perimeters), which diffuses the light best, and no infill. White or "Jade White" PLA spreads the light most evenly.
+- No brim on the shades (brim marks show under light): a smooth PEI plate and a slow first layer hold the thin wall. The wall arm is the exception: give the tall part a brim.
+- Exported at normal quality: draft is for quick test prints, normal is plenty for printing, fine gives smoother ribs and much larger files.
+
+### Hub
+
+File: \`openlamp-gren-hub.stl\`
+
+- Print as exported: collar ring on the bed, mount face up. No supports needed.
+- Press the puck in from below until it stops (crush ribs hold it); its cable runs up through the bore in the mount face.
+
+### Shade
+
+File: \`openlamp-gren-shade.stl\`
+
+- Print as exported: open end on the bed, collar up. No supports needed.
+- Two 0.4 mm perimeters (0.8 mm wall) diffuse the light best; no infill needed.
+- Assembly: push the shade's lugs up into the hub's slots and turn the shade clockwise (seen from below) until it stops.
+
+### Wall plate
+
+File: \`openlamp-gren-wallPlate.stl\`
+
+- Print as exported: back face on the bed. No supports needed.
+- Hang the plate on two level screws: their heads go into the keyholes on the back, then slide it down.
+
+### Knee ×2
+
+File: \`openlamp-gren-knee.stl\` · print 2 copies
+
+- Print 2 of these.
+- Print as exported: spigot end on the bed, with a brim. No supports needed.
+- Drop its spigot into a socket: the arm swings on it.
+
+### Inner arm
+
+File: \`openlamp-gren-wallArm.stl\`
+
+- Print as exported: standing on its clevis, with a brim (a tall, slim part). No supports needed.
+
+### Outer arm
+
+File: \`openlamp-gren-wallArm2.stl\`
+
+- Print as exported: standing on its clevis, with a brim (a tall, slim part). No supports needed.
+
+### Hanger
+
+File: \`openlamp-gren-hanger.stl\`
+
+- Print as exported: thread mouth on the bed. No supports needed.
+- Screw the hub into the hanger, clockwise seen from below.
+
+### Knob ×3
+
+File: \`openlamp-gren-knob.stl\` · print 3 copies
+
+- Print 3 of these.
+- Print as exported: flat. Press an M5 nut into the hexagonal pocket.
+- One per hinge: an M5 × 40 bolt through the ears and the tang into the knob’s nut; tighten the knob to lock the teeth.
+
+## Warnings
+
+- ℹ wallPlate does not fit on the same plate as the other parts; print it separately.
+
+---
+
+Made with openlamp, https://jahoefne.github.io/openlamp/
+"
+`;
+
 exports[`the print sheet of table-lamp.lamp.json > matches its snapshot 1`] = `
 "# Ro
 
@@ -1125,19 +1244,22 @@ exports[`the print sheet of wall-lamp.lamp.json > matches its snapshot 1`] = `
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
-- **Lamp:** Wall arm (angled, 200 mm); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
+- **Lamp:** Wall arm (straight, 220 mm); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
 - **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
-- **Export:** 4 STL files, one per part, at normal quality
+- **Export:** 7 STL files, one per part, at normal quality
 
 ## Parts
 
 | Part | Qty | Colour | PLA | Triangles | Print orientation | Joints |
 | :-- | --: | :-- | --: | --: | :-- | :-- |
-| Hub | 1 | warm light grey \`#d9d4cb\` | — | — | Collar ring on the bed, mount face up | bayonet for the Shade; thread Ø16 × 2.5 into the Wall arm |
+| Hub | 1 | warm light grey \`#d9d4cb\` | — | — | Collar ring on the bed, mount face up | bayonet for the Shade; thread Ø16 × 2.5 into the Hanger |
 | Shade | 1 | cream \`#f2e8d8\` | — | — | Open end on the bed, collar up | bayonet into the Hub |
-| Wall plate | 1 | warm light grey \`#d9d4cb\` | — | — | Back face on the bed | 4 × M3 (heat-set inserts) for the Wall arm |
-| Wall arm | 1 | warm light grey \`#d9d4cb\` | — | — | Standing on its flange, the end boss's thread lying horizontal | thread Ø16 × 2.5 for the Hub; 4 × M3 into the Wall plate |
-| **Total** | **4** |  | — |  |  |  |
+| Wall plate | 1 | warm light grey \`#d9d4cb\` | — | — | Back face on the bed | pivot Ø15 for the Knee |
+| Knee | 1 | warm light grey \`#d9d4cb\` | — | — | Spigot end on the bed, with a brim | pivot Ø15 into the Wall plate; toothed hinge (M5) into the Wall arm |
+| Wall arm | 1 | warm light grey \`#d9d4cb\` | — | — | Standing on its clevis, with a brim (a tall, slim part) | toothed hinge (M5) for the Knee; toothed hinge (M5) for the Hanger |
+| Hanger | 1 | warm light grey \`#d9d4cb\` | — | — | Thread mouth on the bed | thread Ø16 × 2.5 for the Hub; toothed hinge (M5) into the Wall arm |
+| Knob ×2 | 2 | warm light grey \`#d9d4cb\` | — | — | Flat | — |
+| **Total** | **8** |  | — |  |  |  |
 
 PLA: estimated weight of all copies; "—" until the part is built in openlamp. Triangles: of one STL.
 
@@ -1145,21 +1267,21 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 - 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
 - 1 × USB power adapter (5 V)
-- 2 × wall screws up to Ø4 mm with heads up to Ø8.5 mm, and wall anchors, 60 mm apart on a vertical line
-- Cable Ø6 mm, at least 500 mm through the arm plus the run to the power: the puck's USB cable or a USB extension
-- 4 × M3 × 10 screws (Wall arm to Wall plate)
-- 4 × M3 heat-set inserts (and a soldering iron to set them)
+- 2 × wall screws up to Ø4 mm with heads up to Ø8.5 mm, and wall anchors, 60 mm apart on a level line
+- 2 × M5 × 40 bolts and 2 × M5 nuts (one each per hinge)
+- Cable Ø6 mm, at least 600 mm through the plate and the arm plus the run to the power: the puck's USB cable or a USB extension
 
 ## Assembly
 
-1. Mark two holes 60 mm apart on a vertical line, drill them and set the wall anchors; drive the screws in, leaving their heads about 3 mm proud.
-2. Press four M3 heat-set inserts into the pockets on the wall plate's front face, flush.
-3. Feed the cable in through the arm's flange and out of the threaded bore at its end.
+1. Mark two holes 60 mm apart on a level line, drill them and set the wall anchors; drive the screws in, leaving their heads about 3 mm proud.
+2. Press an M5 nut into each knob.
+3. Feed the cable up through the plate's back and its socket, then through the knee, the arm and the hanger (it lies in each hinge's notch).
 4. Press the LED puck into the hub from the light face until it stops (the crush ribs hold it); its cable runs through the bore in the hub's mount face.
-5. Screw the hub onto the arm, clockwise seen from below.
-6. Screw the arm's flange to the plate with four M3 × 10 screws, the cable lying in the plate's slot.
-7. Hang the plate on the two screws (heads through the keyholes, then slide it down); the cable leaves through the slot at its bottom edge.
-8. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
+5. Screw the hub into the hanger, clockwise seen from below.
+6. Hang the plate on the two screws (heads through the keyholes, then slide it down).
+7. Drop the knee's spigot into the plate's socket; bolt the arm to the knee, and the hanger to the arm's end, each with an M5 × 40 bolt and a knob.
+8. Set the arm's tilt to 20° and tighten the knobs.
+9. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
 
 ## Printing
 
@@ -1188,19 +1310,39 @@ File: \`openlamp-aften-shade.stl\`
 File: \`openlamp-aften-wallPlate.stl\`
 
 - Print as exported: back face on the bed. No supports needed.
-- Hang the plate on two screws through its keyholes (heads in the channels on the back, the plate slid down onto them); the cable leaves through the slot at its bottom edge.
-- Press four M3 heat-set inserts into the pockets on the front face, flush.
+- Hang the plate on two level screws: their heads go into the keyholes on the back, then slide it down.
+
+### Knee
+
+File: \`openlamp-aften-knee.stl\`
+
+- Print as exported: spigot end on the bed, with a brim. No supports needed.
+- Drop its spigot into a socket: the arm swings on it.
 
 ### Wall arm
 
 File: \`openlamp-aften-wallArm.stl\`
 
-- Print as exported: standing on its flange, the end boss's thread lying horizontal. No supports needed; a brim keeps the tall part in place.
-- Feed the cable in through the flange and out of the threaded bore, screw the hub onto the arm (clockwise seen from below), then screw the flange to the plate with four M3 × 10 screws.
+- Print as exported: standing on its clevis, with a brim (a tall, slim part). No supports needed.
+
+### Hanger
+
+File: \`openlamp-aften-hanger.stl\`
+
+- Print as exported: thread mouth on the bed. No supports needed.
+- Screw the hub into the hanger, clockwise seen from below.
+
+### Knob ×2
+
+File: \`openlamp-aften-knob.stl\` · print 2 copies
+
+- Print 2 of these.
+- Print as exported: flat. Press an M5 nut into the hexagonal pocket.
+- One per hinge: an M5 × 40 bolt through the ears and the tang into the knob’s nut; tighten the knob to lock the teeth.
 
 ## Warnings
 
-None.
+- ℹ knee does not fit on the same plate as the other parts; print it separately.
 
 ---
 

@@ -3,6 +3,11 @@
  * links, examples, the CLI). Versioned; `migrate()` upgrades old versions and
  * `ProjectSchema` (zod) validates the result.
  *
+ * Version 4 rebuilt the wall arm (`WallArmMountSchema`): a canopy plate (outline,
+ * edge, dome, cable exit), an arm of one or two links that swings on a pivot
+ * and tilts on rosette hinges; the angled arm is gone (its rise is the tilt).
+ * Every other mount is unchanged (`migrateV3`).
+ *
  * Version 3 (M2.2) has every mount: the velcro ceiling strap, the pendant on
  * a cord, the wall arm and the standing lamp (`Mount`, a discriminated union).
  * `hub.fused` only applies to the strap with a puck; every other lamp prints
@@ -30,11 +35,15 @@ import { z } from 'zod';
 import { QUALITIES, type Quality } from '../geometry/quality.ts';
 import { SURFACE_STYLES } from '../geometry/surface.ts';
 import {
+  ARM_ELBOWS,
+  ARM_LOCKS,
+  ARM_PROFILES,
   ARM_SHAPES,
   BASE_LIDS,
   BULB_FITTINGS,
   BULB_PRESETS,
   BULB_SIZES,
+  CABLE_EXITS,
   CLASSIC_SHADE_DEFAULTS,
   CORD_GRIPS,
   GEOMETRIC_VARIANTS,
@@ -44,6 +53,8 @@ import {
   LIGHT_PARAM_PATHS,
   MOUNT_DEFAULTS,
   MOUNT_PARAM_PATHS,
+  PLATE_EDGES,
+  PLATE_OUTLINES,
   SHADE_FAMILY_DEFAULTS,
   SHADE_FAMILY_DEFS,
   SHADE_FAMILY_PARAM_PATHS,
@@ -67,7 +78,7 @@ import { normalizeClassicShade } from '../schema/normalize.ts';
 import { DEFAULT_PRINTER_ID, PRINTERS, findPrinter, type PrinterSpec } from '../schema/printers.ts';
 import { SHADE_JOINT_TYPES, type Hex } from './assembly.ts';
 
-export const PROJECT_VERSION = 3;
+export const PROJECT_VERSION = 4;
 
 export const DEFAULT_SHADE_COLOUR: Hex = '#f4efe6';
 /** A new inner shade's colour (white reflects the light out of the outer shade). */
@@ -165,16 +176,47 @@ export const CeilingCordMountSchema = z.object({
   canopy: z.object({ diameter: Mm, height: Mm, screwSpacing: Mm }),
 });
 
-/** A wall plate and an arm; the hub's threaded stub screws into the end of the arm. */
+/**
+ * The wall lamp (v4): a canopy plate on the wall with a socket boss, a knee
+ * whose spigot turns in it (swing) and whose rosette hinge carries the arm
+ * (tilt), one or two links (a second one on a swing or fold elbow), and a
+ * hanger at the end whose female thread takes the hub's stub.
+ */
 export const WallArmMountSchema = z.object({
   kind: z.literal('wallArm'),
-  plate: z.object({ width: Mm, height: Mm, thickness: Mm, keyholeSpacing: Mm }),
+  plate: z.object({
+    outline: z.enum(PLATE_OUTLINES),
+    /** The Ø of a round plate. */
+    width: Mm,
+    /** Unused by a round plate (kept for switching back). */
+    height: Mm,
+    /** At the rim. */
+    thickness: Mm,
+    edge: z.enum(PLATE_EDGES),
+    edgeSize: Mm,
+    domeHeight: Mm,
+    keyholeSpacing: Mm,
+    cableExit: z.enum(CABLE_EXITS),
+  }),
   arm: z.object({
     shape: z.enum(ARM_SHAPES),
+    /** How far a curved link turns between its hinges (unused when straight). */
+    bendAngle: z.number(),
+    /** From the shoulder hinge's axis to the end hinge's axis, over every link. */
     length: Mm,
-    riseAngle: z.number(),
     tubeDiameter: Mm,
     cableDiameter: Mm,
+    /** The shoulder hinge's angle (the arm's rise), in the teeth's 10° steps. */
+    tilt: z.number(),
+    /** 1 or 2 (a number in the file, rounded by normalisation). */
+    links: z.number(),
+    elbow: z.enum(ARM_ELBOWS),
+    /** The inner link's share of `length`. */
+    elbowAt: z.number(),
+    /** The elbow knee's hinge (swing) or the fold angle (fold). */
+    elbowTilt: z.number(),
+    profile: z.enum(ARM_PROFILES),
+    lock: z.enum(ARM_LOCKS),
   }),
 });
 
@@ -1019,11 +1061,84 @@ function migrateV2(raw: RawProject): RawProject {
   return { ...raw, version: 3 };
 }
 
+/** The wall plate's fields a v3 plate did not have (it was a flat chamfered rectangle). */
+const V3_PLATE = Object.freeze({
+  outline: 'roundedRect',
+  edge: 'chamfer',
+  edgeSize: 3,
+  domeHeight: 0,
+  cableExit: 'bottom',
+});
+/** The arm's fields a v3 arm did not have (one link on a friction pivot). */
+const V3_ARM = Object.freeze({
+  links: 1,
+  elbow: 'swing',
+  elbowAt: 0.5,
+  elbowTilt: 0,
+  profile: 'round',
+  lock: 'friction',
+});
+/** A v3 plate thinner than this is thickened (the canopy's back carries the keyholes and the groove). */
+const V3_MIN_PLATE_THICKNESS = 10;
+/** The bend of a migrated straight or angled arm (unused until it is made curved). */
+const V3_BEND_ANGLE = 20;
+
+/**
+ * v3 → v4: the wall arm was rebuilt; every other mount keeps its shape, so
+ * only the version changes. A wall arm keeps its plate's width, height and
+ * keyhole spacing (a rounded rectangle with a 45° chamfer and no dome, at
+ * least 10 mm thick, the cable leaving at the bottom) and its length, tube
+ * and cable. A straight arm was horizontal (tilt 0); an angled arm becomes a
+ * straight one tilted by its rise; a curved arm bends by its rise and is not
+ * tilted. One link on a friction pivot. Whatever is missing or malformed is
+ * left for the schema to reject.
+ */
+function migrateV3(raw: RawProject): RawProject {
+  const mount = raw.mount;
+  if (!isRecord(mount) || mount.kind !== 'wallArm') return { ...raw, version: 4 };
+  const plate = isRecord(mount.plate) ? mount.plate : {};
+  const arm = isRecord(mount.arm) ? mount.arm : {};
+  const thickness =
+    typeof plate.thickness === 'number'
+      ? Math.max(V3_MIN_PLATE_THICKNESS, plate.thickness)
+      : plate.thickness;
+  const rise = arm.riseAngle;
+  const shape = arm.shape === 'curved' ? 'curved' : arm.shape === 'angled' ? 'straight' : arm.shape;
+  return {
+    ...raw,
+    version: 4,
+    mount: {
+      kind: 'wallArm',
+      plate: {
+        outline: V3_PLATE.outline,
+        width: plate.width,
+        height: plate.height,
+        thickness,
+        edge: V3_PLATE.edge,
+        edgeSize: V3_PLATE.edgeSize,
+        domeHeight: V3_PLATE.domeHeight,
+        keyholeSpacing: plate.keyholeSpacing,
+        cableExit: V3_PLATE.cableExit,
+      },
+      arm: {
+        shape,
+        bendAngle: arm.shape === 'curved' ? rise : V3_BEND_ANGLE,
+        length: arm.length,
+        tubeDiameter: arm.tubeDiameter,
+        cableDiameter: arm.cableDiameter,
+        tilt: arm.shape === 'angled' ? rise : 0,
+        ...V3_ARM,
+      },
+    },
+  };
+}
+
 /** `MIGRATIONS[v]` turns a version-v project into a later version (v + 1, or the current one). */
 const MIGRATIONS: Readonly<Record<number, (raw: RawProject) => RawProject>> = {
   0: migrateV0,
   1: migrateV1,
   2: migrateV2,
+  3: migrateV3,
 };
 
 function versionOf(raw: RawProject): unknown {

@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "id": "wall-lamp",
   "name": "Aften",
   "revision": 0,
@@ -32,17 +32,29 @@
   "mount": {
     "kind": "wallArm",
     "plate": {
-      "width": 80,
+      "outline": "round",
+      "width": 100,
       "height": 120,
-      "thickness": 6,
-      "keyholeSpacing": 60
+      "thickness": 10,
+      "edge": "round",
+      "edgeSize": 3,
+      "domeHeight": 3,
+      "keyholeSpacing": 60,
+      "cableExit": "bottom"
     },
     "arm": {
-      "shape": "angled",
-      "length": 200,
-      "riseAngle": 20,
+      "shape": "straight",
+      "bendAngle": 20,
+      "length": 220,
       "tubeDiameter": 24,
-      "cableDiameter": 6
+      "cableDiameter": 6,
+      "tilt": 20,
+      "links": 1,
+      "elbow": "swing",
+      "elbowAt": 0.5,
+      "elbowTilt": 0,
+      "profile": "round",
+      "lock": "friction"
     }
   },
   "hub": {

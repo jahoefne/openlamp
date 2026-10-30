@@ -1,20 +1,41 @@
 /**
- * The wall lamp: assembly (snapshot, placement, normalisation, warnings), the
- * hub's stub in the arm's end boss, the arm (cable bore, flange, overhangs)
- * and the wall plate (keyholes, cable slot, pockets).
+ * The wall lamp: the assembly (parts and copies per configuration, joints,
+ * placement at rest and posed, normalisation, checks, snapshot), the pure
+ * footprints, and the projects. The parts' own geometry is tested with
+ * their builders (wallPlate, knee, hanger, knob, rosette tests; the link's
+ * geometry half of this file arrives with its builder in step 3).
  */
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { assemble } from '@core/assembly/assemble.ts';
-import { ARM_BOLT_CIRCLE, wallArmMount } from '@core/assembly/mounts/wallArm.ts';
+import { ZERO_POSE, type MountPose } from '@core/assembly/mounts/types.ts';
+import {
+  HANGER,
+  KEYHOLE,
+  KNEE,
+  KNOB,
+  PIVOT,
+  ROSETTE,
+  axisAboveSupport,
+  plateStackHeight,
+  wallArmMount,
+} from '@core/assembly/mounts/wallArm.ts';
 import { applyToPoint } from '@core/assembly/transforms.ts';
-import { screwPositions } from '@core/geometry/joints/screw.ts';
-import { scoped, type CrossSection, type Kernel } from '@core/geometry/kernel.ts';
+import type { Kernel } from '@core/geometry/kernel.ts';
+import { deriveHanger } from '@core/geometry/parts/hanger.ts';
 import { deriveHub } from '@core/geometry/parts/hub.ts';
-import { deriveWallArm } from '@core/geometry/parts/wallArm.ts';
+import { deriveKnee } from '@core/geometry/parts/knee.ts';
+import { deriveWallArm, linkToPrint, printToLink } from '@core/geometry/parts/wallArm.ts';
 import { deriveWallPlate } from '@core/geometry/parts/wallPlate.ts';
-import type { Assembly, PartSpec } from '@core/model/assembly.ts';
-import type { HubParams, WallArmParams, WallPlateParams } from '@core/model/parts.ts';
+import type { Assembly, Mat4, PartSpec } from '@core/model/assembly.ts';
+import type {
+  HangerParams,
+  HubParams,
+  KneeParams,
+  KnobParams,
+  WallArmParams,
+  WallPlateParams,
+} from '@core/model/parts.ts';
 import {
   createDefaultProject,
   defaultMount,
@@ -22,15 +43,8 @@ import {
   type MountOf,
   type Project,
 } from '@core/model/project.ts';
-import { ARM_SHAPES } from '@core/schema/defs.ts';
 import { getKernel, trackKernelObjects } from '../../helpers/kernel.ts';
-import {
-  assembled,
-  byId,
-  contourMinRadii,
-  maxOverhangDeg,
-  withBuilt,
-} from '../../helpers/parts.ts';
+import { withBuilt } from '../../helpers/parts.ts';
 
 let k: Kernel;
 let tracker: ReturnType<typeof trackKernelObjects>;
@@ -43,7 +57,8 @@ beforeAll(async () => {
 afterAll(() => tracker.restore());
 
 type WallMount = MountOf<'wallArm'>;
-type Shape = WallMount['arm']['shape'];
+type Arm = WallMount['arm'];
+type Vec = readonly number[];
 
 function wallLamp(edit: (mount: WallMount, p: Project) => void = () => {}): Project {
   const p = createDefaultProject({
@@ -57,17 +72,20 @@ function wallLamp(edit: (mount: WallMount, p: Project) => void = () => {}): Proj
   return p;
 }
 
-const shaped =
-  (shape: Shape, riseAngle = 20) =>
-  (m: WallMount) => {
-    m.arm.shape = shape;
-    m.arm.riseAngle = riseAngle;
-  };
+/** The default lamp with these arm fields. */
+const withArm = (arm: Partial<Arm>) => wallLamp((m) => Object.assign(m.arm, arm));
+const swingElbow = (arm: Partial<Arm> = {}) =>
+  withArm({ links: 2, elbow: 'swing', length: 360, ...arm });
+const foldElbow = (arm: Partial<Arm> = {}) =>
+  withArm({ links: 2, elbow: 'fold', length: 360, ...arm });
+
+const pose = (p: Partial<MountPose>): MountPose => ({ ...ZERO_POSE, ...p });
 
 /** The assembly without the numbers that only restate the params (as in assemble.test.ts). */
 function summary(a: Assembly) {
   return {
     parts: a.parts.map(({ buildKey, ...part }) => ({ ...part, buildKeyLength: buildKey.length })),
+    hubTransform: a.hubTransform,
     interfaces: a.interfaces,
     layout: a.layout,
     derived: a.derived,
@@ -82,36 +100,144 @@ function part(a: Assembly, id: string): PartSpec {
   return p;
 }
 const hubParams = (a: Assembly) => part(a, 'hub').params as HubParams;
-const armParams = (a: Assembly) => part(a, 'wallArm').params as WallArmParams;
 const plateParams = (a: Assembly) => part(a, 'wallPlate').params as WallPlateParams;
+const kneeParams = (a: Assembly) => part(a, 'knee').params as KneeParams;
+const armParams = (a: Assembly, id = 'wallArm') => part(a, id).params as WallArmParams;
+const hangerParams = (a: Assembly) => part(a, 'hanger').params as HangerParams;
 
-/** Whether a disc of radius r at (x, y) lies in a hole of the section (no material under it). */
-function inHole(section: CrossSection, x: number, y: number, r: number): boolean {
-  return scoped(k, (s) => {
-    const probe = s.add(s.add(k.CrossSection.circle(r, 32)).translate([x, y]));
-    const union = s.add(k.CrossSection.union(section, probe));
-    return union.area() - section.area() > probe.area() - 1e-3;
-  });
-}
+const at = (m: Mat4, p: Vec) => applyToPoint(m, p as [number, number, number]);
+const near = (p: Vec, q: Vec, digits = 9) =>
+  p.forEach((v, i) => expect(v, `component ${i}`).toBeCloseTo(q[i]!, digits));
+/** The world point a transform puts the print frame's origin. */
+const originOf = (m: Mat4) => [m[12]!, m[13]!, m[14]!];
 
-/** Height (print y, arm frame) of the arm's centre line at print height z. */
-function centreY(params: WallArmParams, z: number): number {
-  const d = deriveWallArm(params);
-  if (d.shapeIndex === 1) return z * Math.tan((d.rise * Math.PI) / 180);
-  if (d.shapeIndex === 2) return d.bendRadius - Math.sqrt(d.bendRadius ** 2 - z ** 2);
-  return 0;
-}
+const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
-describe('assemble (wall arm)', () => {
-  it('adds the wall plate and the arm, on a thread joint to the hub and screws to the plate', () => {
+describe('assemble (wall arm): the parts', () => {
+  it('one link: the plate, the knee, the arm, the hanger and two knobs', () => {
     const a = assemble(wallLamp());
-    expect(a.parts.map((x) => [x.id, x.kind, x.displayName])).toEqual([
-      ['hub', 'hub', 'Hub'],
-      ['shade', 'shade', 'Shade'],
-      ['wallPlate', 'wallPlate', 'Wall plate'],
-      ['wallArm', 'wallArm', 'Wall arm'],
+    expect(a.parts.map((x) => [x.id, x.kind, x.displayName, x.instances])).toEqual([
+      ['hub', 'hub', 'Hub', 1],
+      ['shade', 'shade', 'Shade', 1],
+      ['wallPlate', 'wallPlate', 'Wall plate', 1],
+      ['knee', 'knee', 'Knee', 1],
+      ['wallArm', 'wallArm', 'Wall arm', 1],
+      ['hanger', 'hanger', 'Hanger', 1],
+      ['knob', 'knob', 'Knob ×2', 2],
     ]);
-    expect(Object.keys(a.interfaces)).toEqual(['shadeToHub', 'hubToArm', 'armToPlate']);
+    expect(Object.keys(a.interfaces)).toEqual([
+      'shadeToHub',
+      'hubToArm',
+      'platePivot',
+      'shoulderHinge',
+      'hangerHinge',
+    ]);
+    expect(armParams(a)).toMatchObject({
+      shape: 'straight',
+      bendAngle: 0,
+      length: 220,
+      root: 'clevis',
+      end: { kind: 'clevis' },
+    });
+    expect(part(a, 'knob').instanceTransforms).toHaveLength(2);
+    // Only the layout's info: the parts do not fit one plate of the A1 together.
+    expect(a.warnings.map((w) => [w.severity, w.code])).toEqual([['info', 'plate-overflow']]);
+  });
+
+  it('two links on a swing elbow: two knees as one part, an inner and an outer arm, three knobs', () => {
+    const a = assemble(swingElbow({ tilt: 0 }));
+    expect(a.parts.map((x) => [x.id, x.kind, x.displayName, x.instances])).toEqual([
+      ['hub', 'hub', 'Hub', 1],
+      ['shade', 'shade', 'Shade', 1],
+      ['wallPlate', 'wallPlate', 'Wall plate', 1],
+      ['knee', 'knee', 'Knee ×2', 2],
+      ['wallArm', 'wallArm', 'Inner arm', 1],
+      ['wallArm2', 'wallArm', 'Outer arm', 1],
+      ['hanger', 'hanger', 'Hanger', 1],
+      ['knob', 'knob', 'Knob ×3', 3],
+    ]);
+    expect(Object.keys(a.interfaces)).toEqual([
+      'shadeToHub',
+      'hubToArm',
+      'platePivot',
+      'shoulderHinge',
+      'elbowPivot',
+      'elbowHinge',
+      'hangerHinge',
+    ]);
+    expect(a.interfaces.elbowPivot).toMatchObject({
+      type: 'pivot',
+      male: 'knee',
+      female: 'wallArm',
+    });
+    expect(a.interfaces.elbowHinge).toMatchObject({
+      type: 'rosette',
+      male: 'knee',
+      female: 'wallArm2',
+    });
+    expect(a.interfaces.hangerHinge).toMatchObject({ male: 'hanger', female: 'wallArm2' });
+    expect(armParams(a)).toMatchObject({
+      length: 180,
+      root: 'clevis',
+      end: { kind: 'socket', pivot: a.interfaces.elbowPivot, lock: 'friction' },
+    });
+    expect(armParams(a, 'wallArm2')).toMatchObject({
+      length: 180,
+      root: 'clevis',
+      end: { kind: 'clevis' },
+    });
+    expect(part(a, 'knee').instanceTransforms).toHaveLength(2);
+    expect(part(a, 'knob').instanceTransforms).toHaveLength(3);
+  });
+
+  it('two links on a fold elbow: one knee, the outer arm’s root a tang in the inner arm’s end clevis', () => {
+    const a = assemble(foldElbow({ elbowAt: 0.4 }));
+    expect(a.parts.map((x) => [x.id, x.displayName, x.instances])).toEqual([
+      ['hub', 'Hub', 1],
+      ['shade', 'Shade', 1],
+      ['wallPlate', 'Wall plate', 1],
+      ['knee', 'Knee', 1],
+      ['wallArm', 'Inner arm', 1],
+      ['wallArm2', 'Outer arm', 1],
+      ['hanger', 'Hanger', 1],
+      ['knob', 'Knob ×3', 3],
+    ]);
+    expect(Object.keys(a.interfaces)).toEqual([
+      'shadeToHub',
+      'hubToArm',
+      'platePivot',
+      'shoulderHinge',
+      'elbowHinge',
+      'hangerHinge',
+    ]);
+    expect(a.interfaces.elbowHinge).toMatchObject({ male: 'wallArm2', female: 'wallArm' });
+    expect(armParams(a)).toMatchObject({ length: 144, root: 'clevis', end: { kind: 'clevis' } });
+    expect(armParams(a, 'wallArm2')).toMatchObject({
+      length: 216,
+      root: 'tang',
+      end: { kind: 'clevis' },
+    });
+  });
+
+  it('builds every straight link alike, whatever its bend', () => {
+    const a = assemble(withArm({ bendAngle: 35 }));
+    expect(armParams(a).bendAngle).toBe(0);
+    expect(part(a, 'wallArm').buildKey).toBe(part(assemble(wallLamp()), 'wallArm').buildKey);
+    expect(armParams(assemble(withArm({ shape: 'curved', bendAngle: 35 }))).bendAngle).toBe(35);
+  });
+
+  it('prints the shade joint’s test pair in fit-test mode, without the mount’s parts', () => {
+    const a = assemble(wallLamp((_m, p) => (p.fitTest = true)));
+    expect(a.parts.map((x) => x.id)).toEqual(['fitMale', 'fitFemale']);
+    expect(Object.keys(a.interfaces)).toEqual(['shadeToHub']);
+    expect(a.hubTransform).toEqual(IDENTITY);
+    expect(a.derived.bottomZ).toBe(-3);
+  });
+});
+
+describe('assemble (wall arm): the joints', () => {
+  it('the hub’s stub screws into the hanger', () => {
+    const a = assemble(wallLamp());
     const hubToArm = a.interfaces.hubToArm!;
     expect(hubToArm).toMatchObject({
       type: 'thread',
@@ -120,405 +246,545 @@ describe('assemble (wall arm)', () => {
       tolerance: 0.3,
       thread: { pitch: 2.5, depth: 0.8, flank: 45, hand: 'right' },
       male: 'hub',
-      female: 'wallArm',
+      female: 'hanger',
     });
-    const face = hubParams(a).mountFace;
-    expect(face).toEqual({ kind: 'threadMale', joint: hubToArm, cableDiameter: 6 });
-    expect(armParams(a).hubJoint).toEqual(hubToArm);
-    const screws = a.interfaces.armToPlate!;
-    expect(screws).toMatchObject({
-      type: 'screw',
-      nominalDiameter: ARM_BOLT_CIRCLE,
-      screw: { count: 4, hole: 3.4, counterbore: [6, 3], insertPocket: [4, 6] },
-      male: 'wallArm',
+    expect(hubParams(a).mountFace).toEqual({
+      kind: 'threadMale',
+      joint: hubToArm,
+      cableDiameter: 6,
+    });
+    expect(hangerParams(a).hubJoint).toEqual(hubToArm);
+  });
+
+  it('the knee turns on a pivot in the plate’s socket: Ø max(15, cable + 8), 35 long', () => {
+    const a = assemble(wallLamp());
+    const pivot = a.interfaces.platePivot!;
+    expect(pivot).toEqual({
+      id: 'platePivot',
+      type: 'pivot',
+      nominalDiameter: 15,
+      length: PIVOT.length,
+      tolerance: 0.3,
+      // The bore: the spigot, 1 mm of play, the sump (the cable + 1).
+      pivot: { depth: 35 + 1 + 7, seat: 3, sump: 7 },
+      male: 'knee',
       female: 'wallPlate',
     });
-    expect(armParams(a).plateScrews).toEqual(screws);
-    expect(plateParams(a).armScrews).toEqual(screws);
-    // The default 250 mm arm stands 264 mm tall on its flange: too tall for the A1.
-    expect(a.warnings.map((w) => [w.severity, w.code, w.partId])).toEqual([
-      ['warning', 'bed-fit', 'wallArm'],
-    ]);
-    expect(a.warnings[0]!.message).toContain('too large in Z');
-    expect(part(a, 'wallArm').printNotes.join(' ')).toContain('standing on its flange');
-    expect(part(a, 'wallPlate').printNotes.join(' ')).toContain('heat-set inserts');
+    expect(plateParams(a).socket.pivot).toEqual(pivot);
+    expect(kneeParams(a).pivot).toEqual(pivot);
+    const thick = assemble(withArm({ cableDiameter: 10 })).interfaces.platePivot!;
+    expect(thick.nominalDiameter).toBe(18);
+    expect(thick.pivot).toEqual({ depth: 35 + 1 + 11, seat: 3, sump: 11 });
   });
 
-  it('hangs the hub at the origin and puts the plate on the wall plane behind it', () => {
-    const a = assemble(wallLamp());
-    const hub = part(a, 'hub');
-    const hd = deriveHub(hubParams(a));
-    const arm = armParams(a);
-    const d = deriveWallArm(arm);
-    const t = plateParams(a).thickness;
-    const wallY = -(250 + t);
-    expect(hub.assembledTransform).toEqual([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-    expect(a.context).toEqual({ kind: 'wall', wallY });
-    const plateZ = hd.zFace - d.yBoss0;
-    expect(a.derived).toMatchObject({
-      wallY,
-      armLength: 250,
-      armRise: 0,
-      plateZ,
-      armBossZ: hd.zFace,
-      cableDiameter: 6,
-      puckZ: hd.zPuck,
-      hubHeight: hd.hubHeight,
-    });
-    const near = (p: number[], q: number[]) => p.forEach((v, i) => expect(v).toBeCloseTo(q[i]!, 9));
-    // The plate's back face lies on the wall, its front face carries the flange.
-    const plateT = part(a, 'wallPlate').assembledTransform;
-    near(applyToPoint(plateT, [0, 0, 0]), [0, wallY, plateZ]);
-    near(applyToPoint(plateT, [0, 0, t]), [0, wallY + t, plateZ]);
-    // Up the plate (print +y) is up in the room.
-    near(applyToPoint(plateT, [0, 10, 0]), [0, wallY, plateZ + 10]);
-    // The arm's flange sits on the plate; its boss's mouth on the hub's mount face.
-    const armT = part(a, 'wallArm').assembledTransform;
-    near(applyToPoint(armT, [0, d.yShift, 0]), [0, wallY + t, plateZ]);
-    near(applyToPoint(armT, [0, d.yBoss0 + d.yShift, 250]), [0, 0, hd.zFace]);
-    near(applyToPoint(armT, [0, d.yBoss1 + d.yShift, 250]), [0, 0, hd.zFace + d.bossHeight]);
-    // The lamp's lowest point: the shade's open end (the plate is higher).
-    const shadeZ = part(a, 'shade').assembledTransform[14]!;
-    expect(a.derived.bottomZ).toBe(shadeZ);
-    expect(plateZ - plateParams(a).height / 2).toBeGreaterThan(shadeZ);
-  });
-
-  it('raises a rising arm’s boss above its flange', () => {
-    for (const shape of ['angled', 'curved'] as const) {
-      const a = assemble(wallLamp(shaped(shape, 30)));
-      const d = deriveWallArm(armParams(a));
-      expect(d.rise).toBe(30);
-      expect(d.yEnd).toBeGreaterThan(0);
-      // The hub hangs higher than the plate by the arm's rise.
-      expect(a.derived.plateZ).toBeCloseTo(deriveHub(hubParams(a)).zFace - d.yBoss0, 9);
-      expect(a.derived.armRise).toBe(30);
+  it('every hinge is the same rosette: discs R 18, 36 teeth, tang 14 between ears 8', () => {
+    const a = assemble(swingElbow());
+    const spec = {
+      radius: 18,
+      teeth: 36,
+      toothDepth: 1.2,
+      innerRadius: 11,
+      tangThickness: 14,
+      earThickness: 8,
+      boltHole: 5.5,
+    };
+    for (const id of ['shoulderHinge', 'elbowHinge', 'hangerHinge']) {
+      expect(a.interfaces[id], id).toMatchObject({
+        type: 'rosette',
+        nominalDiameter: 36,
+        length: 30.6,
+        tolerance: 0.3,
+        rosette: spec,
+      });
+    }
+    const hinge = { ...spec, tolerance: 0.3, earGap: 14.6, width: 30.6 };
+    for (const p of [kneeParams(a), armParams(a), armParams(a, 'wallArm2'), hangerParams(a)]) {
+      expect(p.rosette).toMatchObject({
+        ...hinge,
+        headCounterbore: [9, 4],
+        channel: { width: 7, radius: 7.5 },
+        sweptRadius: 19,
+      });
+      expect(p.rosette.axisHeight).toBeCloseTo(18 / Math.SQRT2, 12);
     }
   });
 
-  it('builds every straight arm alike, whatever its rise angle', () => {
-    const a = assemble(wallLamp((m) => (m.arm.riseAngle = 35)));
-    expect(armParams(a).riseAngle).toBe(0);
-    expect(part(a, 'wallArm').buildKey).toBe(part(assemble(wallLamp()), 'wallArm').buildKey);
-  });
-
-  it('clamps the rise to 45° (the arm must print standing on its flange)', () => {
-    const a = assemble(wallLamp(shaped('angled', 60)));
-    expect(a.warnings).toContainEqual(
-      expect.objectContaining({ code: 'clamped', paramPath: 'mount.arm.riseAngle' }),
-    );
-    expect(armParams(a).riseAngle).toBe(45);
-  });
-
-  it('reports an arm too tall for the bed and stays quiet for one that fits', () => {
-    const short = assemble(
-      wallLamp((m) => {
-        m.arm.length = 200;
-      }),
-    );
-    expect(short.warnings).toEqual([]);
-    expect(part(short, 'wallArm').bedFootprint!.z).toBeCloseTo(
-      200 + deriveWallArm(armParams(short)).rBoss,
-      9,
-    );
-    const tall = assemble(wallLamp((m) => (m.arm.length = 600)));
-    expect(tall.warnings).toContainEqual(
-      expect.objectContaining({ severity: 'warning', code: 'bed-fit', partId: 'wallArm' }),
-    );
-  });
-
-  it('keeps the plate large enough for the flange and the keyholes, and the tube’s wall', () => {
-    const adjusted = wallArmMount.normalize!({
-      ...defaultMount('wallArm'),
-      plate: { width: 50, height: 60, thickness: 6, keyholeSpacing: 200 },
-      arm: { shape: 'straight', length: 250, riseAngle: 0, tubeDiameter: 14, cableDiameter: 12 },
-    });
-    expect(adjusted.mount.plate).toEqual({
-      width: 68,
-      height: 89,
-      thickness: 6,
-      keyholeSpacing: 50,
-    });
-    expect(adjusted.mount.arm.tubeDiameter).toBe(19);
-    expect(adjusted.warnings.map((w) => [w.code, w.paramPath])).toEqual([
-      ['adjusted', 'mount.arm.tubeDiameter'],
-      ['adjusted', 'mount.plate.width'],
-      ['adjusted', 'mount.plate.height'],
-      ['adjusted', 'mount.plate.keyholeSpacing'],
-    ]);
-    // Spacing too small for the cable hole, and the defaults untouched.
-    const small = wallArmMount.normalize!({
-      ...defaultMount('wallArm'),
-      plate: { width: 80, height: 120, thickness: 6, keyholeSpacing: 20 },
-    });
-    expect(small.mount.plate.keyholeSpacing).toBe(44);
-    const defaults = defaultMount('wallArm');
-    expect(wallArmMount.normalize!(defaults)).toEqual({ mount: defaults, warnings: [] });
-  });
-
-  it('warns when the cable is thicker than the plate', () => {
-    const a = assemble(wallLamp((m) => (m.plate.thickness = 4)));
-    expect(a.warnings).toContainEqual(
-      expect.objectContaining({
-        code: 'cable-slot',
-        partId: 'wallPlate',
-        paramPath: 'mount.plate.thickness',
-      }),
-    );
-  });
-
-  it("prints the shade joint's test pair in fit-test mode, without the plate and arm", () => {
-    const a = assemble(wallLamp((_m, p) => (p.fitTest = true)));
-    expect(a.parts.map((x) => x.id)).toEqual(['fitMale', 'fitFemale']);
-    expect(Object.keys(a.interfaces)).toEqual(['shadeToHub']);
-    expect(a.derived.bottomZ).toBe(-3);
-  });
-
-  it('matches the snapshot', () => {
-    expect(summary(assemble(wallLamp()))).toMatchSnapshot();
+  it('fixes the constants of the plan', () => {
+    expect(ROSETTE).toMatchObject({ radius: 18, teeth: 36, tangThickness: 14, earThickness: 8 });
+    expect(KNEE).toMatchObject({ hingeHeight: 24, bodyDiameter: 27, bodyHeight: 5 });
+    expect(HANGER.axisAboveBody).toBe(19);
+    expect(KNOB).toMatchObject({ diameter: 32, height: 10, lobes: 6, nutAcrossFlats: 8.3 });
+    expect(KEYHOLE).toEqual({ headDiameter: 9, slotWidth: 4.5, length: 12 });
+    // The disc-on-edge rule: 12.73 above a wide support, more above a narrow tube.
+    expect(axisAboveSupport(30)).toBeCloseTo(12.728, 3);
+    expect(axisAboveSupport(12)).toBeCloseTo(13.416, 3);
+    expect(axisAboveSupport(9)).toBeCloseTo(15.588, 3);
+    const knob = part(assemble(wallLamp()), 'knob').params as KnobParams;
+    expect(knob).toMatchObject({ boreDiameter: 5.5, nut: { acrossFlats: 8.3, depth: 5 } });
   });
 });
 
-describe.each(['draft', 'normal'] as const)('the wall parts at %s quality', (quality) => {
-  it.each(ARM_SHAPES)('build as valid solids without leaks (%s arm)', (shape) => {
-    const a = assemble(wallLamp(shaped(shape)), { quality });
-    withBuilt(k, tracker, a.parts, quality, (built) => {
-      expect(built.map((b) => b.part.id)).toEqual(['hub', 'shade', 'wallPlate', 'wallArm']);
+describe('assemble (wall arm): placement at rest', () => {
+  it('hangs the hub exactly at the origin, whatever the tilt and the elbow', () => {
+    for (const p of [
+      wallLamp(),
+      withArm({ tilt: -30 }),
+      withArm({ tilt: 60, shape: 'curved', bendAngle: 30 }),
+      swingElbow({ elbowTilt: -40 }),
+      foldElbow({ elbowTilt: 30 }),
+    ]) {
+      const a = assemble(p);
+      expect(part(a, 'hub').assembledTransform).toEqual(IDENTITY);
+      expect(a.hubTransform).toEqual(IDENTITY);
+      expect(a.derived.hubYaw).toBe(0);
+    }
+  });
+
+  it('puts the plate on the wall, the knee in its socket, the arm on the knee and the hanger on the arm', () => {
+    const a = assemble(wallLamp());
+    const zFace = deriveHub(hubParams(a)).zFace;
+    const pd = deriveWallPlate(plateParams(a));
+    const kd = deriveKnee(kneeParams(a));
+    const ad = deriveWallArm(armParams(a));
+    const hd = deriveHanger(hangerParams(a));
+    const L = 220;
+    const t = (20 * Math.PI) / 180;
+    // The hanger's thread mouth on the hub's mount face, its hinge axis `drop` above.
+    const end = [0, 0, zFace + hd.drop];
+    near(at(part(a, 'hanger').assembledTransform, [0, 0, 0]), [0, 0, zFace]);
+    near(at(part(a, 'hanger').assembledTransform, [0, 0, hd.drop]), end);
+    // The link: its end axis there, its root axis L back along the 20° tilt.
+    const shoulder = [0, -L * Math.cos(t), end[2]! - L * Math.sin(t)];
+    const arm = part(a, 'wallArm').assembledTransform;
+    near(at(arm, at(linkToPrint(ad), [0, 0, 0])), shoulder);
+    near(at(arm, at(linkToPrint(ad), [0, 0, L])), end);
+    // The knee: its hinge on the shoulder axis, its seat 24 below on the socket's.
+    const knee = part(a, 'knee').assembledTransform;
+    const seat = [0, shoulder[1]!, shoulder[2]! - KNEE.hingeHeight];
+    near(at(knee, [0, 0, kd.spigotLength]), seat);
+    near(at(knee, [0, 0, kd.spigotLength + kd.seatToHinge]), shoulder);
+    // The plate: its seat point on the knee's, its back face on the wall.
+    const plate = part(a, 'wallPlate').assembledTransform;
+    near(at(plate, [0, pd.seatY, pd.socketZ]), seat);
+    const wallY = seat[1]! - pd.socketZ;
+    const plateZ = seat[2]! - pd.seatY;
+    near(at(plate, [0, 0, 0]), [0, wallY, plateZ]);
+    // Up the plate (print +y) is up in the room, out of it (print +z) is the room.
+    near(at(plate, [0, 10, 0]), [0, wallY, plateZ + 10]);
+    near(at(plate, [0, 0, 10]), [0, wallY + 10, plateZ]);
+    expect(a.context).toEqual({ kind: 'wall', wallY: expect.closeTo(wallY, 9) as number });
+    expect(a.derived.wallY).toBeCloseTo(-(pd.socketZ + L * Math.cos(t)), 9);
+    expect(a.derived.plateZ).toBeCloseTo(plateZ, 9);
+    expect(a.derived.socketY).toBeCloseTo(seat[1]!, 9);
+    expect(a.derived.seatZ).toBeCloseTo(seat[2]!, 9);
+    near([a.derived.shoulderX!, a.derived.shoulderY!, a.derived.shoulderZ!], shoulder);
+    near([a.derived.endX!, a.derived.endY!, a.derived.endZ!], end);
+    expect(a.derived).toMatchObject({ armLength: 220, armTilt: 20, armLinks: 1, cableDiameter: 6 });
+    // The lamp's lowest point: the shade's open end (the plate is higher).
+    const shadeZ = part(a, 'shade').assembledTransform[14]!;
+    expect(a.derived.bottomZ).toBe(shadeZ);
+    expect(plateZ - pd.halfHeight).toBeGreaterThan(shadeZ);
+    // The swing limit: the Ø161.6 shade reaches the wall at about 70°.
+    expect(a.derived.maxSwing).toBeGreaterThan(60);
+    expect(a.derived.maxSwing).toBeLessThanOrEqual(90);
+  });
+
+  it('puts each knob on its hinge’s +x ear', () => {
+    const a = assemble(swingElbow({ tilt: 0, elbowTilt: 0 }));
+    const width = kneeParams(a).rosette.width;
+    const knobs = part(a, 'knob').instanceTransforms;
+    const hinges = [
+      [a.derived.shoulderX!, a.derived.shoulderY!, a.derived.shoulderZ!],
+      // Knee 2's hinge, 24 above the elbow's seat.
+      [a.derived.elbowX!, a.derived.elbowY!, a.derived.elbowZ! + KNEE.hingeHeight],
+      [a.derived.endX!, a.derived.endY!, a.derived.endZ!],
+    ];
+    knobs.forEach((m, i) => {
+      const h = hinges[i]!;
+      // Its face on the ear (print z 0), its axis along the hinge's (room x at rest).
+      near(at(m, [0, 0, 0]), [h[0]! + width / 2, h[1]!, h[2]!]);
+      near(at(m, [0, 0, 10]), [h[0]! + width / 2 + 10, h[1]!, h[2]!]);
+    });
+    expect(part(a, 'knob').assembledTransform).toEqual(knobs[0]);
+  });
+
+  it('a swing elbow: the inner link’s socket seat on its end axis, the second knee in it', () => {
+    const a = assemble(swingElbow({ tilt: 0, elbowTilt: 20 }));
+    const d1 = deriveWallArm(armParams(a));
+    const kd = deriveKnee(kneeParams(a));
+    expect(d1.seatY).toBe(43 - 7 / 2);
+    const seat = [0, a.derived.shoulderY! + 180, a.derived.shoulderZ! + d1.seatY];
+    near([a.derived.elbowX!, a.derived.elbowY!, a.derived.elbowZ!], seat);
+    const [first, second] = part(a, 'knee').instanceTransforms;
+    expect(first).toEqual(part(a, 'knee').assembledTransform);
+    near(at(second!, [0, 0, kd.spigotLength]), seat);
+    // The outer link rises 20° from knee 2's hinge to the end.
+    const t = (20 * Math.PI) / 180;
+    near(
+      [a.derived.endX!, a.derived.endY!, a.derived.endZ!],
+      [0, seat[1]! + 180 * Math.cos(t), seat[2]! + KNEE.hingeHeight + 180 * Math.sin(t)],
+    );
+  });
+
+  it('a fold elbow: the outer link folds by the elbow tilt at the inner link’s end', () => {
+    const a = assemble(foldElbow({ tilt: 20, elbowTilt: -30 }));
+    const rad = (d: number) => (d * Math.PI) / 180;
+    const s = [a.derived.shoulderX!, a.derived.shoulderY!, a.derived.shoulderZ!];
+    const elbow = [0, s[1]! + 180 * Math.cos(rad(20)), s[2]! + 180 * Math.sin(rad(20))];
+    near([a.derived.elbowX!, a.derived.elbowY!, a.derived.elbowZ!], elbow);
+    near(
+      [a.derived.endX!, a.derived.endY!, a.derived.endZ!],
+      [0, elbow[1]! + 180 * Math.cos(rad(-10)), elbow[2]! + 180 * Math.sin(rad(-10))],
+    );
+    // The outer link stands on its end clevis: its root (a tang) at the top of the print.
+    const d2 = deriveWallArm(armParams(a, 'wallArm2'));
+    expect(d2.flipped).toBe(1);
+    near(at(part(a, 'wallArm2').assembledTransform, at(linkToPrint(d2), [0, 0, 0])), elbow);
+  });
+
+  it('a curved link: its root and end axes on the chord, the tilt the chord’s', () => {
+    const a = assemble(withArm({ shape: 'curved', bendAngle: 30, tilt: 10 }));
+    const d = deriveWallArm(armParams(a));
+    expect(d.bend).toBe(30);
+    expect(d.sagitta).toBeCloseTo(d.bendRadius * (1 - Math.cos((15 * Math.PI) / 180)), 9);
+    const t = (10 * Math.PI) / 180;
+    expect(a.derived.endY! - a.derived.shoulderY!).toBeCloseTo(220 * Math.cos(t), 9);
+    expect(a.derived.endZ! - a.derived.shoulderZ!).toBeCloseTo(220 * Math.sin(t), 9);
+  });
+});
+
+describe('assemble (wall arm): the pose', () => {
+  it('swings the lamp about the plate’s socket axis, the plate staying on the wall', () => {
+    const rest = assemble(wallLamp());
+    const a = assemble(wallLamp(), { pose: pose({ swing: 45 }) });
+    const socketY = rest.derived.socketY!;
+    const hub = originOf(a.hubTransform);
+    // On the circle about the socket axis, at the same height, turned by 45°.
+    expect(Math.hypot(hub[0]!, hub[1]! - socketY)).toBeCloseTo(-socketY, 9);
+    expect(hub[2]).toBeCloseTo(0, 9);
+    expect(Math.atan2(-hub[0]!, hub[1]! - socketY)).toBeCloseTo(Math.PI / 4, 9);
+    expect(a.derived.hubYaw).toBeCloseTo(45, 9);
+    near(
+      at(a.hubTransform, [1, 0, 0]).map((v, i) => v - hub[i]!),
+      [Math.SQRT1_2, Math.SQRT1_2, 0],
+    );
+    expect(part(a, 'wallPlate').assembledTransform).toEqual(
+      part(rest, 'wallPlate').assembledTransform,
+    );
+    expect(a.context).toEqual(rest.context);
+    // The shade turns with the hub.
+    near(
+      originOf(part(a, 'shade').assembledTransform),
+      at(a.hubTransform, originOf(part(rest, 'shade').assembledTransform)),
+    );
+  });
+
+  it('a tilt moves the plate (the hub stays at the origin)', () => {
+    const level = assemble(withArm({ tilt: 0 }));
+    const up = assemble(withArm({ tilt: 40 }));
+    expect(up.hubTransform).toEqual(IDENTITY);
+    const t = (40 * Math.PI) / 180;
+    expect(up.derived.wallY! - level.derived.wallY!).toBeCloseTo(220 * (1 - Math.cos(t)), 9);
+    expect(level.derived.plateZ! - up.derived.plateZ!).toBeCloseTo(220 * Math.sin(t), 9);
+  });
+
+  it('swings the outer link of a swing elbow about the elbow’s pivot', () => {
+    const rest = assemble(swingElbow({ tilt: 0 }));
+    const a = assemble(swingElbow({ tilt: 0 }), { pose: pose({ elbowSwing: 90 }) });
+    const elbow = [rest.derived.elbowX!, rest.derived.elbowY!];
+    const hub = originOf(a.hubTransform);
+    expect(Math.hypot(hub[0]! - elbow[0]!, hub[1]! - elbow[1]!)).toBeCloseTo(
+      Math.hypot(elbow[0]!, elbow[1]!),
+      9,
+    );
+    expect(hub[2]).toBeCloseTo(0, 9);
+    expect(a.derived.hubYaw).toBeCloseTo(90, 9);
+    // The inner link did not move.
+    expect(part(a, 'wallArm').assembledTransform).toEqual(part(rest, 'wallArm').assembledTransform);
+  });
+
+  it('tilts the hub on the hanger’s hinge', () => {
+    const rest = assemble(wallLamp());
+    const a = assemble(wallLamp(), { pose: pose({ hubTilt: 20 }) });
+    const end = [rest.derived.endX!, rest.derived.endY!, rest.derived.endZ!];
+    const hub = originOf(a.hubTransform);
+    const r = Math.hypot(...end);
+    expect(Math.hypot(hub[0]! - end[0]!, hub[1]! - end[1]!, hub[2]! - end[2]!)).toBeCloseTo(r, 9);
+    // Its axis turned 20° from vertical.
+    expect(a.hubTransform[10]).toBeCloseTo(Math.cos((20 * Math.PI) / 180), 12);
+    near(
+      originOf(part(a, 'hanger').assembledTransform),
+      at(a.hubTransform, [0, 0, deriveHub(hubParams(a)).zFace]),
+    );
+    expect(a.derived.bottomZ).toBeLessThan(rest.derived.bottomZ!);
+  });
+
+  it('never enters a part’s params: every buildKey and hash stays', () => {
+    for (const p of [wallLamp(), swingElbow(), foldElbow()]) {
+      const rest = assemble(p);
+      const posed = assemble(p, { pose: { swing: -60, elbowSwing: 120, hubTilt: 30 } });
+      expect(posed.parts.map((x) => [x.id, x.buildKey, x.hash])).toEqual(
+        rest.parts.map((x) => [x.id, x.buildKey, x.hash]),
+      );
+      expect(assemble(p, { pose: ZERO_POSE })).toEqual(rest);
+      expect(assemble(p, { pose: { swing: 0, elbowSwing: 0, hubTilt: 0 } })).toEqual(rest);
+    }
+  });
+
+  it('moves the parts of every other mount not at all', () => {
+    for (const kind of ['ceilingCord', 'standing'] as const) {
+      const p = wallLamp();
+      p.mount = defaultMount(kind);
+      expect(assemble(p, { pose: { swing: 30, elbowSwing: 10, hubTilt: 5 } })).toEqual(assemble(p));
+    }
+  });
+});
+
+describe('the pure footprints', () => {
+  it('a link prints about its length + 31 mm tall, standing on a clevis', () => {
+    const a = assemble(wallLamp());
+    const f = part(a, 'wallArm').bedFootprint!;
+    expect(f.z).toBeCloseTo(220 + 18 / Math.SQRT2 + 18, 9);
+    expect(f.x).toBeCloseTo(30.6, 9);
+    expect(f.y).toBe(36);
+    // A swing elbow's socket boss rises above the tube; a fold link stands on its end clevis.
+    const swing = assemble(swingElbow());
+    const inner = deriveWallArm(armParams(swing));
+    expect(inner.socket).toBe(1);
+    expect(part(swing, 'wallArm').bedFootprint!.z).toBeCloseTo(
+      180 + 18 / Math.SQRT2 + inner.rBoss,
+      9,
+    );
+    expect(part(swing, 'wallArm').bedFootprint!.y).toBeCloseTo(18 + inner.seatY, 9);
+    const fold = assemble(foldElbow());
+    expect(part(fold, 'wallArm2').bedFootprint!.z).toBeCloseTo(180 + 18 / Math.SQRT2 + 18, 9);
+  });
+
+  it('linkToPrint and printToLink are inverse, the lower axis on the disc-on-edge height', () => {
+    for (const p of [
+      armParams(assemble(wallLamp())),
+      armParams(assemble(foldElbow()), 'wallArm2'),
+    ]) {
+      const d = deriveWallArm(p);
+      for (const q of [
+        [0, 0, 0],
+        [3, -5, 100],
+      ]) {
+        near(at(printToLink(d), at(linkToPrint(d), q)), q);
+      }
+      const lower = d.flipped ? [0, 0, d.length] : [0, 0, 0];
+      expect(at(linkToPrint(d), lower)[2]).toBeCloseTo(18 / Math.SQRT2, 12);
+      near(at(linkToPrint(d), [0, 0, 0]), [0, d.yShift, d.rootAxisZ]);
+      near(at(linkToPrint(d), [0, 0, d.length]), [0, d.yShift, d.endAxisZ]);
+    }
+  });
+
+  it('the plate, the knee and the hanger', () => {
+    const a = assemble(wallLamp());
+    const pd = deriveWallPlate(plateParams(a));
+    // The socket axis: the groove (cable + 0.5), a 1.2 skin, the bore's radius.
+    expect(pd.socketZ).toBeCloseTo(6.5 + 1.2 + 7.8, 9);
+    expect(pd.rBoss).toBeCloseTo(7.8 * Math.SQRT2 + 2.5, 9);
+    // The boss + knee stack centred on the plate.
+    expect(pd.seatY - pd.bossHeight + (pd.seatY + KNEE.hingeHeight + 18)).toBeCloseTo(0, 9);
+    expect(pd.bossHeight + KNEE.hingeHeight + 18).toBeCloseTo(plateStackHeight(6), 9);
+    expect(part(a, 'wallPlate').bedFootprint).toEqual({ x: 100, y: 100, z: pd.socketZ + pd.rBoss });
+    expect(part(a, 'knee').bedFootprint).toEqual({ x: 27, y: 36, z: 35 + 24 + 18 });
+    const hd = deriveHanger(hangerParams(a));
+    expect(hd.bodyHeight).toBe(20);
+    expect(hd.drop).toBe(20 + 19);
+    expect(part(a, 'hanger').bedFootprint).toEqual({ x: 28, y: 36, z: hd.drop + 18 });
+    expect(part(a, 'knob').bedFootprint).toEqual({ x: 32, y: 32, z: 10 });
+  });
+});
+
+describe('the rules (normalize)', () => {
+  const normalize = (mount: WallMount) => wallArmMount.normalize!(mount);
+
+  it('leaves the defaults alone', () => {
+    const defaults = defaultMount('wallArm');
+    expect(normalize(defaults)).toEqual({ mount: defaults, warnings: [] });
+  });
+
+  it('rounds the links, and the tilts to the teeth’s 10° steps', () => {
+    const m = defaultMount('wallArm');
+    const out = normalize({ ...m, arm: { ...m.arm, links: 1.6, tilt: 25, elbowTilt: -14 } });
+    expect(out.mount.arm).toMatchObject({ links: 2, tilt: 30, elbowTilt: -10 });
+    expect(out.warnings.map((w) => [w.code, w.paramPath])).toEqual([
+      ['adjusted', 'mount.arm.tilt'],
+      ['adjusted', 'mount.arm.elbowTilt'],
+    ]);
+  });
+
+  it('keeps the tube’s wall and the plate’s skin over the cable', () => {
+    const m = defaultMount('wallArm');
+    const out = normalize({
+      ...m,
+      plate: { ...m.plate, thickness: 9.5 },
+      arm: { ...m.arm, tubeDiameter: 18, cableDiameter: 12 },
+    });
+    expect(out.mount.arm.tubeDiameter).toBe(19);
+    expect(out.mount.plate.thickness).toBe(14.5);
+    expect(out.warnings.map((w) => w.paramPath)).toEqual(
+      expect.arrayContaining(['mount.arm.tubeDiameter', 'mount.plate.thickness']),
+    );
+  });
+
+  it('makes the plate hold the keyholes and the boss + knee stack, the keyholes inside it', () => {
+    const m = defaultMount('wallArm');
+    // Round: the Ø holds the keyholes and the stack (86.6 + 2 × 4).
+    const round = normalize({ ...m, plate: { ...m.plate, width: 60, keyholeSpacing: 60 } });
+    expect(round.mount.plate.width).toBe(Math.ceil(plateStackHeight(6) + 8));
+    expect(round.warnings.map((w) => w.paramPath)).toContain('mount.plate.width');
+    // A rounded rectangle: the width for the keyholes, the height for the stack.
+    const rect = normalize({
+      ...m,
+      plate: { ...m.plate, outline: 'roundedRect', width: 50, height: 60, keyholeSpacing: 60 },
+    });
+    expect(rect.mount.plate.width).toBe(60 + 9 + 6);
+    expect(rect.mount.plate.height).toBe(Math.ceil(plateStackHeight(6) + 8));
+    // Spacing wider than the round plate allows: reduced to the widest that fits.
+    const wide = normalize({ ...m, plate: { ...m.plate, width: 100, keyholeSpacing: 90 } });
+    expect(wide.mount.plate.width).toBe(105);
+    expect(wide.mount.plate.keyholeSpacing).toBeLessThan(90);
+    expect(wide.warnings.map((w) => w.paramPath)).toEqual([
+      'mount.plate.width',
+      'mount.plate.keyholeSpacing',
+    ]);
+    // The default round plate takes the default spacing as it is.
+    expect(normalize({ ...m, plate: { ...m.plate, keyholeSpacing: 80 } }).warnings).toEqual([]);
+  });
+});
+
+describe('the checks (validate)', () => {
+  const infos = (a: Assembly) =>
+    a.warnings
+      .filter((w) => w.code !== 'plate-overflow')
+      .map((w) => [w.severity, w.code, w.paramPath]);
+
+  it('points a one-link arm too tall for the bed at two links', () => {
+    const a = assemble(withArm({ length: 400 }));
+    expect(infos(a)).toContainEqual(['info', 'use-two-links', 'mount.arm.links']);
+    expect(a.warnings).toContainEqual(
+      expect.objectContaining({ severity: 'warning', code: 'bed-fit', partId: 'wallArm' }),
+    );
+    expect(infos(assemble(withArm({ length: 400, links: 2 })))).not.toContainEqual(
+      expect.arrayContaining(['use-two-links']),
+    );
+  });
+
+  it('notes a wide groove’s bridge and a cable too thick for the hinges', () => {
+    const a = assemble(withArm({ cableDiameter: 11, tubeDiameter: 24 }));
+    expect(infos(a)).toEqual(
+      expect.arrayContaining([
+        ['info', 'bridge', 'mount.arm.cableDiameter'],
+        ['warning', 'cable-channel', 'mount.arm.cableDiameter'],
+      ]),
+    );
+    const wall = assemble(
+      wallLamp((m) => {
+        m.arm.cableDiameter = 11;
+        m.plate.cableExit = 'wall';
+      }),
+    );
+    expect(infos(wall).map((w) => w[1])).not.toContain('bridge');
+    expect(infos(assemble(wallLamp())).map((w) => w[1])).toEqual([]);
+  });
+
+  it('warns that a tilted swing elbow drifts unless it is locked', () => {
+    expect(infos(assemble(swingElbow({ tilt: 20 })))).toContainEqual([
+      'info',
+      'elbow-drift',
+      'mount.arm.lock',
+    ]);
+    for (const p of [
+      swingElbow({ tilt: 0 }),
+      swingElbow({ tilt: 20, lock: 'screw' }),
+      foldElbow(),
+    ]) {
+      expect(infos(assemble(p)).map((w) => w[1])).not.toContain('elbow-drift');
+    }
+  });
+
+  it('notes an arm too short to swing past a wide shade', () => {
+    const a = assemble(
+      wallLamp((m, p) => {
+        m.arm.length = 80;
+        m.arm.tilt = 0;
+        const style = p.shades[0].style;
+        if (style.family === 'revolved') style.bottomDiameter = 300;
+      }),
+    );
+    expect(infos(a)).toContainEqual(['info', 'max-swing', 'mount.arm.length']);
+    expect(a.derived.maxSwing).toBeLessThan(30);
+  });
+});
+
+describe('the wall parts (step 0 stand-ins)', () => {
+  // step 3: the link's geometry (shapes × profiles × roots × ends, cable probe,
+  // overhangs, the mated pairs' intersections at rest and at tilt 40°) replaces
+  // these placeholder checks; the plate, knee, hanger and knob have their own
+  // test files (steps 1 and 2).
+  it.each([
+    ['one link', wallLamp()],
+    ['a swing elbow', swingElbow()],
+    ['a fold elbow', foldElbow()],
+  ] as const)('build as valid solids within their footprints (%s)', (_name, p) => {
+    const a = assemble(p, { quality: 'draft' });
+    const mount = a.parts.filter((x) => !['hub', 'shade'].includes(x.id));
+    withBuilt(k, tracker, mount, 'draft', (built) => {
       for (const b of built) {
         expect(b.stats.status, b.part.id).toBe('NoError');
         expect(b.stats.bbox.min[2], b.part.id).toBeCloseTo(0, 6);
-        // The footprint is an upper bound of the bounding box, centred on the print origin.
         const f = b.part.bedFootprint!;
         const { min, max } = b.stats.bbox;
         expect(max[0] - min[0], b.part.id).toBeLessThanOrEqual(f.x + 1e-6);
         expect(max[1] - min[1], b.part.id).toBeLessThanOrEqual(f.y + 1e-6);
         expect(max[2], b.part.id).toBeLessThanOrEqual(f.z + 1e-6);
-        expect(Math.abs(max[1] + min[1]), b.part.id).toBeLessThan(1e-6);
       }
     });
   });
 });
 
-describe('the hub’s stub in the arm’s end boss', () => {
-  it.each([
-    ['straight', 0],
-    ['angled', 30],
-    ['angled', 45],
-    ['curved', 45],
-  ] as const)('mates with the thread’s clearance and no overlap (%s, %i°)', (shape, rise) => {
-    const a = assemble(wallLamp(shaped(shape, rise)), { quality: 'normal' });
-    const iface = a.interfaces.hubToArm!;
-    const { zFace } = deriveHub(hubParams(a));
-    const parts = a.parts.filter((p) => p.id === 'hub' || p.id === 'wallArm');
-    withBuilt(k, tracker, parts, 'normal', (built) => {
-      scoped(k, (s) => {
-        const hub = s.add(assembled(byId(built, 'hub')));
-        const arm = s.add(assembled(byId(built, 'wallArm')));
-        expect(s.add(k.Manifold.intersection(hub, arm)).volume()).toBeLessThan(1);
-        // Halfway up the stub: the bore's root is the clearance outside the stub's.
-        const z = zFace + iface.length / 2 + 1e-3;
-        const stub = contourMinRadii(s.add(hub.slice(z)));
-        const bore = contourMinRadii(s.add(arm.slice(z)));
-        // The stub: its cable bore, its root. The boss: its threaded bore first.
-        expect(stub).toHaveLength(2);
-        expect(Math.abs(bore[0]! - stub[1]! - iface.tolerance)).toBeLessThan(0.01);
-        expect(stub[1]).toBeCloseTo(8, 1);
-      });
-    });
-  });
-});
-
-describe('the arm', () => {
-  it.each(ARM_SHAPES)(
-    'has one cable bore from the flange through the tube into the thread (%s)',
-    (shape) => {
-      const a = assemble(wallLamp(shaped(shape, 30)), { quality: 'draft' });
-      const params = armParams(a);
-      const d = deriveWallArm(params);
-      const r = d.rBore - 0.4;
-      withBuilt(k, tracker, [part(a, 'wallArm')], 'draft', ([arm]) => {
-        scoped(k, (s) => {
-          const m = arm!.manifold;
-          for (const z of [d.flangeThickness / 2, d.reach / 2]) {
-            const section = s.add(m.slice(z));
-            expect(inHole(section, 0, centreY(params, z) + d.yShift, r), `z ${z}`).toBe(true);
-          }
-          // Through the boss's axis: the tube's bore meets the vertical bore, which
-          // runs down into the thread; above it the boss is closed.
-          const boss = s.add(m.slice(d.reach));
-          const L = params.hubJoint.length;
-          expect(inHole(boss, 0, d.yEnd + d.yShift, r)).toBe(true);
-          expect(inHole(boss, 0, d.yBoss0 + L + 1 + d.yShift, r)).toBe(true);
-          expect(inHole(boss, 0, d.yBoss0 + L / 2 + d.yShift, 5)).toBe(true);
-          expect(inHole(boss, 0, d.yBoss1 - 1.5 + d.yShift, 1)).toBe(false);
-          // The bore is not wider than the cable needs.
-          expect(
-            inHole(
-              s.add(m.slice(d.reach / 2)),
-              0,
-              centreY(params, d.reach / 2) + d.yShift,
-              d.rBore + 1,
-            ),
-          ).toBe(false);
-        });
-      });
-    },
-  );
-
-  it.each([
-    ['straight', 0],
-    ['angled', 20],
-    ['angled', 45],
-    ['curved', 20],
-    ['curved', 45],
-  ] as const)(
-    'prints standing on its flange within 45° but the thread’s facets (%s, %i°)',
-    (shape, rise) => {
-      const a = assemble(wallLamp(shaped(shape, rise)), { quality: 'normal' });
-      const params = armParams(a);
-      const d = deriveWallArm(params);
-      const rBore = params.hubJoint.nominalDiameter / 2 + params.hubJoint.tolerance;
-      const depth = params.hubJoint.thread!.depth;
-      // The twisted thread facets (see maxOverhangDeg) around the bore's axis (x 0, z reach).
-      const thread = (tri: readonly (readonly number[])[]) =>
-        tri.every((v) => {
-          const r = Math.hypot(v[0]!, v[2]! - d.reach);
-          return r > rBore - 0.05 && r < rBore + depth + 0.05;
-        });
-      withBuilt(k, tracker, [part(a, 'wallArm')], 'normal', ([arm]) => {
-        expect(arm!.stats.maxOverhangDeg).toBe(Math.max(45, rise));
-        expect(maxOverhangDeg(arm!.manifold, { ignore: thread })).toBeLessThanOrEqual(45 + 0.5);
-      });
-    },
-  );
-
-  it('has its flange’s holes over the plate’s insert pockets', () => {
-    const a = assemble(wallLamp(shaped('angled', 20)), { quality: 'draft' });
-    const iface = a.interfaces.armToPlate!;
-    const t = plateParams(a).thickness;
-    const d = deriveWallArm(armParams(a));
-    const parts = a.parts.filter((p) => p.id === 'wallPlate' || p.id === 'wallArm');
-    withBuilt(k, tracker, parts, 'draft', (built) => {
-      const plate = byId(built, 'wallPlate');
-      const arm = byId(built, 'wallArm');
-      scoped(k, (s) => {
-        // Face to face on the plate's front, no overlap.
-        const placedPlate = s.add(assembled(plate));
-        const placedArm = s.add(assembled(arm));
-        expect(s.add(k.Manifold.intersection(placedPlate, placedArm)).volume()).toBeLessThan(1e-3);
-        const pockets = s.add(plate.manifold.slice(t - 1));
-        const holes = s.add(arm.manifold.slice(1));
-        const counterbores = s.add(arm.manifold.slice(d.flangeThickness - 1));
-        for (const [x, y] of screwPositions(iface)) {
-          // The same point in the room.
-          const p = applyToPoint(plate.part.assembledTransform, [x, y, t]);
-          const q = applyToPoint(arm.part.assembledTransform, [x, y + d.yShift, 0]);
-          p.forEach((v, i) => expect(v).toBeCloseTo(q[i]!, 9));
-          // A Ø4 pocket in the plate, a Ø3.4 hole and a Ø6 counterbore in the flange.
-          expect(inHole(pockets, x, y, 1.9)).toBe(true);
-          expect(inHole(pockets, x, y, 2.3)).toBe(false);
-          expect(inHole(holes, x, y + d.yShift, 1.6)).toBe(true);
-          expect(inHole(holes, x, y + d.yShift, 2)).toBe(false);
-          expect(inHole(counterbores, x, y + d.yShift, 2.9)).toBe(true);
-        }
-      });
-    });
-  });
-});
-
-describe('the wall plate', () => {
-  it('prints back face down without overhangs beyond 45°', () => {
-    const a = assemble(wallLamp(), { quality: 'normal' });
-    withBuilt(k, tracker, [part(a, 'wallPlate')], 'normal', ([plate]) => {
-      expect(plate!.stats.maxOverhangDeg).toBeLessThanOrEqual(45);
-      expect(maxOverhangDeg(plate!.manifold)).toBeLessThanOrEqual(45 + 0.5);
-      expect(plate!.stats.bbox.max[2]).toBeCloseTo(plateParams(a).thickness, 6);
-    });
-  });
-
-  it('has two keyholes: head hole, slot, and a channel for the head on the back', () => {
-    const a = assemble(wallLamp(), { quality: 'draft' });
-    const params = plateParams(a);
-    const d = deriveWallPlate(params);
-    const kh = params.keyholes;
-    withBuilt(k, tracker, [part(a, 'wallPlate')], 'draft', ([plate]) => {
-      scoped(k, (s) => {
-        const front = s.add(plate!.manifold.slice(params.thickness - 0.3));
-        const back = s.add(plate!.manifold.slice(0.5));
-        for (const [end, head] of [
-          [d.keyholeTop, d.keyholeTopHead],
-          [d.keyholeBottom, d.keyholeBottomHead],
-        ] as const) {
-          const mid = (end + head) / 2;
-          expect(end - head).toBe(kh.length);
-          expect(inHole(front, 0, head, kh.headDiameter / 2 - 0.2)).toBe(true);
-          expect(inHole(front, 0, mid, kh.slotWidth / 2 - 0.2)).toBe(true);
-          expect(inHole(front, 0, mid, kh.slotWidth / 2 + 0.5)).toBe(false);
-          expect(inHole(front, 0, end, kh.slotWidth / 2 - 0.2)).toBe(true);
-          expect(inHole(back, 0, mid, kh.headDiameter / 2 - 0.2)).toBe(true);
-        }
-        expect(d.keyholeTop - d.keyholeBottom).toBe(60);
-      });
-    });
-  });
-
-  it('has a cable slot from its centre out of the bottom edge, clear of the keyholes', () => {
-    const a = assemble(wallLamp(), { quality: 'draft' });
-    const params = plateParams(a);
-    const d = deriveWallPlate(params);
-    const r = params.cableNotch.width / 2 - 0.2;
-    withBuilt(k, tracker, [part(a, 'wallPlate')], 'draft', ([plate]) => {
-      scoped(k, (s) => {
-        const mid = s.add(plate!.manifold.slice(params.thickness / 2));
-        const x = d.cableSlotX;
-        expect(inHole(mid, 0, 0, r)).toBe(true);
-        expect(inHole(mid, x, -x, r)).toBe(true);
-        expect(inHole(mid, x, d.keyholeBottom, r)).toBe(true);
-        expect(inHole(mid, x, -params.height / 2 + 1, r)).toBe(true);
-        // Material between the slot and the lower keyhole's channel.
-        const between = x - params.cableNotch.width / 2 - 0.8;
-        expect(inHole(mid, between, d.keyholeBottom, 0.3)).toBe(false);
-      });
-    });
-  });
-
-  it('has tapping holes instead of insert pockets without heat-set inserts', () => {
-    const a = assemble(
-      wallLamp((_m, p) => (p.joints.heatSet = false)),
-      { quality: 'draft' },
-    );
-    const params = plateParams(a);
-    expect(params.armScrews.screw!.insertPocket).toBeUndefined();
-    expect(part(a, 'wallPlate').printNotes.join(' ')).toContain('Tap the four holes');
-    withBuilt(k, tracker, [part(a, 'wallPlate')], 'draft', ([plate]) => {
-      expect(plate!.stats.status).toBe('NoError');
-      scoped(k, (s) => {
-        const front = s.add(plate!.manifold.slice(params.thickness - 1));
-        for (const [x, y] of screwPositions(params.armScrews)) {
-          expect(inHole(front, x, y, 1.1)).toBe(true);
-          expect(inHole(front, x, y, 1.6)).toBe(false);
-        }
-      });
-    });
+describe('the snapshot', () => {
+  it('matches the snapshot', () => {
+    expect(summary(assemble(wallLamp()))).toMatchSnapshot();
   });
 });
 
 describe('the wall lamp projects', () => {
   const read = (url: URL) => parseProject(readFileSync(url, 'utf8'));
+  const example = (id: string) =>
+    read(new URL(`../../../src/examples/${id}.lamp.json`, import.meta.url));
 
-  it('the wall-arm fixture assembles without errors', () => {
+  it('the v3 wall-arm fixture migrates and assembles without errors', () => {
     const project = read(new URL('../../fixtures/v3-wall-arm.lamp.json', import.meta.url));
     const a = assemble(project, { quality: 'draft' });
     expect(a.warnings.filter((w) => w.severity === 'error')).toEqual([]);
-    expect(a.parts.map((p) => p.id)).toEqual(['hub', 'shade', 'wallPlate', 'wallArm']);
-    expect(armParams(a)).toMatchObject({ shape: 'curved', riseAngle: 30, length: 220 });
-    expect(a.context).toEqual({ kind: 'wall', wallY: -227 });
+    expect(a.parts.map((p) => p.id)).toEqual([
+      'hub',
+      'shade',
+      'wallPlate',
+      'knee',
+      'wallArm',
+      'hanger',
+      'knob',
+    ]);
+    expect(armParams(a)).toMatchObject({ shape: 'curved', bendAngle: 30, length: 220 });
+    expect(plateParams(a)).toMatchObject({ outline: 'roundedRect', width: 90, height: 130 });
+    expect(a.context.kind).toBe('wall');
   });
 
-  it('the Wall lamp example hangs from an angled arm, its parts fitting the bed', () => {
-    const project = read(new URL('../../../src/examples/wall-lamp.lamp.json', import.meta.url));
+  it('the Wall lamp example: a round Ø100 canopy and one straight 220 mm link at 20°', () => {
+    const project = example('wall-lamp');
     expect(project.name).toBe('Aften');
     expect(project.hub.fused).toBe(false);
     expect(project.joints.shadeToHub).toBe('bayonet');
+    expect(project.mount).toMatchObject({
+      kind: 'wallArm',
+      plate: { outline: 'round', width: 100, thickness: 10, domeHeight: 3, edge: 'round' },
+      arm: { shape: 'straight', length: 220, tilt: 20, links: 1 },
+    });
     const a = assemble(project, { quality: 'draft' });
     expect(a.warnings.filter((w) => w.severity === 'error')).toEqual([]);
     expect(a.warnings.filter((w) => w.code === 'bed-fit')).toEqual([]);
@@ -526,9 +792,32 @@ describe('the wall lamp projects', () => {
       ['hub', 'hub'],
       ['shade', 'shade'],
       ['wallPlate', 'wallPlate'],
+      ['knee', 'knee'],
       ['wallArm', 'wallArm'],
+      ['hanger', 'hanger'],
+      ['knob', 'knob'],
     ]);
-    expect(armParams(a)).toMatchObject({ shape: 'angled', riseAngle: 20 });
-    expect(a.context.kind).toBe('wall');
+    expect(a.hubTransform).toEqual(IDENTITY);
+  });
+
+  it('the swing-arm example: two links on a swing elbow, every part fitting the bed', () => {
+    const project = example('swing-arm');
+    expect(project.mount).toMatchObject({
+      kind: 'wallArm',
+      arm: { links: 2, elbow: 'swing' },
+    });
+    const a = assemble(project, { quality: 'draft' });
+    expect(a.warnings.filter((w) => w.severity === 'error')).toEqual([]);
+    expect(a.warnings.filter((w) => w.code === 'bed-fit')).toEqual([]);
+    expect(a.parts.map((p) => [p.id, p.instances])).toEqual([
+      ['hub', 1],
+      ['shade', 1],
+      ['wallPlate', 1],
+      ['knee', 2],
+      ['wallArm', 1],
+      ['wallArm2', 1],
+      ['hanger', 1],
+      ['knob', 3],
+    ]);
   });
 });

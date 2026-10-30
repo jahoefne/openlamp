@@ -1,78 +1,145 @@
 /**
- * The wall plate of the wall lamp (part kind `wallPlate`), printed
- * back-face-down (the wall side on the bed, the room's "up" along +y):
+ * The wall plate of the wall lamp (part kind `wallPlate`): a canopy hung on
+ * two screws, printed back face down (the wall on the bed, the room's "up"
+ * along +y, the room along +z; see `WallPlateParams` for the frame):
  *
- *        ╭───────────────╮
- *        │       ⊙       │   keyhole: the wall screw sits at the slot's top end,
- *        │       │       │   its head in a channel on the back (45° roof up to the slot)
- *        │       ○       │   head hole Ø9
- *        │   ·   ◎   ·   │   centre: the arm's flange (4 heat-set pockets on its bolt
- *        │   ·  ╱    ·   │   circle) and the cable hole, from which a through slot …
- *        │      │⊙       │   … runs past the lower keyhole …
- *        │      │○       │
- *        ╰──────┘ └──────╯   … and out of the bottom edge (the cable notch)
+ *          ╭───────────╮          the front: closed, domed, its edge chamfered or rounded
+ *        ╭─┤   ┌───┐   ├─╮        the socket boss on the front: the pivot's female
+ *        │ │   │ ┊ │   │ │        side (teardrop bore, 45° seat cup at its top,
+ *        │ ⊙   │ ┊ │   ⊙ │        `socket.seatY`), the knee's spigot turns in it
+ *        │     │ ┊ │     │        two blind keyholes on the back, level, at the
+ *        │     └─┴─┘     │        middle height, `keyholes.spacing` apart
+ *        ╰───────┃───────╯        the cable: the socket's sump → a passage back →
+ *                                 a groove in the back to the `cable.exit` edge
  *
- * An extruded rounded rectangle with a 45° chamfer round its front face. The
- * plate's centre (x 0, y 0) is the flange's; keyholes sit on the vertical
- * centre line, `keyholes.spacing` apart (between the screws' final places, the
- * slots' top ends). The cable slot goes through the plate (so the cable lies
- * flush on the wall); `cableNotch.depth` is that cut from the back face, so it
- * equals the plate's thickness. Every cut is vertical or a 45° roof: no supports.
+ * The pure functions here (`deriveWallPlate`, `wallPlateFootprint`,
+ * `socketBossHeight`, the outline helpers) are frozen: the wall arm's
+ * placement and normalisation read them.
+ *
+ * STEP 0 PLACEHOLDER: `buildWallPlate` returns a solid filling the footprint;
+ * step 1 builds the canopy (the old flat plate is in git: 0ac570d).
  */
-import type { Footprint, GeometryStats } from '../../model/assembly.ts';
-import type { WallPlateParams } from '../../model/parts.ts';
-import { screwPattern } from '../joints/screw.ts';
-import { scoped, type Kernel, type Manifold } from '../kernel.ts';
+import type { Footprint, GeometryStats, JointInterface } from '../../model/assembly.ts';
+import type { PlateOutline, WallPlateParams } from '../../model/parts.ts';
+import { pivotDims } from '../features/pivot.ts';
+import type { Kernel, Manifold } from '../kernel.ts';
 import { QUALITY, type Quality } from '../quality.ts';
+import { placeholderPart } from './placeholder.ts';
 
-/** Material between the cable slot and a keyhole's channel (or the cable hole and a keyhole), mm. */
-const CABLE_SLOT_WALL = 1.6;
+/** Material under the socket's sump, at the boss's bottom, mm. */
+export const BOSS_FLOOR = 1.6;
+/** Material between the back groove and the socket bore above it, mm. */
+export const GROOVE_SKIN = 1.2;
 /** Material between a keyhole and the plate's edge, mm. */
-const EDGE_WALL = 3;
-/** Material left in front of a keyhole channel's 45° roof, at the slot's edge, mm. */
-const CHANNEL_FRONT = 1.2;
-/** Straight part of a keyhole channel's wall, at most, mm (room for the screw head). */
+export const KEYHOLE_EDGE_WALL = 3;
+/** The keyhole's head channel: at most this deep, mm … */
 const CHANNEL_MAX_DEPTH = 3.5;
-/** Chamfer round the front face, mm. */
-const FRONT_CHAMFER = 1;
+/** … leaving this skin in front of its roof and gable, mm. */
+const CHANNEL_SKIN = 1.2;
 
-type Keyholes = WallPlateParams['keyholes'];
+/** The socket boss's height: the bore's depth plus its floor. Pure. */
+export function socketBossHeight(pivot: JointInterface): number {
+  return pivotDims(pivot).depth + BOSS_FLOOR;
+}
 
 /**
- * The keyhole spacings a plate of `height` allows: the upper keyhole's head
- * hole clear of the cable hole, the lower one's inside the plate. Pure, no WASM.
+ * The socket axis's distance from the back face (print z): the back groove,
+ * its skin, then the bore's radius. The same for every cable exit, so the
+ * exit does not move the lamp. Pure.
  */
-export function keyholeSpacingLimits(
+export function socketAxisZ(pivot: JointInterface, grooveDepth: number): number {
+  return grooveDepth + GROOVE_SKIN + pivotDims(pivot).rBore;
+}
+
+/** The outline's half extents and corner radius (a round plate: `width` is its Ø). Pure. */
+export function plateOutlineDims(
+  outline: PlateOutline,
+  width: number,
   height: number,
-  keyholes: Omit<Keyholes, 'spacing'>,
-  cableWidth: number,
-): { min: number; max: number } {
-  const below = keyholes.length + keyholes.headDiameter / 2;
-  return {
-    min: 2 * (below + cableWidth / 2 + CABLE_SLOT_WALL),
-    max: height - 2 * (below + EDGE_WALL),
-  };
+  cornerRadius: number,
+): { halfWidth: number; halfHeight: number; cornerRadius: number } {
+  const halfWidth = width / 2;
+  const halfHeight = outline === 'round' ? width / 2 : height / 2;
+  const r =
+    outline === 'round'
+      ? halfWidth
+      : outline === 'stadium'
+        ? Math.min(halfWidth, halfHeight)
+        : Math.max(0.5, Math.min(cornerRadius, halfWidth - 0.5, halfHeight - 0.5));
+  return { halfWidth, halfHeight, cornerRadius: r };
 }
 
-/** Where the cable slot runs: from the centre hole at 45° to (xSlot, −xSlot), then straight down. */
-export function cableSlotX(keyholes: Pick<Keyholes, 'headDiameter'>, cableWidth: number): number {
-  return keyholes.headDiameter / 2 + CABLE_SLOT_WALL + cableWidth / 2;
+/**
+ * Whether the point (x, y) of the print frame lies inside the outline inset
+ * by `inset` (a rounded rectangle of half extents and corner radius; a round
+ * plate and a stadium are rounded rectangles too). Pure.
+ */
+export function insideOutline(
+  dims: { halfWidth: number; halfHeight: number; cornerRadius: number },
+  x: number,
+  y: number,
+  inset: number,
+): boolean {
+  const hw = dims.halfWidth - inset;
+  const hh = dims.halfHeight - inset;
+  const r = Math.max(0, dims.cornerRadius - inset);
+  const ax = Math.abs(x);
+  const ay = Math.abs(y);
+  if (ax > hw + 1e-9 || ay > hh + 1e-9) return false;
+  const cx = hw - r;
+  const cy = hh - r;
+  if (ax <= cx || ay <= cy) return true;
+  return Math.hypot(ax - cx, ay - cy) <= r + 1e-9;
 }
 
-/** Derived dimensions of the plate, in its print frame (back face at z 0). */
+/**
+ * The widest keyhole spacing (whole mm) whose keyholes (head channels from
+ * the screw's place at y 0 down to the head hole at −`length`, Ø
+ * `headDiameter`) stay `KEYHOLE_EDGE_WALL` inside the outline; 0 if none fits. Pure.
+ */
+export function maxKeyholeSpacing(
+  dims: { halfWidth: number; halfHeight: number; cornerRadius: number },
+  keyholes: Pick<WallPlateParams['keyholes'], 'headDiameter' | 'length'>,
+): number {
+  const inset = keyholes.headDiameter / 2 + KEYHOLE_EDGE_WALL;
+  const fits = (spacing: number) =>
+    insideOutline(dims, spacing / 2, 0, inset) &&
+    insideOutline(dims, spacing / 2, -keyholes.length, inset);
+  let spacing = Math.floor(2 * dims.halfWidth);
+  while (spacing > 0 && !fits(spacing)) spacing -= 1;
+  return Math.max(0, spacing);
+}
+
+/** Derived dimensions of the plate, in its print frame (back face at z 0, centre at x = y = 0). */
 export type WallPlateDerived = {
+  halfWidth: number;
+  halfHeight: number;
   cornerRadius: number;
-  chamfer: number;
-  /** The keyholes' head hole centres and slot ends (the screws' places), upper and lower. */
-  keyholeTop: number;
-  keyholeTopHead: number;
-  keyholeBottom: number;
-  keyholeBottomHead: number;
-  /** Straight wall of the keyhole channels; their 45° roof meets the slot at `channelTop`. */
+  /** The front in the middle: `thickness + domeHeight`. */
+  frontZ: number;
+  /** The pivot: the bore's radius, the seat cup's rim, the boss's radius (around the teardrop bore). */
+  rBore: number;
+  rSeat: number;
+  rBoss: number;
+  /** The socket axis: x 0, z `socketZ`, along y. */
+  socketZ: number;
+  /** How far the bore's lowest line sinks below the rim's front face (`thickness`). */
+  sink: number;
+  /** The seat plane (the boss's top face), the bore's floor, the boss's bottom (print y). */
+  seatY: number;
+  floorY: number;
+  bossBottomY: number;
+  bossHeight: number;
+  /** The passage's axis (print y): in the sump, from the bore back to the groove. */
+  passageY: number;
+  /** The keyholes: their x, the screw's place (the slot's upper end) and the head hole's centre (print y). */
+  keyholeX: number;
+  keyholeEndY: number;
+  keyholeHeadY: number;
+  /** The head channel's straight depth from the back face; its roof and gable above it. */
   channelDepth: number;
-  channelTop: number;
-  /** The cable slot's vertical leg. */
-  cableSlotX: number;
+  /** The print height (bounding box top). */
+  height: number;
 };
 
 export interface WallPlateStats extends GeometryStats {
@@ -81,25 +148,44 @@ export interface WallPlateStats extends GeometryStats {
 
 /** All derived dimensions. Pure, no WASM. */
 export function deriveWallPlate(p: WallPlateParams): WallPlateDerived {
+  const outline = plateOutlineDims(p.outline, p.width, p.height, p.cornerRadius);
+  const pv = pivotDims(p.socket.pivot);
+  const socketZ = socketAxisZ(p.socket.pivot, p.cable.grooveDepth);
+  const seatY = p.socket.seatY;
+  const floorY = seatY - pv.depth;
+  const bossBottomY = floorY - BOSS_FLOOR;
   const kh = p.keyholes;
   const roof = (kh.headDiameter - kh.slotWidth) / 2;
-  const channelDepth = Math.max(0, Math.min(CHANNEL_MAX_DEPTH, p.thickness - roof - CHANNEL_FRONT));
+  const gable = kh.slotWidth / 2;
+  const frontZ = p.thickness + p.domeHeight;
   return {
-    cornerRadius: Math.max(0.5, Math.min(p.cornerRadius, p.width / 2 - 0.5, p.height / 2 - 0.5)),
-    chamfer: Math.min(FRONT_CHAMFER, p.thickness / 4),
-    keyholeTop: kh.spacing / 2,
-    keyholeTopHead: kh.spacing / 2 - kh.length,
-    keyholeBottom: -kh.spacing / 2,
-    keyholeBottomHead: -kh.spacing / 2 - kh.length,
-    channelDepth,
-    channelTop: channelDepth + roof,
-    cableSlotX: cableSlotX(kh, p.cableNotch.width),
+    ...outline,
+    frontZ,
+    rBore: pv.rBore,
+    rSeat: pv.rSeat,
+    rBoss: pv.rBoss,
+    socketZ,
+    sink: p.thickness - (socketZ - pv.rBore),
+    seatY,
+    floorY,
+    bossBottomY,
+    bossHeight: seatY - bossBottomY,
+    passageY: floorY + pv.sump / 2,
+    keyholeX: kh.spacing / 2,
+    keyholeEndY: 0,
+    keyholeHeadY: -kh.length,
+    channelDepth: Math.max(
+      0,
+      Math.min(CHANNEL_MAX_DEPTH, p.thickness - roof - gable - CHANNEL_SKIN),
+    ),
+    height: Math.max(frontZ, socketZ + pv.rBoss),
   };
 }
 
 /** Bed footprint without building it. Pure, no WASM. */
 export function wallPlateFootprint(p: WallPlateParams): Footprint {
-  return { x: p.width, y: p.height, z: p.thickness };
+  const d = deriveWallPlate(p);
+  return { x: 2 * d.halfWidth, y: 2 * d.halfHeight, z: d.height };
 }
 
 /**
@@ -107,97 +193,18 @@ export function wallPlateFootprint(p: WallPlateParams): Footprint {
  * @param k  manifold-3d toplevel (after `setup()`)
  * @param params  resolved by `assemble()`
  * @param quality  mesh quality, `params.quality` unless given
+ *
+ * STEP 0 PLACEHOLDER: a solid filling the footprint (step 1 builds the canopy).
  */
 export function buildWallPlate(
   k: Kernel,
   params: WallPlateParams,
   quality: Quality = params.quality,
 ): { manifold: Manifold; stats: WallPlateStats } {
-  return scoped(k, (s) => {
-    const { Manifold, CrossSection } = k;
-    const p = params;
-    const d = deriveWallPlate(p);
-    const segs = QUALITY[quality].segments;
-    const small = Math.max(32, segs / 4);
-    const t = p.thickness;
-
-    /** A rounded rectangle w × h with corner radius r, centred. */
-    const roundedRect = (w: number, h: number, r: number) => {
-      const c = s.add(CrossSection.circle(r, small));
-      const corners = [-1, 1].flatMap((sx) =>
-        [-1, 1].map((sy) => s.add(c.translate([sx * (w / 2 - r), sy * (h / 2 - r)]))),
-      );
-      return s.add(CrossSection.hull(corners));
-    };
-    /** A stadium of `width` from (x0, y0) to (x1, y1). */
-    const stadium = (width: number, x0: number, y0: number, x1: number, y1: number) => {
-      const c = s.add(CrossSection.circle(width / 2, small));
-      return s.add(CrossSection.hull([s.add(c.translate([x0, y0])), s.add(c.translate([x1, y1]))]));
-    };
-    /** A prism of `section` from z0 to z1. */
-    const prism = (section: ReturnType<typeof stadium>, z0: number, z1: number) =>
-      s.add(s.add(section.extrude(z1 - z0)).translate([0, 0, z0]));
-
-    // The plate, its front edge chamfered at 45°.
-    const c = d.chamfer;
-    const back = prism(roundedRect(p.width, p.height, d.cornerRadius), 0, t - c);
-    const front = prism(
-      roundedRect(p.width - 2 * c, p.height - 2 * c, Math.max(0.25, d.cornerRadius - c)),
-      t - c,
-      t,
-    );
-    const plate = s.add(Manifold.hull([back, front]));
-
-    const cutters: Manifold[] = [];
-    const kh = p.keyholes;
-    for (const [end, head] of [
-      [d.keyholeTop, d.keyholeTopHead],
-      [d.keyholeBottom, d.keyholeBottomHead],
-    ] as const) {
-      // Through: the head hole and the slot above it.
-      cutters.push(
-        prism(stadium(kh.headDiameter, 0, head, 0, head), -1, t + 1),
-        prism(stadium(kh.slotWidth, 0, head, 0, end), -1, t + 1),
-      );
-      // The head's channel on the back, its 45° roof rising to the slot's edges.
-      const wide = prism(stadium(kh.headDiameter, 0, head, 0, end), -1, d.channelDepth);
-      const narrow = prism(
-        stadium(kh.slotWidth, 0, head, 0, end),
-        d.channelTop - 0.01,
-        d.channelTop,
-      );
-      cutters.push(s.add(Manifold.hull([wide, narrow])));
-    }
-    // The cable: a hole at the centre, at 45° past the lower keyhole, down and out.
-    const w = p.cableNotch.width;
-    const x = d.cableSlotX;
-    const slot = s.add(
-      CrossSection.union(stadium(w, 0, 0, x, -x), stadium(w, x, -x, x, -p.height / 2 - w)),
-    );
-    cutters.push(prism(slot, -1, Math.max(t, p.cableNotch.depth) + 1));
-    // The arm's screws: heat-set pockets (or tapping holes) from the front.
-    for (const m of screwPattern(k, p.armScrews, 'female', {
-      z: [0, t],
-      face: 'top',
-      segs: small,
-    })) {
-      cutters.push(s.add(m));
-    }
-    const result = s.add(Manifold.difference([plate, ...cutters]));
-
-    const bb = result.boundingBox();
-    const volume = result.volume();
-    const stats: WallPlateStats = {
-      status: result.status(),
-      triangles: result.numTri(),
-      vertices: result.numVert(),
-      volumeMm3: volume,
-      estGramsPla: (volume / 1000) * 1.24,
-      bbox: { min: bb.min, max: bb.max },
-      // The keyhole channels' roofs are 45°; every other cut is vertical.
-      maxOverhangDeg: 45,
-      derived: d,
-    };
-    return { manifold: s.keep(result), stats };
+  const d = deriveWallPlate(params);
+  const { manifold, stats } = placeholderPart(k, wallPlateFootprint(params), {
+    round: params.outline === 'round',
+    segs: QUALITY[quality].segments,
   });
+  return { manifold, stats: { ...stats, derived: d } };
 }

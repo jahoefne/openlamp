@@ -7,12 +7,13 @@ import { buildPart } from '../../src/core/geometry/build.ts';
 import {
   dispose,
   liveObjects,
+  scoped,
   type CrossSection,
   type Kernel,
   type Manifold,
 } from '../../src/core/geometry/kernel.ts';
 import type { Quality } from '../../src/core/geometry/quality.ts';
-import type { PartSpec, PartStats } from '../../src/core/model/assembly.ts';
+import type { Mat4, PartSpec, PartStats } from '../../src/core/model/assembly.ts';
 import type { trackKernelObjects } from './kernel.ts';
 
 export interface Built {
@@ -59,6 +60,32 @@ export function assembled(b: Built): Manifold {
   return b.manifold.transform(b.part.assembledTransform as Parameters<Manifold['transform']>[0]);
 }
 
+/** Every copy of a part's manifold in the assembled lamp (`instanceTransforms`; the caller owns them). */
+export function assembledCopies(b: Built): Manifold[] {
+  return b.part.instanceTransforms.map((m) =>
+    b.manifold.transform(m as Parameters<Manifold['transform']>[0]),
+  );
+}
+
+/**
+ * The volume two solids share once each is placed by its transform (print
+ * frame → world, e.g. a part's `assembledTransform` or one of its
+ * `instanceTransforms`), mm³. Nothing it makes outlives the call.
+ */
+export function intersectionVolume(
+  k: Kernel,
+  a: Manifold,
+  aTransform: Mat4,
+  b: Manifold,
+  bTransform: Mat4,
+): number {
+  return scoped(k, (s) => {
+    const pa = s.add(a.transform(aTransform as Parameters<Manifold['transform']>[0]));
+    const pb = s.add(b.transform(bTransform as Parameters<Manifold['transform']>[0]));
+    return s.add(k.Manifold.intersection(pa, pb)).volume();
+  });
+}
+
 /** Smallest vertex radius of each contour of a section, sorted from the inside out. */
 export function contourMinRadii(section: CrossSection): number[] {
   return section
@@ -88,6 +115,32 @@ export interface OverhangOptions {
    * flank (45° in the axial section, settled by the thread's own tests).
    */
   ignore?: (tri: readonly [Vertex, Vertex, Vertex]) => boolean;
+}
+
+/** An `ignore` predicate for `maxOverhangDeg`. */
+export type TriangleFilter = NonNullable<OverhangOptions['ignore']>;
+
+/** An axis-aligned box in a part's print frame. */
+export interface Box3 {
+  min: readonly [x: number, y: number, z: number];
+  max: readonly [x: number, y: number, z: number];
+}
+
+/** Ignore triangles that lie wholly inside any of the boxes (e.g. a bridge, a toothed annulus). */
+export function inBoxes(...boxes: readonly Box3[]): TriangleFilter {
+  const inside = (v: readonly number[], b: Box3) =>
+    [0, 1, 2].every((i) => v[i]! >= b.min[i]! - 1e-6 && v[i]! <= b.max[i]! + 1e-6);
+  return (tri) => boxes.some((b) => tri.every((v) => inside(v, b)));
+}
+
+/** Ignore triangles whose vertices all lie between z0 and z1 (a band of the print, e.g. a bridge's ceiling). */
+export function inZRange(z0: number, z1: number): TriangleFilter {
+  return (tri) => tri.every((v) => v[2]! >= z0 - 1e-6 && v[2]! <= z1 + 1e-6);
+}
+
+/** Ignore triangles any of the filters ignores. */
+export function anyOf(...filters: readonly TriangleFilter[]): TriangleFilter {
+  return (tri) => filters.some((f) => f(tri));
 }
 
 /**

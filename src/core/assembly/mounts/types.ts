@@ -15,6 +15,7 @@
 import type { HubDerived } from '../../geometry/parts/hub.ts';
 import type { Quality } from '../../geometry/quality.ts';
 import type {
+  Deg,
   Hex,
   JointInterface,
   Mat4,
@@ -29,6 +30,26 @@ import type { MountKind } from '../../schema/defs.ts';
 import type { PrinterSpec } from '../../schema/printers.ts';
 
 export type { MountKind } from '../../schema/defs.ts';
+
+/**
+ * A view-only pose of an articulated mount (the wall arm), in degrees: the
+ * arm swung on the plate's pivot, the outer link swung on a swing elbow's
+ * pivot, the hub tilted on its hanger's hinge. It moves parts in the world
+ * only: it never enters a part's params (so buildKeys and hashes do not
+ * change with it). Other mounts ignore it.
+ */
+export interface MountPose {
+  swing: Deg;
+  elbowSwing: Deg;
+  hubTilt: Deg;
+}
+
+/** The pose at rest: every part where the project puts it. */
+export const ZERO_POSE: Readonly<MountPose> = Object.freeze({
+  swing: 0,
+  elbowSwing: 0,
+  hubTilt: 0,
+});
 
 /** What every step of a mount module may read. */
 export interface MountCtx<K extends MountKind = MountKind> {
@@ -71,6 +92,8 @@ export interface MountShade {
   zCollar: number;
   /** Its lowest point in the shade frame (≤ 0); default −zCollar (a part standing on its open end). */
   zBottom?: number;
+  /** Its radius about the axis (the widest part's footprint), for the wall arm's swing check. */
+  radius?: number;
   /** Its parts; default the collar part alone, hanging at −zCollar. */
   parts?: readonly MountShadePart[];
 }
@@ -136,8 +159,11 @@ export interface MountModule<K extends MountKind = MountKind> {
   hubFace(ctx: MountCtx<K>): HubMountFace;
   /** The mount's own parts and joints. Not called in fit-test mode (the joint's test pair is printed instead). */
   parts(ctx: MountHubCtx<K>): MountParts;
-  /** World transforms of everything, and what the lamp is mounted on. */
-  placement(ctx: MountHubCtx<K>, parts: MountParts): MountPlacement;
+  /**
+   * World transforms of everything, and what the lamp is mounted on, at
+   * `pose` (`ZERO_POSE` unless the viewport poses an articulated mount).
+   */
+  placement(ctx: MountHubCtx<K>, parts: MountParts, pose: Readonly<MountPose>): MountPlacement;
   /** For the CLI's `part <kind>`: this mount, changed so that it has a part of `kind`. */
   withPart?(kind: PartKind, mount: MountOf<K>): MountOf<K>;
 }
