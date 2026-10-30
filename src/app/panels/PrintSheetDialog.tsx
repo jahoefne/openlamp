@@ -17,6 +17,7 @@ import { useProjectStore } from '../store/projectStore.ts';
 import { useUiStore } from '../store/uiStore.ts';
 import dialogStyles from './dialog.module.css';
 import styles from './PrintSheetDialog.module.css';
+import { nordicLettering } from '../brand/lettering.ts';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const HTML_ESCAPES: Readonly<Record<string, string>> = {
@@ -59,7 +60,7 @@ function SheetContent() {
     <>
       <div className={`${dialogStyles.header} ${styles.header}`}>
         <div>
-          <p className={dialogStyles.eyebrow}>From screen to object</p>
+          <p className={dialogStyles.eyebrow}>{nordicLettering('From screen to object')}</p>
           <Dialog.Title className={dialogStyles.title}>Print sheet</Dialog.Title>
           <Dialog.Description className={dialogStyles.description}>
             Your parts, assembly steps and printing notes, all in one place.

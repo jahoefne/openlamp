@@ -8,6 +8,7 @@ import type { Warning } from '@core/model/assembly.ts';
 import { isParamVisible, type ParamGroup, type ParamValues } from '@core/schema/defs.ts';
 import { NumberField } from './fields/NumberField.tsx';
 import { SelectField } from './fields/SelectField.tsx';
+import { nordicLettering } from '../brand/lettering.ts';
 
 export interface SchemaFormProps {
   groups: readonly ParamGroup[];
@@ -48,7 +49,7 @@ export function SchemaForm({
     if (visible.length === 0 && !leading) return null;
     return (
       <fieldset key={group.id}>
-        <legend>{group.label}</legend>
+        <legend aria-label={group.label}>{nordicLettering(group.label)}</legend>
         {leading}
         {visible.map((def) =>
           def.type === 'select' ? (

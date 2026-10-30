@@ -13,6 +13,7 @@ import {
 import { useProjectStore } from '../store/projectStore.ts';
 import { useBedFit } from '../store/selectors.ts';
 import { DialogGlyph } from './DialogGlyph.tsx';
+import { nordicLettering } from '../brand/lettering.ts';
 import styles from './dialog.module.css';
 
 const VENDORS = [...new Set(PRINTERS.map((p) => p.vendor))];
@@ -128,7 +129,7 @@ export function PrinterDialog({
         <Dialog.Content className={styles.content}>
           <div className={styles.header}>
             <div>
-              <p className={styles.eyebrow}>Made for your workbench</p>
+              <p className={styles.eyebrow}>{nordicLettering('Made for your workbench')}</p>
               <Dialog.Title className={styles.title}>Printer</Dialog.Title>
               <Dialog.Description className={styles.description}>
                 Choose where your lamp comes to life. We’ll check the fit as you design.

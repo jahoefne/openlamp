@@ -9,6 +9,7 @@ import { NODE_LABELS } from '../store/nodes.ts';
 import { useShownNode } from '../store/selectors.ts';
 import { Inspector } from './Inspector.tsx';
 import styles from './InspectorSheet.module.css';
+import { nordicLettering } from '../brand/lettering.ts';
 
 export function InspectorSheet({
   open,
@@ -27,7 +28,9 @@ export function InspectorSheet({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className={styles.header}>
-          <Dialog.Title className={styles.title}>{NODE_LABELS[node]}</Dialog.Title>
+          <Dialog.Title className={styles.title} aria-label={NODE_LABELS[node]}>
+            {nordicLettering(NODE_LABELS[node])}
+          </Dialog.Title>
           <Dialog.Close className={styles.close} aria-label="Close the inspector">
             ✕
           </Dialog.Close>

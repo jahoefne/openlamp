@@ -16,6 +16,7 @@ import { PrinterInspector } from './inspectors/PrinterInspector.tsx';
 import { ProjectInspector } from './inspectors/ProjectInspector.tsx';
 import { ShadeInspector } from './inspectors/ShadeInspector.tsx';
 import styles from './Inspector.module.css';
+import { nordicLettering } from '../brand/lettering.ts';
 
 function NodeInspector({ node }: { node: NodeId }) {
   switch (node) {
@@ -43,9 +44,11 @@ export function Inspector({ heading = true }: { heading?: boolean }) {
     <div className={styles.inspector} data-node={node}>
       {heading ? (
         <>
-          <p className={styles.eyebrow}>{lit ? 'Sculpt the light' : 'Make it yours'}</p>
-          <h2 className={styles.title} id="inspector-title">
-            {NODE_LABELS[node]}
+          <p className={styles.eyebrow}>
+            {nordicLettering(lit ? 'Sculpt the light' : 'Make it yours')}
+          </p>
+          <h2 className={styles.title} id="inspector-title" aria-label={NODE_LABELS[node]}>
+            {nordicLettering(NODE_LABELS[node])}
           </h2>
           <p className={styles.intro}>
             {node === 'outerShade' || node === 'innerShade'

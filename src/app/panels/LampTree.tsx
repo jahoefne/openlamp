@@ -31,6 +31,7 @@ import { useProjectStore } from '../store/projectStore.ts';
 import { useAssembly } from '../store/selectors.ts';
 import { useUiStore } from '../store/uiStore.ts';
 import styles from './LampTree.module.css';
+import { nordicLettering } from '../brand/lettering.ts';
 
 const JOINT_LABELS: Readonly<Record<string, string>> = {
   bayonet: 'bayonet',
@@ -226,7 +227,11 @@ export function LampTree({ expanded, collapsible, onToggle, onPick }: LampTreePr
   return (
     <nav className={styles.tree} aria-label="Lamp tree" data-expanded={expanded}>
       <div className={styles.head}>
-        {expanded ? <h2 className={styles.title}>Lamp</h2> : null}
+        {expanded ? (
+          <h2 className={styles.title} aria-label="Lamp">
+            {nordicLettering('Lamp')}
+          </h2>
+        ) : null}
         {collapsible ? (
           <button
             type="button"
@@ -268,7 +273,9 @@ export function LampTree({ expanded, collapsible, onToggle, onPick }: LampTreePr
       {others.length > 0 ? (
         <>
           {expanded ? (
-            <h3 className={styles.group}>{fitPieces ? 'Fit-test pieces' : 'Mount parts'}</h3>
+            <h3 className={styles.group} aria-label={fitPieces ? 'Fit-test pieces' : 'Mount parts'}>
+              {nordicLettering(fitPieces ? 'Fit-test pieces' : 'Mount parts')}
+            </h3>
           ) : (
             <hr className={styles.divider} />
           )}

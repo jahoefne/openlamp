@@ -21,6 +21,7 @@ import { useWarningsByPath } from './warnings.ts';
 import { MOUNT_LAYOUT } from './hardwareLayout.ts';
 import { ParameterSection } from '../ParameterSection.tsx';
 import type { ParamGroup } from '@core/schema/defs.ts';
+import { nordicLettering } from '../../brand/lettering.ts';
 
 const isMountKind = (k: string): k is MountKind => (MOUNT_KINDS as readonly string[]).includes(k);
 
@@ -48,7 +49,7 @@ export function MountInspector() {
   return (
     <>
       <fieldset>
-        <legend>Mount</legend>
+        <legend aria-label="Mount">{nordicLettering('Mount')}</legend>
         <SelectField
           id="p-mount"
           label="Mount"

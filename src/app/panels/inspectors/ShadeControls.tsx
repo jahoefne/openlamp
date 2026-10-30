@@ -13,6 +13,7 @@ import { ClassicForm } from './ClassicForm.tsx';
 import { ShadeFamilyField, ShadeFamilyForm } from './ShadeFamilyForm.tsx';
 import { SHADE_LAYOUT } from './shadeLayout.ts';
 import { useWarningsByPath } from './warnings.ts';
+import { nordicLettering } from '../../brand/lettering.ts';
 
 /** Shared hierarchy for both shades; the original edit sessions preserve drag and undo semantics. */
 export function ShadeControls({ role, shade }: { role: ShadeRole; shade: ShadeSpec }) {
@@ -52,7 +53,7 @@ export function ShadeControls({ role, shade }: { role: ShadeRole; shade: ShadeSp
     <>
       {form(layout.shape)}
       <fieldset>
-        <legend>Style & colour</legend>
+        <legend aria-label="Style & colour">{nordicLettering('Style & colour')}</legend>
         <ShadeFamilyField role={role} family={family} idPrefix={idPrefix} />
         <ColourField
           id={`${idPrefix}colour`}

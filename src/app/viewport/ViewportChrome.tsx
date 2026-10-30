@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useProjectStore } from '../store/projectStore.ts';
 import { useUiStore } from '../store/uiStore.ts';
 import styles from './Viewport.module.css';
+import { nordicLettering } from '../brand/lettering.ts';
 
 const ICONS: Record<string, ReactNode> = {
   lamp: <path d="M9 3h6l5 12H4L9 3Zm3 12v6m-4 0h8" />,
@@ -41,12 +42,15 @@ export function ViewportChrome() {
   const light = useUiStore((s) => s.lightOn);
   const simple = useUiStore((s) => s.simpleLight);
   const lit = light && !bed;
+  const title = bed ? 'Ready to make.' : lit ? 'Find your afterglow.' : 'Made of light.';
   const { setViewMode, toggleLightOn, setSimpleLight, requestFit } = useUiStore.getState();
   return (
     <>
       <div className={styles.sceneHeading}>
-        <span className={styles.eyebrow}>OPENLAMP {lit ? 'AFTERGLOW' : 'ATELIER'}</span>
-        <h1>{bed ? 'Ready to make.' : lit ? 'Find your afterglow.' : 'Made of light.'}</h1>
+        <span className={styles.eyebrow}>
+          {nordicLettering(`OPENLAMP ${lit ? 'AFTERGLOW' : 'ATELIER'}`)}
+        </span>
+        <h1 aria-label={title}>{nordicLettering(title)}</h1>
         <p>
           {name || 'Untitled lamp'}{' '}
           <span>

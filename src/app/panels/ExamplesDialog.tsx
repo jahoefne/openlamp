@@ -13,6 +13,7 @@ import { useProjectStore } from '../store/projectStore.ts';
 import styles from './dialog.module.css';
 import { EXAMPLES } from './examples.ts';
 import { LampThumbnail } from './LampThumbnail.tsx';
+import { nordicLettering } from '../brand/lettering.ts';
 
 /** The lamp itself, without identity and bookkeeping: "is this still that example?". */
 function designKey(p: Project): string {
@@ -81,8 +82,10 @@ export function ExamplesDialog({
         <Dialog.Content className={`${styles.content} ${styles.galleryContent}`}>
           <div className={styles.header}>
             <div>
-              <p className={styles.eyebrow}>The openlamp collection</p>
-              <Dialog.Title className={styles.title}>Examples</Dialog.Title>
+              <p className={styles.eyebrow}>{nordicLettering('The openlamp collection')}</p>
+              <Dialog.Title className={styles.title} aria-label="Examples">
+                {nordicLettering('Examples')}
+              </Dialog.Title>
               <Dialog.Description className={styles.description}>
                 A starting point for something yours. Every shape is ready to explore.
               </Dialog.Description>

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { Warning } from '@core/model/assembly.ts';
 import { FieldNotes } from '../forms/fields/FieldNotes.tsx';
 import styles from './Inspector.module.css';
+import { nordicLettering } from '../brand/lettering.ts';
 
 /** Native keyboard disclosure; notes stay visible even when its fields are collapsed. */
 export function InspectorSection({
@@ -18,9 +19,12 @@ export function InspectorSection({
   return (
     <section className={styles.section} aria-label={`${title} settings`}>
       <details>
-        <summary className={styles.sectionSummary}>
+        <summary
+          className={styles.sectionSummary}
+          aria-label={`${title}: ${description}${warnings.length ? `. ${warnings.length} parameter ${warnings.length === 1 ? 'note' : 'notes'}` : ''}`}
+        >
           <span>
-            <span className={styles.sectionTitle}>{title}</span>
+            <span className={styles.sectionTitle}>{nordicLettering(title)}</span>
             <span className={styles.sectionHint}>{description}</span>
           </span>
           {warnings.length > 0 && (

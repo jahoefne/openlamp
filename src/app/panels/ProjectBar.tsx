@@ -17,6 +17,7 @@ import styles from './ProjectBar.module.css';
 import dialogStyles from './dialog.module.css';
 import { DialogGlyph } from './DialogGlyph.tsx';
 import { useAssembly, useBedFit } from '../store/selectors.ts';
+import { nordicLettering, WORDMARK } from '../brand/lettering.ts';
 
 /** Project file actions; App passes the persistence handlers. */
 export interface ProjectBarActions {
@@ -175,7 +176,7 @@ function ExportMenu({ onPrintSheet }: { onPrintSheet: () => void }) {
         >
           <DropdownMenu.Label className={dialogStyles.exportHeading}>
             <span className={dialogStyles.eyebrow}>From pixels to a print</span>
-            <span className={dialogStyles.exportTitle}>Make it real.</span>
+            <span className={dialogStyles.exportTitle}>{nordicLettering('Make it real.')}</span>
             <span className={dialogStyles.description}>
               {copies} {copies === 1 ? 'piece' : 'pieces'} · {fit.printer.name}
             </span>
@@ -256,8 +257,8 @@ export function ProjectBar({
 
   return (
     <header className={styles.bar}>
-      <div className={styles.brand}>
-        openlamp
+      <div className={styles.brand} role="img" aria-label="openlamp">
+        {WORDMARK}
         <span className={styles.logo} aria-hidden="true">
           ✳
         </span>

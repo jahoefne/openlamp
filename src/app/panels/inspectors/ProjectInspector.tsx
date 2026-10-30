@@ -14,6 +14,7 @@ import { newProjectId } from '../../persistence/identity.ts';
 import { useProjectStore } from '../../store/projectStore.ts';
 import { useUiStore, type SectionAxis } from '../../store/uiStore.ts';
 import styles from '../Inspector.module.css';
+import { nordicLettering } from '../../brand/lettering.ts';
 
 const FIT_TEST_HELP = CLASSIC_SHADE_DEFS.find((d) => d.key === 'fitTest')?.help;
 
@@ -23,7 +24,7 @@ function OutputOptions() {
   const { setQuality, setFitTest } = useProjectStore.getState();
   return (
     <fieldset>
-      <legend>Output</legend>
+      <legend aria-label="Output">{nordicLettering('Output')}</legend>
       <SelectField
         id="p-quality"
         label="Mesh quality"

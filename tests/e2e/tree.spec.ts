@@ -74,7 +74,7 @@ test('the table lamp lists its nodes and its parts with their bed fit', async ()
 test('selecting Hub & joints shows only its inspector', async () => {
   await selectNode(page, 'hub');
 
-  await expect(page.locator('#inspector h2')).toHaveText('Hub & joints');
+  await expect(page.locator('#inspector h2')).toHaveAccessibleName('Hub & joints');
   await expect(page.locator('#p-shadeToHub')).toBeVisible();
   await expect(page.locator('#p-jointTolerance')).toBeVisible();
   for (const other of ['#p-bottomDiameter', '#p-mount', '#p-light', '#p-quality']) {

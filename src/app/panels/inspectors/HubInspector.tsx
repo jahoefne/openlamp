@@ -15,6 +15,7 @@ import styles from '../Inspector.module.css';
 import { useWarningsByPath } from './warnings.ts';
 import { HUB_LAYOUT } from './hardwareLayout.ts';
 import { ParameterSection } from '../ParameterSection.tsx';
+import { nordicLettering } from '../../brand/lettering.ts';
 
 const asHubKey = (key: string) => key as HubJointKey;
 const asHubValue = (value: number | string) => value as HubJointParams[HubJointKey];
@@ -52,7 +53,7 @@ export function HubInspector() {
   return (
     <>
       <fieldset>
-        <legend>Assembly</legend>
+        <legend aria-label="Assembly">{nordicLettering('Assembly')}</legend>
         {strap && puck && revolved ? (
           <ToggleField
             id="p-fused"
