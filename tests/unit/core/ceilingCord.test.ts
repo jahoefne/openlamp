@@ -96,7 +96,7 @@ describe('assemble (pendant on a cord)', () => {
   it('hangs the canopy dropLength above the hub and the ceiling on top of it', () => {
     const a = assemble(pendant());
     const hd = deriveHub(hubParams(a));
-    const canopyZ = hd.hubHeight + 600;
+    const canopyZ = hd.hubHeight + 50;
     expect(a.derived).toMatchObject({
       hubHeight: hd.hubHeight,
       cordZ0: hd.hubHeight,

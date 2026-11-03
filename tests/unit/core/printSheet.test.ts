@@ -167,7 +167,7 @@ describe('the non-printed items', () => {
 
   it('pendant: the cord and the canopy screws; no screws for joints, no inserts', () => {
     const list = items(lamp(defaultMount('ceilingCord'))).join('\n');
-    expect(list).toMatch(/Cord Ø4 mm, at least 800 mm .*: the puck's USB cable/);
+    expect(list).toMatch(/Cord Ø4 mm, at least 250 mm .*: the puck's USB cable/);
     expect(list).toContain('2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs');
     expect(list).not.toContain('M3');
   });
@@ -271,7 +271,7 @@ describe('the assembly steps', () => {
     const s = steps(lamp(defaultMount('ceilingCord'))).join('\n');
     expect(s).toMatch(/cord boss.*knot cavity/);
     expect(s).toContain('Press the LED puck into the hub');
-    expect(s).toContain("tie a knot 600 mm above the hub, so it sits in the canopy's recess");
+    expect(s).toContain("tie a knot 50 mm above the hub, so it sits in the canopy's recess");
     expect(s).toContain('Screw the canopy to the ceiling through its two slots (60 mm apart)');
     expect(s).toMatch(/Fit the shade to the hub/);
   });
@@ -279,7 +279,7 @@ describe('the assembly steps', () => {
   it('pendant with a collet: the grip sets the drop', () => {
     const mount = { ...defaultMount('ceilingCord'), grip: 'collet' as const };
     const p = lamp(mount);
-    expect(steps(p).join('\n')).toContain('screw the cord grip on loosely, set the drop to 600 mm');
+    expect(steps(p).join('\n')).toContain('screw the cord grip on loosely, set the drop to 50 mm');
     expect(printingNotes(input(p))).toContain(
       'Print the cord grip in PETG: it is tightened onto the collet and stays under load.',
     );

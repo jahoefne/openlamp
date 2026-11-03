@@ -584,7 +584,7 @@ const CORD_MOUNT_SCHEMA = [
         min: 50,
         max: 3000,
         step: 10,
-        default: 600,
+        default: 50,
         help: 'Cord between the top of the hub and the canopy.',
       },
       {

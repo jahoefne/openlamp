@@ -232,7 +232,7 @@ describe('mounts', () => {
     expect(project().mount).toMatchObject({ dropLength: 720 });
     pause();
     undo();
-    expect(project().mount).toMatchObject({ dropLength: 600 });
+    expect(project().mount).toMatchObject({ dropLength: 50 });
   });
 
   it('switching the standing variant applies its defaults to the unedited fields, one step', () => {

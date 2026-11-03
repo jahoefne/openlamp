@@ -32,7 +32,7 @@
   "mount": {
     "kind": "ceilingCord",
     "cordDiameter": 4,
-    "dropLength": 600,
+    "dropLength": 50,
     "grip": "knot",
     "canopy": {
       "diameter": 90,

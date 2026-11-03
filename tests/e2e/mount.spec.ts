@@ -44,7 +44,7 @@ test('Mount → Pendant on a cord builds the hub, the shade and the canopy', asy
   await chooseMount('Pendant on a cord');
 
   await expect(partNames(page)).toHaveText(['Hub', 'Shade', 'Canopy']);
-  await expect(page.locator('#p-dropLength')).toHaveValue('600');
+  await expect(page.locator('#p-dropLength')).toHaveValue('50');
   await expect(page.getByTestId('tree-mount')).toContainText('Pendant on a cord');
   await expect(page.getByTestId('tree-part-canopy')).toBeVisible();
   await expect(statsOf(page).getByText(/^⚠/)).toHaveCount(0);

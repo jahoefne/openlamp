@@ -117,7 +117,7 @@ exports[`the print sheet of e27-pendant.lamp.json > matches its snapshot 1`] = `
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
-- **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); E27 LED bulb in a lampholder (shade ring); shade on a bayonet joint
+- **Lamp:** Pendant on a cord (50 mm drop, knotted in the canopy); E27 LED bulb in a lampholder (shade ring); shade on a bayonet joint
 - **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
 - **Export:** 3 STL files, one per part, at normal quality
 
@@ -136,14 +136,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 - 1 × E27 lampholder with a threaded sleeve for the Ø40.5 mm hole and its shade ring
 - 1 × E27 LED bulb, at most Ø60 × 110 mm (LED only: no incandescent or halogen bulbs)
-- Cord Ø6 mm, at least 800 mm (the 600 mm drop and the knots) plus the run from the canopy to the power: a 2-core mains cord set with a plug and a switch (or wired to the outlet by a qualified person)
+- Cord Ø6 mm, at least 250 mm (the 50 mm drop and the knots) plus the run from the canopy to the power: a 2-core mains cord set with a plug and a switch (or wired to the outlet by a qualified person)
 - 2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs, for the canopy's slots (60 mm apart)
 
 ## Assembly
 
 1. Feed the cord down through the hub's cord boss and tie a knot that sits in the knot cavity (reach in through the hole in the hub's plate).
 2. Wire the E27 lampholder to the cord (mains wiring: have it done by a qualified person), then pass its threaded sleeve through the Ø40.5 mm hole in the hub's plate and screw its shade ring on from the light face, so the plate is clamped.
-3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 600 mm above the hub, so it sits in the canopy's recess.
+3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 50 mm above the hub, so it sits in the canopy's recess.
 4. Screw the canopy to the ceiling through its two slots (60 mm apart) with the screws and wall plugs; connect the cable at the ceiling outlet (mains wiring: have it done by a qualified person).
 5. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
 6. Screw in an E27 LED bulb, at most Ø60 × 110 mm (LED bulbs only).
@@ -309,7 +309,7 @@ exports[`the print sheet of lattice-drum.lamp.json > matches its snapshot 1`] = 
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
-- **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
+- **Lamp:** Pendant on a cord (50 mm drop, knotted in the canopy); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
 - **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
 - **Export:** 3 STL files, one per part, at normal quality
 
@@ -328,14 +328,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 - 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
 - 1 × USB power adapter (5 V)
-- Cord Ø4 mm, at least 800 mm (the 600 mm drop and the knots) plus the run from the canopy to the power: the puck's USB cable or a USB extension
+- Cord Ø4 mm, at least 250 mm (the 50 mm drop and the knots) plus the run from the canopy to the power: the puck's USB cable or a USB extension
 - 2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs, for the canopy's slots (60 mm apart)
 
 ## Assembly
 
 1. Feed the cord down through the hub's cord boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity.
 2. Press the LED puck into the hub from the light face until it stops; the crush ribs hold it.
-3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 600 mm above the hub, so it sits in the canopy's recess.
+3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 50 mm above the hub, so it sits in the canopy's recess.
 4. Screw the canopy to the ceiling through its two slots (60 mm apart) with the screws and wall plugs; run the cable on to the power supply.
 5. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
 
@@ -383,7 +383,7 @@ exports[`the print sheet of origami-pendant.lamp.json > matches its snapshot 1`]
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
-- **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
+- **Lamp:** Pendant on a cord (50 mm drop, knotted in the canopy); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
 - **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
 - **Export:** 3 STL files, one per part, at normal quality
 
@@ -402,14 +402,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 - 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
 - 1 × USB power adapter (5 V)
-- Cord Ø4 mm, at least 800 mm (the 600 mm drop and the knots) plus the run from the canopy to the power: the puck's USB cable or a USB extension
+- Cord Ø4 mm, at least 250 mm (the 50 mm drop and the knots) plus the run from the canopy to the power: the puck's USB cable or a USB extension
 - 2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs, for the canopy's slots (60 mm apart)
 
 ## Assembly
 
 1. Feed the cord down through the hub's cord boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity.
 2. Press the LED puck into the hub from the light face until it stops; the crush ribs hold it.
-3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 600 mm above the hub, so it sits in the canopy's recess.
+3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 50 mm above the hub, so it sits in the canopy's recess.
 4. Screw the canopy to the ceiling through its two slots (60 mm apart) with the screws and wall plugs; run the cable on to the power supply.
 5. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
 
@@ -458,7 +458,7 @@ exports[`the print sheet of pendant-cord.lamp.json > matches its snapshot 1`] = 
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
-- **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
+- **Lamp:** Pendant on a cord (50 mm drop, knotted in the canopy); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
 - **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
 - **Export:** 3 STL files, one per part, at normal quality
 
@@ -477,14 +477,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 - 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
 - 1 × USB power adapter (5 V)
-- Cord Ø4 mm, at least 800 mm (the 600 mm drop and the knots) plus the run from the canopy to the power: the puck's USB cable or a USB extension
+- Cord Ø4 mm, at least 250 mm (the 50 mm drop and the knots) plus the run from the canopy to the power: the puck's USB cable or a USB extension
 - 2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs, for the canopy's slots (60 mm apart)
 
 ## Assembly
 
 1. Feed the cord down through the hub's cord boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity.
 2. Press the LED puck into the hub from the light face until it stops; the crush ribs hold it.
-3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 600 mm above the hub, so it sits in the canopy's recess.
+3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 50 mm above the hub, so it sits in the canopy's recess.
 4. Screw the canopy to the ceiling through its two slots (60 mm apart) with the screws and wall plugs; run the cable on to the power supply.
 5. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
 
@@ -532,7 +532,7 @@ exports[`the print sheet of ph-layered.lamp.json > matches its snapshot 1`] = `
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
-- **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); E27 LED bulb in a lampholder (shade ring); shade on a bayonet joint
+- **Lamp:** Pendant on a cord (50 mm drop, knotted in the canopy); E27 LED bulb in a lampholder (shade ring); shade on a bayonet joint
 - **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
 - **Export:** 9 STL files, one per part, at normal quality
 
@@ -557,14 +557,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 - 1 × E27 lampholder with a threaded sleeve for the Ø40.5 mm hole and its shade ring
 - 1 × E27 LED bulb, at most Ø60 × 110 mm (LED only: no incandescent or halogen bulbs)
-- Cord Ø6 mm, at least 800 mm (the 600 mm drop and the knots) plus the run from the canopy to the power: a 2-core mains cord set with a plug and a switch (or wired to the outlet by a qualified person)
+- Cord Ø6 mm, at least 250 mm (the 50 mm drop and the knots) plus the run from the canopy to the power: a 2-core mains cord set with a plug and a switch (or wired to the outlet by a qualified person)
 - 2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs, for the canopy's slots (60 mm apart)
 
 ## Assembly
 
 1. Feed the cord down through the hub's cord boss and tie a knot that sits in the knot cavity (reach in through the hole in the hub's plate).
 2. Wire the E27 lampholder to the cord (mains wiring: have it done by a qualified person), then pass its threaded sleeve through the Ø40.5 mm hole in the hub's plate and screw its shade ring on from the light face, so the plate is clamped.
-3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 600 mm above the hub, so it sits in the canopy's recess.
+3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 50 mm above the hub, so it sits in the canopy's recess.
 4. Screw the canopy to the ceiling through its two slots (60 mm apart) with the screws and wall plugs; connect the cable at the ceiling outlet (mains wiring: have it done by a qualified person).
 5. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
 6. Screw in an E27 LED bulb, at most Ø60 × 110 mm (LED bulbs only).
@@ -668,7 +668,7 @@ exports[`the print sheet of slatted-drum.lamp.json > matches its snapshot 1`] = 
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
-- **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
+- **Lamp:** Pendant on a cord (50 mm drop, knotted in the canopy); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
 - **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
 - **Export:** 3 STL files, one per part, at normal quality
 
@@ -687,14 +687,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 - 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
 - 1 × USB power adapter (5 V)
-- Cord Ø4 mm, at least 800 mm (the 600 mm drop and the knots) plus the run from the canopy to the power: the puck's USB cable or a USB extension
+- Cord Ø4 mm, at least 250 mm (the 50 mm drop and the knots) plus the run from the canopy to the power: the puck's USB cable or a USB extension
 - 2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs, for the canopy's slots (60 mm apart)
 
 ## Assembly
 
 1. Feed the cord down through the hub's cord boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity.
 2. Press the LED puck into the hub from the light face until it stops; the crush ribs hold it.
-3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 600 mm above the hub, so it sits in the canopy's recess.
+3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 50 mm above the hub, so it sits in the canopy's recess.
 4. Screw the canopy to the ceiling through its two slots (60 mm apart) with the screws and wall plugs; run the cable on to the power supply.
 5. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
 
@@ -798,7 +798,7 @@ exports[`the print sheet of strip-drum.lamp.json > matches its snapshot 1`] = `
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
-- **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); 10 mm LED strip in a Ø120 mm ring; shade on a bayonet joint
+- **Lamp:** Pendant on a cord (50 mm drop, knotted in the canopy); 10 mm LED strip in a Ø120 mm ring; shade on a bayonet joint
 - **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
 - **Export:** 3 STL files, one per part, at normal quality
 
@@ -817,14 +817,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 - 1 × LED strip 10 mm wide, about 410 mm long (a bendable S-type strip lies flat in the ring)
 - 1 × power supply matching the strip (5 V or 12 V)
-- Cord Ø4 mm, at least 800 mm (the 600 mm drop and the knots) plus the run from the canopy to the power: the strip's power cable or an extension
+- Cord Ø4 mm, at least 250 mm (the 50 mm drop and the knots) plus the run from the canopy to the power: the strip's power cable or an extension
 - 2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs, for the canopy's slots (60 mm apart)
 
 ## Assembly
 
 1. Stick the LED strip into the ring channel on the hub's light face, adhesive side on the channel's ceiling, and feed its cable up through the slot in the channel.
 2. The cord is the strip's power cable: feed it down through the hub's cord boss, tie a knot that sits in the knot cavity (reach in through the opening in the middle of the light face) and lead it out through the side opening of the boss over the disc to the strip.
-3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 600 mm above the hub, so it sits in the canopy's recess.
+3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 50 mm above the hub, so it sits in the canopy's recess.
 4. Screw the canopy to the ceiling through its two slots (60 mm apart) with the screws and wall plugs; run the cable on to the power supply.
 5. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
 
@@ -1157,7 +1157,7 @@ exports[`the print sheet of two-tone-bell.lamp.json > matches its snapshot 1`] =
 
 Print sheet · 2026-10-21 · [Open this lamp in openlamp](https://jahoefne.github.io/openlamp/#p=TEST)
 
-- **Lamp:** Pendant on a cord (600 mm drop, knotted in the canopy); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
+- **Lamp:** Pendant on a cord (50 mm drop, knotted in the canopy); USB LED puck (Bambu Lab LED Lamp Kit-001, Ø59 × 8 mm); shade on a bayonet joint
 - **Printer:** Bambu Lab A1, bed 256 × 256 × 256 mm, 0.4 mm nozzle, multi-colour (AMS lite)
 - **Export:** 4 STL files, one per part, at normal quality
 
@@ -1177,14 +1177,14 @@ PLA: estimated weight of all copies; "—" until the part is built in openlamp. 
 
 - 1 × USB LED puck: Bambu Lab LED Lamp Kit-001 (Ø59 × 8 mm) or any puck of that size, with its USB cable
 - 1 × USB power adapter (5 V)
-- Cord Ø4 mm, at least 800 mm (the 600 mm drop and the knots) plus the run from the canopy to the power: the puck's USB cable or a USB extension
+- Cord Ø4 mm, at least 250 mm (the 50 mm drop and the knots) plus the run from the canopy to the power: the puck's USB cable or a USB extension
 - 2 × ceiling screws up to Ø4 mm with heads up to Ø9 mm, and wall plugs, for the canopy's slots (60 mm apart)
 
 ## Assembly
 
 1. Feed the cord down through the hub's cord boss, pull it out through the light opening, tie a knot and pull it back up into the knot cavity.
 2. Press the LED puck into the hub from the light face until it stops; the crush ribs hold it.
-3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 600 mm above the hub, so it sits in the canopy's recess.
+3. Feed the other end of the cord up through the canopy's cord hole and tie a knot 50 mm above the hub, so it sits in the canopy's recess.
 4. Screw the canopy to the ceiling through its two slots (60 mm apart) with the screws and wall plugs; run the cable on to the power supply.
 5. Fit the shade to the hub: push its lugs into the slots of the hub's ring and turn it clockwise (seen from the shade's open end) until it stops.
 
